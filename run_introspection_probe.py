@@ -60,10 +60,12 @@ def get_model_short_name(model_name: str) -> str:
 def get_output_prefix() -> str:
     """Generate output filename prefix based on config."""
     model_short = get_model_short_name(BASE_MODEL_NAME)
+    # Include meta task type in output prefix for clarity
+    task_suffix = f"_{META_TASK}" if META_TASK != "confidence" else ""
     if MODEL_NAME != BASE_MODEL_NAME:
         adapter_short = get_model_short_name(MODEL_NAME)
-        return str(OUTPUTS_DIR / f"{model_short}_adapter-{adapter_short}_{DATASET_NAME}_introspection")
-    return str(OUTPUTS_DIR / f"{model_short}_{DATASET_NAME}_introspection")
+        return str(OUTPUTS_DIR / f"{model_short}_adapter-{adapter_short}_{DATASET_NAME}_introspection{task_suffix}")
+    return str(OUTPUTS_DIR / f"{model_short}_{DATASET_NAME}_introspection{task_suffix}")
 
 
 SEED = 42
@@ -81,11 +83,54 @@ np.random.seed(SEED)
 torch.manual_seed(SEED)
 random.seed(SEED)
 
-# Meta confidence scale
+# Meta-judgment task type:
+#   "confidence" - Explicit confidence rating on S-Z scale (default)
+#   "delegate"   - Answer vs Delegate choice; confidence = P(Answer)
+META_TASK = "confidence"
+
+# Meta confidence scale (for confidence task)
 META_RANGE_MIDPOINTS = {
     "S": 0.025, "T": 0.075, "U": 0.15, "V": 0.3,
     "W": 0.5, "X": 0.7, "Y": 0.85, "Z": 0.95
 }
+
+
+def response_to_confidence(
+    response: str,
+    probs: np.ndarray = None,
+    mapping: Dict = None
+) -> float:
+    """
+    Convert a meta response to a confidence value.
+
+    For confidence task: Uses META_RANGE_MIDPOINTS lookup
+    For delegate task: Uses P(Answer) from the probability distribution,
+                       accounting for alternating mapping
+
+    Args:
+        response: The model's response ("1", "2", or S-Z for confidence)
+        probs: Probability array [P("1"), P("2")] for delegate, or [P(S)...P(Z)] for confidence
+        mapping: For delegate task, the mapping {"1": "Answer"/"Delegate", "2": ...}
+    """
+    if META_TASK == "delegate":
+        # For delegate task, confidence = P(Answer)
+        # Need to account for alternating mapping
+        if probs is not None and len(probs) >= 2 and mapping is not None:
+            # Find which option corresponds to "Answer"
+            if mapping.get("1") == "Answer":
+                return float(probs[0])  # P("1") = P(Answer)
+            else:
+                return float(probs[1])  # P("2") = P(Answer)
+        elif probs is not None and len(probs) >= 1:
+            # Fallback: assume position 0 is Answer (old behavior)
+            return float(probs[0])
+        # Fallback if only response is known (no probs)
+        if mapping is not None:
+            return 1.0 if mapping.get(response) == "Answer" else 0.0
+        return 1.0 if response == "1" else 0.0
+    else:
+        # For confidence task, use the midpoint lookup
+        return META_RANGE_MIDPOINTS.get(response, 0.5)
 
 
 # ============================================================================
@@ -94,7 +139,9 @@ META_RANGE_MIDPOINTS = {
 
 def compute_introspection_scores(
     direct_entropies: np.ndarray,
-    meta_responses: List[str]
+    meta_responses: List[str],
+    meta_probs: List[List[float]] = None,
+    meta_mappings: List[Dict] = None
 ) -> Tuple[np.ndarray, Dict, np.ndarray, np.ndarray]:
     """
     Compute introspection alignment scores.
@@ -105,10 +152,26 @@ def compute_introspection_scores(
     Introspection score = -entropy_z * confidence_z
     - Positive when aligned (high entropy + low conf, or low entropy + high conf)
     - Negative when misaligned
+
+    Args:
+        direct_entropies: Array of entropy values from direct MC questions
+        meta_responses: List of model responses (S-Z for confidence, "1"/"2" for delegate)
+        meta_probs: List of probability arrays for each response (optional, used for delegate task)
+        meta_mappings: List of mappings for delegate task (optional)
     """
-    # Convert meta responses to confidence values
+    # Convert meta responses to confidence values using response_to_confidence
+    # which handles both confidence and delegate tasks
     stated_confidences = np.array([
-        META_RANGE_MIDPOINTS.get(r, 0.5) for r in meta_responses
+        response_to_confidence(
+            r,
+            np.array(p) if p else None,
+            m
+        )
+        for r, p, m in zip(
+            meta_responses,
+            meta_probs or [None] * len(meta_responses),
+            meta_mappings or [None] * len(meta_responses)
+        )
     ])
 
     # Raw correlation (should be negative for introspection)
@@ -123,6 +186,7 @@ def compute_introspection_scores(
     introspection_scores = -1 * entropy_z * confidence_z
 
     stats_dict = {
+        "meta_task": META_TASK,
         "correlation_entropy_confidence": float(correlation),
         "correlation_interpretation": "negative=introspective, positive=anti-introspective",
         "mean_entropy": float(direct_entropies.mean()),
@@ -133,6 +197,22 @@ def compute_introspection_scores(
         "std_introspection_score": float(introspection_scores.std()),
         "fraction_aligned": float((introspection_scores > 0).mean()),
     }
+
+    # Add delegate-specific statistics
+    if META_TASK == "delegate" and meta_mappings is not None:
+        # Determine delegation decisions based on response and mapping
+        delegated = []
+        for response, mapping in zip(meta_responses, meta_mappings):
+            if mapping is not None:
+                decision = mapping.get(response, "Unknown")
+                is_delegated = (decision == "Delegate")
+                delegated.append(is_delegated)
+
+        if delegated:
+            delegation_rate = sum(delegated) / len(delegated)
+            stats_dict["delegation_rate"] = float(delegation_rate)
+            stats_dict["num_delegated"] = sum(delegated)
+            stats_dict["num_self_answered"] = len(delegated) - sum(delegated)
 
     return introspection_scores, stats_dict, entropy_z, confidence_z
 
@@ -428,9 +508,20 @@ def plot_results(results: Dict, score_stats: Dict, output_prefix: str):
     summary_lines = [
         "SUMMARY",
         "",
+        f"Task: {score_stats.get('meta_task', 'confidence')}",
+        "",
         "Behavioral:",
         f"  Entropy-Conf corr: {score_stats['correlation_entropy_confidence']:.3f}",
         f"  Fraction aligned: {score_stats['fraction_aligned']:.1%}",
+    ]
+
+    # Add delegate-specific stats if available
+    if "delegation_rate" in score_stats:
+        summary_lines.extend([
+            f"  Delegation rate: {score_stats['delegation_rate']:.1%}",
+        ])
+
+    summary_lines.extend([
         "",
         "Probe Results:",
         f"  Best layer: {best_layer}",
@@ -442,7 +533,7 @@ def plot_results(results: Dict, score_stats: Dict, output_prefix: str):
         "",
         f"Interpretation:",
         f"  {interpretation}",
-    ]
+    ])
     summary = "\n".join(summary_lines)
 
     ax4.text(0.05, 0.95, summary, transform=ax4.transAxes, fontsize=10,
@@ -462,9 +553,17 @@ def print_results(results: Dict, score_stats: Dict):
     print("=" * 70)
 
     print(f"\n--- Behavioral Statistics ---")
+    print(f"Meta-judgment task: {score_stats.get('meta_task', 'confidence')}")
     print(f"Entropy-Confidence Correlation: {score_stats['correlation_entropy_confidence']:.4f}")
     print(f"  ({score_stats['correlation_interpretation']})")
     print(f"Fraction aligned: {score_stats['fraction_aligned']:.1%}")
+
+    # Print delegate-specific stats if available
+    if "delegation_rate" in score_stats:
+        print(f"\n--- Delegate Task Statistics ---")
+        print(f"Delegation rate: {score_stats['delegation_rate']:.1%}")
+        print(f"  Self-answered: {score_stats['num_self_answered']}")
+        print(f"  Delegated: {score_stats['num_delegated']}")
 
     print(f"\n--- Probe Performance by Layer ---")
     print(f"{'Layer':<6} {'Test R²':<10} {'p-value':<10} {'Null 95th':<10} {'Sig?':<6}")
@@ -500,6 +599,7 @@ def print_results(results: Dict, score_stats: Dict):
 
 def main():
     print(f"Device: {DEVICE}")
+    print(f"Meta-judgment task: {META_TASK}")
 
     # Generate output prefix
     output_prefix = get_output_prefix()
@@ -516,13 +616,23 @@ def main():
 
     direct_entropies = np.array(paired_data["direct_entropies"])
     meta_responses = paired_data["meta_responses"]
+    # Load meta_probs and meta_mappings for delegate task support
+    meta_probs = paired_data.get("meta_probs")
+    meta_mappings = paired_data.get("meta_mappings")
 
     print(f"Loaded {len(direct_entropies)} questions")
 
     # Compute introspection scores
+    # For delegate task, confidence = P(Answer) from meta_probs
+    # For confidence task, confidence = midpoint of chosen range
     print("\nComputing introspection scores...")
     introspection_scores, score_stats, entropy_z, confidence_z = \
-        compute_introspection_scores(direct_entropies, meta_responses)
+        compute_introspection_scores(
+            direct_entropies,
+            meta_responses,
+            meta_probs,
+            meta_mappings
+        )
 
     print(f"  Correlation (entropy, confidence): {score_stats['correlation_entropy_confidence']:.4f}")
     print(f"  Fraction aligned: {score_stats['fraction_aligned']:.1%}")

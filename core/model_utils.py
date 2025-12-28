@@ -120,9 +120,15 @@ def load_model_and_tokenizer(
         Tuple of (model, tokenizer, num_layers)
     """
     if torch_dtype is None:
-        torch_dtype = torch.float16 if DEVICE == "cuda" else torch.float32
+        torch_dtype = torch.bfloat16 if DEVICE == "cuda" else torch.float32
 
     print(f"Loading model: {base_model_name}")
+
+    model_kwargs = {
+        "torch_dtype": torch_dtype,
+        "device_map": device_map,
+        "token": HF_TOKEN
+    }
 
     # Build quantization config if requested
     quantization_config = None
@@ -142,6 +148,7 @@ def load_model_and_tokenizer(
                     load_in_8bit=True,
                     llm_int8_enable_fp32_cpu_offload=True  # Allow CPU offload if needed
                 )
+                model_kwargs["device_map"] = {"": 0}
                 print("  Using 8-bit quantization (with CPU offload if needed)")
         except ImportError:
             print("  Warning: bitsandbytes not installed, falling back to fp16")
@@ -152,11 +159,6 @@ def load_model_and_tokenizer(
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"  # Left-pad for proper batched generation
 
-    model_kwargs = {
-        "torch_dtype": torch_dtype,
-        "device_map": device_map,
-        "token": HF_TOKEN
-    }
     if quantization_config is not None:
         model_kwargs["quantization_config"] = quantization_config
 

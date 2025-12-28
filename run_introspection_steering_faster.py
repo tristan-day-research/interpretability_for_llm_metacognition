@@ -29,18 +29,19 @@ stated confidence and actual entropy.
 
 import torch
 import numpy as np
-from transformers import AutoTokenizer, AutoModelForCausalLM
 import json
 from pathlib import Path
 from tqdm import tqdm
 from typing import List, Dict, Tuple, Optional
 import matplotlib.pyplot as plt
-import os
-from dotenv import load_dotenv
 import random
 
-load_dotenv()
-HF_TOKEN = os.environ.get("HF_TOKEN")
+from core.model_utils import (
+    load_model_and_tokenizer,
+    should_use_chat_template,
+    get_model_short_name,
+    DEVICE,
+)
 
 # =============================================================================
 # CONFIGURATION
@@ -73,14 +74,6 @@ OUTPUTS_DIR = Path("outputs")
 OUTPUTS_DIR.mkdir(exist_ok=True)
 
 
-def get_model_short_name(model_name: str) -> str:
-    """Extract a short, filesystem-safe name from a model path."""
-    if "/" in model_name:
-        parts = model_name.split("/")
-        return parts[-1]
-    return model_name
-
-
 def get_output_prefix() -> str:
     """Generate output filename prefix based on config."""
     model_short = get_model_short_name(BASE_MODEL_NAME)
@@ -103,7 +96,6 @@ BATCH_SIZE = 8  # Batch size for forward passes
 LOAD_IN_4BIT = False
 LOAD_IN_8BIT = False
 
-DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 SEED = 42
 
 np.random.seed(SEED)
@@ -167,30 +159,6 @@ def get_delegate_mapping(trial_index: int) -> Dict[str, str]:
         return {"1": "Answer", "2": "Delegate"}
     else:  # Even: 1=Delegate
         return {"1": "Delegate", "2": "Answer"}
-
-
-# ============================================================================
-# HELPERS
-# ============================================================================
-
-def is_base_model(model_name: str) -> bool:
-    """Check if model is a base model (not instruction-tuned)."""
-    model_lower = model_name.lower()
-    instruct_indicators = ['instruct', 'chat', '-it', 'rlhf', 'sft', 'dpo']
-    return not any(ind in model_lower for ind in instruct_indicators)
-
-
-def has_chat_template(tokenizer) -> bool:
-    """Check if tokenizer has a chat template."""
-    try:
-        tokenizer.apply_chat_template(
-            [{"role": "user", "content": "test"}],
-            tokenize=False,
-            add_generation_prompt=True
-        )
-        return True
-    except Exception:
-        return False
 
 
 # ============================================================================
@@ -356,6 +324,48 @@ class SteeringHook:
             self.handle.remove()
 
 
+
+class BatchSteeringHook:
+    """Hook that adds a *per-example* steering delta to activations.
+
+    This is designed for "multiplier sweep in one pass" by expanding the batch:
+    each prompt is duplicated for each multiplier, and this hook adds a different
+    delta vector for each expanded example.
+    """
+
+    def __init__(self, delta_bh: Optional[torch.Tensor] = None):
+        self.delta_bh = delta_bh  # (batch, hidden)
+        self.handle = None
+
+    def set_delta(self, delta_bh: torch.Tensor):
+        self.delta_bh = delta_bh
+
+    def __call__(self, module, input, output):
+        if self.delta_bh is None:
+            return output
+
+        hs = output[0] if isinstance(output, tuple) else output
+
+        # hs: (batch, seq, hidden); delta_bh: (batch, hidden)
+        # Broadcast delta across sequence length.
+        # Must cast both device and dtype for compatibility with device_map="auto"
+        delta = self.delta_bh[:, None, :].to(device=hs.device, dtype=hs.dtype)
+        hs = hs + delta
+
+        if isinstance(output, tuple):
+            return (hs,) + output[1:]
+        return hs
+
+    def register(self, layer_module):
+        self.handle = layer_module.register_forward_hook(self)
+
+    def remove(self):
+        if self.handle is not None:
+            self.handle.remove()
+            self.handle = None
+
+
+
 class AblationHook:
     """
     Hook that removes the component of activations along a direction.
@@ -450,6 +460,83 @@ def pretokenize_prompts(
     }
 
 
+def build_padded_gpu_batches(
+    cached_inputs: Dict,
+    tokenizer,
+    device: str,
+    batch_size: int,
+) -> List[Tuple[List[int], Dict[str, torch.Tensor]]]:
+    """Pad each length-sorted batch once and keep tensors on-device.
+
+    This eliminates repeated tokenizer.pad() and CPU→GPU copies for every
+    (layer × multiplier × control) forward pass.
+    """
+    sorted_order = cached_inputs["sorted_order"]
+    batches: List[Tuple[List[int], Dict[str, torch.Tensor]]] = []
+
+    for batch_start in range(0, len(sorted_order), batch_size):
+        batch_indices = sorted_order[batch_start:batch_start + batch_size]
+        batch_input_ids = [cached_inputs["input_ids"][i] for i in batch_indices]
+        batch_attention = [cached_inputs["attention_mask"][i] for i in batch_indices]
+
+        batch_inputs = tokenizer.pad(
+            {"input_ids": batch_input_ids, "attention_mask": batch_attention},
+            return_tensors="pt",
+            padding=True,
+        )
+        # Keep on-device for reuse across many sweeps.
+        batch_inputs = {k: v.to(device, non_blocking=True) for k, v in batch_inputs.items()}
+        batches.append((batch_indices, batch_inputs))
+
+    return batches
+
+
+def _get_transformer_and_lm_head(model):
+    """Best-effort access to (transformer, lm_head) for fast option-only logits."""
+    base = model.get_base_model() if hasattr(model, "get_base_model") else model
+    transformer = getattr(base, "model", None)
+    lm_head = getattr(base, "lm_head", None)
+    if transformer is None or lm_head is None or not hasattr(lm_head, "weight"):
+        return None, None
+    return transformer, lm_head
+
+
+def _prepare_option_weight(lm_head, option_token_ids: List[int]) -> Optional[torch.Tensor]:
+    """Extract lm_head rows for the option token IDs: (n_opt, hidden_dim)."""
+    if lm_head is None or not hasattr(lm_head, "weight"):
+        return None
+    W = lm_head.weight
+    if W is None or W.ndim != 2:
+        return None
+    option_ids = torch.tensor(option_token_ids, dtype=torch.long, device=W.device)
+    return W.index_select(0, option_ids)
+
+
+def _compute_batch_option_logits(
+    model,
+    transformer,
+    W_opt: Optional[torch.Tensor],
+    option_token_ids: List[int],
+    batch_inputs: Dict[str, torch.Tensor],
+) -> torch.Tensor:
+    """Return (batch, n_opt) logits for the next token.
+
+    Fast path: transformer forward → last_hidden_state[:, -1] → matmul with W_opt.
+    Fallback: model forward → full logits → index option_token_ids.
+    """
+    if transformer is None or W_opt is None:
+        outputs = model(**batch_inputs, use_cache=False)
+        batch_logits = outputs.logits[:, -1, :]
+        return batch_logits[:, option_token_ids]
+
+    out = transformer(**batch_inputs, use_cache=False, return_dict=True)
+    last_h = out.last_hidden_state[:, -1, :]
+    # With device_map="auto", lm_head may live on a different device.
+    if last_h.device != W_opt.device:
+        last_h = last_h.to(W_opt.device)
+    return last_h @ W_opt.T
+
+
 def precompute_direction_tensors(
     directions: Dict,
     layers: List[int],
@@ -528,26 +615,38 @@ def get_confidence_response(
         hook = SteeringHook(steering_tensor, multiplier)
         hook.register(layer_module)
 
+        # Prepare fast option-only projection
+        if META_TASK == "delegate":
+            option_token_ids = _CACHED_TOKEN_IDS["delegate_options"]
+        else:
+            option_token_ids = _CACHED_TOKEN_IDS["meta_options"]
+        transformer, lm_head = _get_transformer_and_lm_head(model)
+        W_opt = _prepare_option_weight(lm_head, option_token_ids)
+
         try:
             inputs = tokenizer(prompt, return_tensors="pt", padding=True).to(DEVICE)
-            with torch.no_grad():
-                outputs = model(**inputs, use_cache=False)
+            with torch.inference_mode():
+                option_logits = _compute_batch_option_logits(
+                    model, transformer, W_opt, option_token_ids, inputs
+                )[0]
         finally:
             hook.remove()
     else:
         # No steering
         inputs = tokenizer(prompt, return_tensors="pt", padding=True).to(DEVICE)
-        with torch.no_grad():
-            outputs = model(**inputs, use_cache=False)
+        # Prepare fast option-only projection
+        if META_TASK == "delegate":
+            option_token_ids = _CACHED_TOKEN_IDS["delegate_options"]
+        else:
+            option_token_ids = _CACHED_TOKEN_IDS["meta_options"]
+        transformer, lm_head = _get_transformer_and_lm_head(model)
+        W_opt = _prepare_option_weight(lm_head, option_token_ids)
+        with torch.inference_mode():
+            option_logits = _compute_batch_option_logits(
+                model, transformer, W_opt, option_token_ids, inputs
+            )[0]
 
-    final_logits = outputs.logits[0, -1, :]
-    # Use cached token IDs instead of re-tokenizing
-    if META_TASK == "delegate":
-        option_token_ids = _CACHED_TOKEN_IDS["delegate_options"]
-    else:
-        option_token_ids = _CACHED_TOKEN_IDS["meta_options"]
-    option_logits = final_logits[option_token_ids]
-    option_probs = torch.softmax(option_logits, dim=-1).cpu().numpy()
+    option_probs = torch.softmax(option_logits, dim=-1).float().cpu().numpy()
 
     response = options[np.argmax(option_probs)]
     confidence = response_to_confidence(response, option_probs, mapping)
@@ -591,21 +690,24 @@ def get_confidence_with_ablation(
     hook = AblationHook(ablation_tensor)
     hook.register(layer_module)
 
-    try:
-        inputs = tokenizer(prompt, return_tensors="pt", padding=True).to(DEVICE)
-        with torch.no_grad():
-            outputs = model(**inputs, use_cache=False)
-    finally:
-        hook.remove()
-
-    final_logits = outputs.logits[0, -1, :]
-    # Use cached token IDs instead of re-tokenizing
+    # Prepare fast option-only projection
     if META_TASK == "delegate":
         option_token_ids = _CACHED_TOKEN_IDS["delegate_options"]
     else:
         option_token_ids = _CACHED_TOKEN_IDS["meta_options"]
-    option_logits = final_logits[option_token_ids]
-    option_probs = torch.softmax(option_logits, dim=-1).cpu().numpy()
+    transformer, lm_head = _get_transformer_and_lm_head(model)
+    W_opt = _prepare_option_weight(lm_head, option_token_ids)
+
+    try:
+        inputs = tokenizer(prompt, return_tensors="pt", padding=True).to(DEVICE)
+        with torch.inference_mode():
+            option_logits = _compute_batch_option_logits(
+                model, transformer, W_opt, option_token_ids, inputs
+            )[0]
+    finally:
+        hook.remove()
+
+    option_probs = torch.softmax(option_logits, dim=-1).float().cpu().numpy()
 
     response = options[np.argmax(option_probs)]
     confidence = response_to_confidence(response, option_probs, mapping)
@@ -681,6 +783,17 @@ def run_steering_experiment(
         option_token_ids = _CACHED_TOKEN_IDS["meta_options"]
         options = META_OPTIONS
 
+    # Fast path: avoid computing full vocab logits.
+    # We do a base-transformer forward, take last hidden state, and project only
+    # onto the option token rows of lm_head.
+    transformer, lm_head = _get_transformer_and_lm_head(model)
+    W_opt = _prepare_option_weight(lm_head, option_token_ids)
+
+    # Pad batches once and keep them on-device (reused across all sweeps).
+    print("Building padded on-device batches...")
+    gpu_batches = build_padded_gpu_batches(cached_inputs, tokenizer, DEVICE, BATCH_SIZE)
+    print(f"  Prepared {len(gpu_batches)} batches on {DEVICE}")
+
     def run_all_questions():
         """Run all questions in batches and return list of results.
 
@@ -688,32 +801,13 @@ def run_steering_experiment(
         has similar-length prompts, minimizing padding waste.
         """
         results_list = [None] * len(prompts)  # Pre-allocate to maintain order
-        sorted_order = cached_inputs["sorted_order"]
 
-        for batch_start in range(0, len(prompts), BATCH_SIZE):
-            batch_end = min(batch_start + BATCH_SIZE, len(prompts))
-            batch_indices = sorted_order[batch_start:batch_end]
-
-            # Pad only this batch (to batch-local max length, not global max)
-            batch_input_ids = [cached_inputs["input_ids"][i] for i in batch_indices]
-            batch_attention = [cached_inputs["attention_mask"][i] for i in batch_indices]
-
-            batch_inputs = tokenizer.pad(
-                {"input_ids": batch_input_ids, "attention_mask": batch_attention},
-                return_tensors="pt",
-                padding=True  # Pad to longest in this batch only
-            )
-            batch_inputs = {k: v.to(DEVICE) for k, v in batch_inputs.items()}
-
-            with torch.no_grad():
-                outputs = model(**batch_inputs, use_cache=False)
-
-            # With left-padding, last token is at position -1 for all items
-            batch_logits = outputs.logits[:, -1, :]  # (batch_size, vocab_size)
-
-            # Extract option logits for all items in batch
-            batch_option_logits = batch_logits[:, option_token_ids]  # (batch_size, num_options)
-            batch_option_probs = torch.softmax(batch_option_logits, dim=-1).cpu().numpy()
+        for batch_indices, batch_inputs in gpu_batches:
+            with torch.inference_mode():
+                batch_option_logits = _compute_batch_option_logits(
+                    model, transformer, W_opt, option_token_ids, batch_inputs
+                )
+                batch_option_probs = torch.softmax(batch_option_logits, dim=-1).float().cpu().numpy()
 
             # Process each item in the batch (map back to original indices)
             for i, q_idx in enumerate(batch_indices):
@@ -740,6 +834,88 @@ def run_steering_experiment(
     print("Computing baseline (no steering)...")
     shared_baseline = run_all_questions()
 
+    # ------------------------------------------------------------------
+    # Multiplier-sweep acceleration: run *all non-zero multipliers* in one
+    # forward pass per batch by expanding the batch and adding per-example
+    # deltas with a BatchSteeringHook.
+    # ------------------------------------------------------------------
+    nonzero_multipliers = [m for m in multipliers if m != 0.0]
+    k_mult = len(nonzero_multipliers)
+
+    gpu_batches_expanded = None
+    if k_mult > 0:
+        # Expanding the batch by k_mult increases memory. Reduce the base batch
+        # size so the expanded batch stays roughly comparable.
+        expanded_base_bs = max(1, BATCH_SIZE // k_mult)
+        if expanded_base_bs != BATCH_SIZE:
+            print(f"Building expanded batches for {k_mult} multipliers (base batch size={expanded_base_bs}, expanded={expanded_base_bs * k_mult})...")
+        else:
+            print(f"Building expanded batches for {k_mult} multipliers (expanded batch size={BATCH_SIZE * k_mult})...")
+        gpu_batches_expanded = build_padded_gpu_batches(cached_inputs, tokenizer, DEVICE, expanded_base_bs)
+
+    def _repeat_batch_inputs(batch_inputs: Dict[str, torch.Tensor], k: int) -> Dict[str, torch.Tensor]:
+        return {name: tensor.repeat_interleave(k, dim=0) for name, tensor in batch_inputs.items()}
+
+    def run_all_questions_multi(layer_module, direction_tensor: torch.Tensor) -> Dict[float, List[Dict]]:
+        """Run all questions for all non-zero multipliers in one sweep.
+
+        Returns:
+            dict: multiplier -> results_list (same format as run_all_questions()).
+        """
+        if k_mult == 0:
+            return {}
+
+        results_by_mult = {m: [None] * len(prompts) for m in nonzero_multipliers}
+        mults_t = torch.tensor(nonzero_multipliers, device=DEVICE, dtype=direction_tensor.dtype)
+
+        hook = BatchSteeringHook()
+        hook.register(layer_module)
+        try:
+            for batch_indices, batch_inputs in gpu_batches_expanded:
+                B = batch_inputs["input_ids"].shape[0]
+                k = k_mult
+
+                expanded_inputs = _repeat_batch_inputs(batch_inputs, k)
+
+                # Build per-example deltas aligned with repeat_interleave order:
+                # [ex0*m0..mk-1, ex1*m0..mk-1, ...]
+                mults_rep = mults_t.repeat(B)  # (B*k,)
+                delta_bh = direction_tensor[None, :] * mults_rep[:, None]  # (B*k, hidden)
+                hook.set_delta(delta_bh)
+
+                with torch.inference_mode():
+                    batch_option_logits = _compute_batch_option_logits(
+                        model, transformer, W_opt, option_token_ids, expanded_inputs
+                    )
+                    batch_option_probs = torch.softmax(batch_option_logits, dim=-1).float().cpu().numpy()
+
+                # Map expanded outputs back to (question, multiplier)
+                for i, q_idx in enumerate(batch_indices):
+                    base = i * k
+                    entropy = direct_entropies[q_idx]
+                    entropy_z = (entropy - entropy_mean) / entropy_std
+
+                    for j, mult in enumerate(nonzero_multipliers):
+                        option_probs = batch_option_probs[base + j]
+                        response = options[np.argmax(option_probs)]
+                        confidence = response_to_confidence(response, option_probs, mappings[q_idx])
+
+                        confidence_z = (confidence - 0.5) / 0.25
+                        alignment = -entropy_z * confidence_z
+
+                        results_by_mult[mult][q_idx] = {
+                            "question_idx": q_idx,
+                            "response": response,
+                            "confidence": confidence,
+                            "entropy": float(entropy),
+                            "alignment": float(alignment),
+                        }
+
+            return results_by_mult
+        finally:
+            hook.remove()
+
+
     for layer_idx in tqdm(layers, desc="Steering layers"):
         # Get layer module once
         if hasattr(model, 'get_base_model'):
@@ -765,32 +941,27 @@ def run_steering_experiment(
             "controls": {f"control_{i}": {m: [] for m in multipliers} for i in range(num_controls)},
         }
 
-        # Introspection steering - register hook once per multiplier
-        for mult in tqdm(multipliers, desc="Introspection", leave=False):
-            if mult == 0.0:
-                layer_results["introspection"][mult] = layer_results["baseline"]
-                continue
+        
+        # Introspection steering (vectorized over multipliers)
+        if 0.0 in layer_results["introspection"]:
+            layer_results["introspection"][0.0] = layer_results["baseline"]
 
-            hook = SteeringHook(introspection_tensor, mult, pre_normalized=True)
-            hook.register(layer_module)
-            try:
-                layer_results["introspection"][mult] = run_all_questions()
-            finally:
-                hook.remove()
+        if k_mult > 0:
+            multi_results = run_all_questions_multi(layer_module, introspection_tensor)
+            for mult, res in multi_results.items():
+                layer_results["introspection"][mult] = res
 
-        # Control steering - register hook once per (control, multiplier)
-        for ctrl_idx, ctrl_tensor in enumerate(control_tensors):
-            for mult in tqdm(multipliers, desc=f"Control {ctrl_idx}", leave=False):
-                if mult == 0.0:
-                    layer_results["controls"][f"control_{ctrl_idx}"][mult] = layer_results["baseline"]
-                    continue
 
-                hook = SteeringHook(ctrl_tensor, mult, pre_normalized=True)
-                hook.register(layer_module)
-                try:
-                    layer_results["controls"][f"control_{ctrl_idx}"][mult] = run_all_questions()
-                finally:
-                    hook.remove()
+        # Control steering (vectorized over multipliers)
+        for ctrl_idx, ctrl_tensor in enumerate(tqdm(control_tensors, desc="Controls", leave=False)):
+            ctrl_key = f"control_{ctrl_idx}"
+            if 0.0 in layer_results["controls"][ctrl_key]:
+                layer_results["controls"][ctrl_key][0.0] = layer_results["baseline"]
+
+            if k_mult > 0:
+                multi_results = run_all_questions_multi(layer_module, ctrl_tensor)
+                for mult, res in multi_results.items():
+                    layer_results["controls"][ctrl_key][mult] = res
 
         results["layer_results"][layer_idx] = layer_results
 
@@ -870,6 +1041,13 @@ def run_ablation_experiment(
         option_token_ids = _CACHED_TOKEN_IDS["meta_options"]
         options = META_OPTIONS
 
+    # Fast path: avoid computing full vocab logits.
+    transformer, lm_head = _get_transformer_and_lm_head(model)
+    W_opt = _prepare_option_weight(lm_head, option_token_ids)
+
+    # Pad batches once and keep them on-device (reused across all sweeps).
+    gpu_batches = build_padded_gpu_batches(cached_inputs, tokenizer, DEVICE, BATCH_SIZE)
+
     def run_all_questions():
         """Run all questions in batches and return list of results.
 
@@ -877,32 +1055,13 @@ def run_ablation_experiment(
         has similar-length prompts, minimizing padding waste.
         """
         results_list = [None] * len(prompts)  # Pre-allocate to maintain order
-        sorted_order = cached_inputs["sorted_order"]
 
-        for batch_start in range(0, len(prompts), BATCH_SIZE):
-            batch_end = min(batch_start + BATCH_SIZE, len(prompts))
-            batch_indices = sorted_order[batch_start:batch_end]
-
-            # Pad only this batch (to batch-local max length, not global max)
-            batch_input_ids = [cached_inputs["input_ids"][i] for i in batch_indices]
-            batch_attention = [cached_inputs["attention_mask"][i] for i in batch_indices]
-
-            batch_inputs = tokenizer.pad(
-                {"input_ids": batch_input_ids, "attention_mask": batch_attention},
-                return_tensors="pt",
-                padding=True  # Pad to longest in this batch only
-            )
-            batch_inputs = {k: v.to(DEVICE) for k, v in batch_inputs.items()}
-
-            with torch.no_grad():
-                outputs = model(**batch_inputs, use_cache=False)
-
-            # With left-padding, last token is at position -1 for all items
-            batch_logits = outputs.logits[:, -1, :]  # (batch_size, vocab_size)
-
-            # Extract option logits for all items in batch
-            batch_option_logits = batch_logits[:, option_token_ids]  # (batch_size, num_options)
-            batch_option_probs = torch.softmax(batch_option_logits, dim=-1).cpu().numpy()
+        for batch_indices, batch_inputs in gpu_batches:
+            with torch.inference_mode():
+                batch_option_logits = _compute_batch_option_logits(
+                    model, transformer, W_opt, option_token_ids, batch_inputs
+                )
+                batch_option_probs = torch.softmax(batch_option_logits, dim=-1).float().cpu().numpy()
 
             # Process each item in the batch (map back to original indices)
             for i, q_idx in enumerate(batch_indices):
@@ -1584,51 +1743,23 @@ def main():
     direct_entropies = np.array(paired_data["direct_entropies"])[:NUM_STEERING_QUESTIONS]
     print(f"Using {len(questions)} questions")
 
-    # Load model
-    print(f"\nLoading model: {BASE_MODEL_NAME}")
-    tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL_NAME, token=HF_TOKEN)
-    tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.padding_side = "left"  # Left-pad for proper batched generation
+    # Load model using centralized utility
+    adapter_path = MODEL_NAME if MODEL_NAME != BASE_MODEL_NAME else None
+    model, tokenizer, num_layers = load_model_and_tokenizer(
+        BASE_MODEL_NAME,
+        adapter_path=adapter_path,
+        load_in_4bit=LOAD_IN_4BIT,
+        load_in_8bit=LOAD_IN_8BIT,
+    )
 
     # Initialize token ID cache once (avoids repeated tokenization)
     initialize_token_cache(tokenizer)
 
-    # Build model loading kwargs
-    model_kwargs = {
-        "device_map": "auto",
-        "token": HF_TOKEN,
-    }
-
-    # Quantization config (for large models like 70B)
-    if LOAD_IN_4BIT or LOAD_IN_8BIT:
-        from transformers import BitsAndBytesConfig
-        if LOAD_IN_4BIT:
-            print("  Loading in 4-bit (NF4) quantization")
-            model_kwargs["quantization_config"] = BitsAndBytesConfig(
-                load_in_4bit=True,
-                bnb_4bit_quant_type="nf4",
-                bnb_4bit_compute_dtype=torch.float16,
-            )
-        else:
-            print("  Loading in 8-bit quantization")
-            model_kwargs["quantization_config"] = BitsAndBytesConfig(
-                load_in_8bit=True,
-            )
-    else:
-        model_kwargs["torch_dtype"] = torch.float16 if DEVICE == "cuda" else torch.float32
-
-    model = AutoModelForCausalLM.from_pretrained(
-        BASE_MODEL_NAME,
-        **model_kwargs
-    )
-
-    if MODEL_NAME != BASE_MODEL_NAME:
-        from peft import PeftModel
-        print(f"Loading adapter: {MODEL_NAME}")
-        model = PeftModel.from_pretrained(model, MODEL_NAME)
+    # Ensure deterministic inference (no dropout) and a tiny speedup.
+    model.eval()
 
     # Determine chat template usage (check once, not per prompt)
-    use_chat_template = has_chat_template(tokenizer) and not is_base_model(BASE_MODEL_NAME)
+    use_chat_template = should_use_chat_template(BASE_MODEL_NAME, tokenizer)
     print(f"Using chat template: {use_chat_template}")
 
     # Precompute direction tensors on GPU
