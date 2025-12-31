@@ -228,6 +228,43 @@ def local_response_to_confidence(
 # STEERING AND ABLATION
 # ============================================================================
 
+def get_kv_cache(model, batch_inputs):
+    """
+    Run the prefix (all tokens except the last one) to generate KV cache.
+    Returns the inputs required for the final step (including the cache).
+    """
+    input_ids = batch_inputs["input_ids"]
+    attention_mask = batch_inputs["attention_mask"]
+    
+    # 1. Run Prefix (Tokens 0 to T-1)
+    # We slice off the last token
+    prefix_ids = input_ids[:, :-1]
+    prefix_mask = attention_mask[:, :-1]
+    
+    with torch.inference_mode():
+        outputs = model(
+            input_ids=prefix_ids,
+            attention_mask=prefix_mask,
+            use_cache=True,
+        )
+    
+    # 2. Prepare inputs for the Final Token (T)
+    # We pass the *full* attention mask so the model knows the position relative to history
+    last_ids = input_ids[:, -1:]
+    
+    next_step_inputs = {
+        "input_ids": last_ids,
+        "attention_mask": attention_mask, # Full mask (History + Current)
+        "past_key_values": outputs.past_key_values,
+        "use_cache": True
+    }
+    
+    # Handle position_ids for RoPE models (safety check)
+    if "position_ids" in batch_inputs:
+        next_step_inputs["position_ids"] = batch_inputs["position_ids"][:, -1:]
+        
+    return next_step_inputs
+
 class SteeringHook:
     """Hook that adds a steering vector to activations.
 
@@ -1107,7 +1144,6 @@ def analyze_other_confidence_ablation_effect(
 # ============================================================================
 # MAIN EXPERIMENT
 # ============================================================================
-
 def run_steering_experiment(
     model,
     tokenizer,
@@ -1120,38 +1156,15 @@ def run_steering_experiment(
     use_chat_template: bool,
     cached_directions: Optional[Dict] = None
 ) -> Dict:
-    """
-    Run steering experiment across layers and directions.
+    print(f"\nRunning steering experiment (KV Cache - Memory Safe)...")
+    
+    if INTERVENTION_POSITION != "last":
+        print("Warning: INTERVENTION_POSITION != 'last'. KV Cache optimization disabled.")
+        return {}
 
-    Args:
-        direct_metric_values: The selected uncertainty metric values from direct MC task
-                              (e.g., logit_gap, entropy, etc. as specified by METRIC)
-
-    Optimized version:
-    - Uses precomputed direction tensors if provided
-    - Registers hook once per (layer, direction) and runs all questions
-    - Uses cached token IDs
-    """
-    print(f"\nRunning steering experiment...")
-    print(f"  Layers: {layers}")
-    print(f"  Multipliers: {multipliers}")
-    print(f"  Questions: {len(questions)}")
-    print(f"  Control directions: {num_controls}")
-
-    results = {
-        "layers": layers,
-        "multipliers": multipliers,
-        "num_questions": len(questions),
-        "num_controls": num_controls,
-        "layer_results": {},
-    }
-
-    # Compute metric stats for alignment calculation
     metric_mean = direct_metric_values.mean()
     metric_std = direct_metric_values.std()
 
-    # Pre-format all prompts (avoid repeated work)
-    print("Pre-formatting prompts...")
     prompts = []
     mappings = []
     for q_idx, question in enumerate(questions):
@@ -1163,12 +1176,8 @@ def run_steering_experiment(
         prompts.append(prompt)
         mappings.append(mapping)
 
-    # Pre-tokenize all prompts once (BPE only, no padding yet)
-    print("Pre-tokenizing prompts...")
     cached_inputs = pretokenize_prompts(prompts, tokenizer, DEVICE)
-    print(f"  Tokenized {len(prompts)} prompts, lengths: min={min(cached_inputs['lengths'])}, max={max(cached_inputs['lengths'])}")
-
-    # Get option token IDs
+    
     if META_TASK == "delegate":
         option_token_ids = _CACHED_TOKEN_IDS["delegate_options"]
         options = DELEGATE_OPTIONS
@@ -1176,202 +1185,117 @@ def run_steering_experiment(
         option_token_ids = _CACHED_TOKEN_IDS["meta_options"]
         options = META_OPTIONS
 
-    # Fast path: avoid computing full vocab logits.
-    # We do a base-transformer forward, take last hidden state, and project only
-    # onto the option token rows of lm_head.
-    transformer, lm_head = _get_transformer_and_lm_head(model)
-    W_opt = _prepare_option_weight(lm_head, model, option_token_ids)
-
-    # Pad batches once and keep them on-device (reused across all sweeps).
-    print("Building padded on-device batches...")
-    gpu_batches = build_padded_gpu_batches(cached_inputs, tokenizer, DEVICE, BATCH_SIZE)
-    print(f"  Prepared {len(gpu_batches)} batches on {DEVICE}")
-
-    def run_all_questions():
-        """Run all questions in batches and return list of results.
-
-        Uses length-sorted batching: process prompts in order of length so each batch
-        has similar-length prompts, minimizing padding waste.
-        """
-        results_list = [None] * len(prompts)  # Pre-allocate to maintain order
-
-        for batch_indices, batch_inputs in gpu_batches:
-            with torch.inference_mode():
-                batch_option_logits = _compute_batch_option_logits(
-                    model, transformer, W_opt, option_token_ids, batch_inputs
-                )
-                batch_option_probs = torch.softmax(batch_option_logits, dim=-1).float().cpu().numpy()
-
-            # Process each item in the batch (map back to original indices)
-            for i, q_idx in enumerate(batch_indices):
-                option_probs = batch_option_probs[i]
-                response = options[np.argmax(option_probs)]
-                confidence = local_response_to_confidence(response, option_probs, mappings[q_idx])
-
-                metric_val = direct_metric_values[q_idx]
-                metric_z = (metric_val - metric_mean) / metric_std
-                confidence_z = (confidence - 0.5) / 0.25
-                alignment = -metric_z * confidence_z
-
-                results_list[q_idx] = {
-                    "question_idx": q_idx,
-                    "response": response,
-                    "confidence": confidence,
-                    "metric": float(metric_val),  # Selected metric value (e.g., logit_gap)
-                    "alignment": float(alignment),
-                }
-
-        return results_list
-
-    # Compute baseline once (no steering) - shared across all layers
-    print("Computing baseline (no steering)...")
-    shared_baseline = run_all_questions()
-
-    # ------------------------------------------------------------------
-    # Multiplier-sweep acceleration: run *all non-zero multipliers* in one
-    # forward pass per batch by expanding the batch and adding per-example
-    # deltas with a BatchSteeringHook.
-    # ------------------------------------------------------------------
     nonzero_multipliers = [m for m in multipliers if m != 0.0]
-    k_mult = len(nonzero_multipliers)
+    
+    # Initialize results
+    shared_baseline = [None] * len(questions)
+    final_layer_results = {}
+    for l in layers:
+        final_layer_results[l] = {
+            "baseline": shared_baseline,
+            "introspection": {m: [None] * len(questions) for m in multipliers},
+            "controls": {f"control_{i}": {m: [None] * len(questions) for m in multipliers} for i in range(num_controls)},
+        }
+        if 0.0 in multipliers:
+            final_layer_results[l]["introspection"][0.0] = shared_baseline
+            for k in final_layer_results[l]["controls"]:
+                final_layer_results[l]["controls"][k][0.0] = shared_baseline
 
-    gpu_batches_expanded = None
-    precomputed_expanded_batches = None
-    if k_mult > 0:
-        # Compute base batch size from EXPANDED_BATCH_TARGET.
-        # This gives much better GPU utilization than the old BATCH_SIZE // k_mult approach.
-        # E.g., with k_mult=6 and EXPANDED_BATCH_TARGET=48: base=8, expanded=48 sequences per forward pass.
-        expanded_base_bs = max(1, EXPANDED_BATCH_TARGET // k_mult)
-        actual_expanded_size = expanded_base_bs * k_mult
-        print(f"Building expanded batches for {k_mult} multipliers (base batch={expanded_base_bs}, expanded={actual_expanded_size})...")
-        gpu_batches_expanded = build_padded_gpu_batches(cached_inputs, tokenizer, DEVICE, expanded_base_bs)
+    if cached_directions is None:
+        cached_directions = precompute_direction_tensors(
+            directions, layers, num_controls, DEVICE, 
+            torch.float16 if DEVICE == "cuda" else torch.float32
+        )
 
-        # Precompute expanded inputs once - reused for every direction sweep.
-        # This avoids redundant repeat_interleave calls for each layer/direction.
-        print(f"Precomputing expanded inputs for {len(gpu_batches_expanded)} batches...")
-        precomputed_expanded_batches = []
-        for batch_indices, batch_inputs in gpu_batches_expanded:
-            expanded_inputs = {
-                name: tensor.repeat_interleave(k_mult, dim=0)
-                for name, tensor in batch_inputs.items()
+    # Standard batch size
+    gpu_batches = build_padded_gpu_batches(cached_inputs, tokenizer, DEVICE, BATCH_SIZE)
+    print(f"Processing {len(gpu_batches)} batches (KV-Cached)...")
+
+    for batch_indices, batch_inputs in tqdm(gpu_batches, desc="Batches"):
+        B = len(batch_indices)
+        
+        # 1. Compute KV Cache
+        base_step_inputs = get_kv_cache(model, batch_inputs)
+        
+        # 2. Compute Baseline for this batch
+        with torch.inference_mode():
+            out = model(**base_step_inputs)
+            logits = out.logits[:, -1, :][:, option_token_ids]
+            probs = torch.softmax(logits, dim=-1).float().cpu().numpy()
+        for i, q_idx in enumerate(batch_indices):
+            p = probs[i]
+            resp = options[np.argmax(p)]
+            conf = local_response_to_confidence(resp, p, mappings[q_idx])
+            m_val = direct_metric_values[q_idx]
+            align = -((m_val - metric_mean)/metric_std) * ((conf - 0.5)/0.25)
+            shared_baseline[q_idx] = {
+                "question_idx": q_idx, "response": resp, "confidence": conf,
+                "metric": float(m_val), "alignment": float(align)
             }
-            precomputed_expanded_batches.append((batch_indices, expanded_inputs))
-        print(f"  Precomputed {len(precomputed_expanded_batches)} expanded batches on {DEVICE}")
 
-    def run_all_questions_multi(layer_module, direction_tensor: torch.Tensor) -> Dict[float, List[Dict]]:
-        """Run all questions for all non-zero multipliers in one sweep.
+        # 3. Iterate Layers
+        for layer_idx in layers:
+            if hasattr(model, 'get_base_model'):
+                layer_module = model.get_base_model().model.layers[layer_idx]
+            else:
+                layer_module = model.model.layers[layer_idx]
 
-        Returns:
-            dict: multiplier -> results_list (same format as run_all_questions()).
-        """
-        if k_mult == 0:
-            return {}
+            intro_dir = cached_directions[layer_idx]["introspection"]
+            control_dirs = cached_directions[layer_idx]["controls"]
+            
+            hook = BatchSteeringHook()
+            hook.register(layer_module)
 
-        results_by_mult = {m: [None] * len(prompts) for m in nonzero_multipliers}
-        mults_t = torch.tensor(nonzero_multipliers, device=DEVICE, dtype=direction_tensor.dtype)
-
-        hook = BatchSteeringHook()
-        hook.register(layer_module)
-        try:
-            for batch_indices, expanded_inputs in precomputed_expanded_batches:
-                B = len(batch_indices)  # Original batch size (before expansion)
-                k = k_mult
-
-                # Build per-example deltas aligned with repeat_interleave order:
-                # [ex0*m0..mk-1, ex1*m0..mk-1, ...]
-                mults_rep = mults_t.repeat(B)  # (B*k,)
-                delta_bh = direction_tensor[None, :] * mults_rep[:, None]  # (B*k, hidden)
-                hook.set_delta(delta_bh)
-
-                with torch.inference_mode():
-                    batch_option_logits = _compute_batch_option_logits(
-                        model, transformer, W_opt, option_token_ids, expanded_inputs
-                    )
-                    batch_option_probs = torch.softmax(batch_option_logits, dim=-1).float().cpu().numpy()
-
-                # Map expanded outputs back to (question, multiplier)
-                for i, q_idx in enumerate(batch_indices):
-                    base = i * k
-                    metric_val = direct_metric_values[q_idx]
-                    metric_z = (metric_val - metric_mean) / metric_std
-
-                    for j, mult in enumerate(nonzero_multipliers):
-                        option_probs = batch_option_probs[base + j]
-                        response = options[np.argmax(option_probs)]
-                        confidence = local_response_to_confidence(response, option_probs, mappings[q_idx])
-
-                        confidence_z = (confidence - 0.5) / 0.25
-                        alignment = -metric_z * confidence_z
-
-                        results_by_mult[mult][q_idx] = {
-                            "question_idx": q_idx,
-                            "response": response,
-                            "confidence": confidence,
-                            "metric": float(metric_val),  # Selected metric value
-                            "alignment": float(alignment),
+            # Helper to run sweep over multipliers
+            def run_mult_sweep(direction_vector, result_dict):
+                # direction_vector: (H,)
+                
+                for mult in nonzero_multipliers:
+                    # Delta: (H,) * scalar -> (H,)
+                    delta = direction_vector * mult
+                    # Expand to batch: (Batch, H)
+                    delta_batch = delta.unsqueeze(0).expand(B, -1)
+                    
+                    hook.set_delta(delta_batch)
+                    
+                    with torch.inference_mode():
+                        out = model(**base_step_inputs)
+                        logits = out.logits[:, -1, :][:, option_token_ids]
+                        probs = torch.softmax(logits, dim=-1).float().cpu().numpy()
+                    
+                    for i, q_idx in enumerate(batch_indices):
+                        p = probs[i]
+                        resp = options[np.argmax(p)]
+                        conf = local_response_to_confidence(resp, p, mappings[q_idx])
+                        m_val = direct_metric_values[q_idx]
+                        align = -((m_val - metric_mean)/metric_std) * ((conf - 0.5)/0.25)
+                        
+                        result_dict[mult][q_idx] = {
+                            "question_idx": q_idx, "response": resp, "confidence": conf,
+                            "metric": float(m_val), "alignment": float(align)
                         }
 
-            return results_by_mult
-        finally:
-            hook.remove()
+            try:
+                # Introspection
+                run_mult_sweep(intro_dir, final_layer_results[layer_idx]["introspection"])
+                
+                # Controls
+                for i_c, ctrl_dir in enumerate(control_dirs):
+                    run_mult_sweep(ctrl_dir, final_layer_results[layer_idx]["controls"][f"control_{i_c}"])
+            finally:
+                hook.remove()
 
-
-    for layer_idx in tqdm(layers, desc="Steering layers"):
-        # Get layer module once
-        if hasattr(model, 'get_base_model'):
-            layer_module = model.get_base_model().model.layers[layer_idx]
-        else:
-            layer_module = model.model.layers[layer_idx]
-
-        # Get precomputed tensors or compute them
-        if cached_directions and layer_idx in cached_directions:
-            introspection_tensor = cached_directions[layer_idx]["introspection"]
-            control_tensors = cached_directions[layer_idx]["controls"]
-        else:
-            introspection_dir = np.array(directions[f"layer_{layer_idx}_introspection"])
-            introspection_dir = introspection_dir / np.linalg.norm(introspection_dir)
-            dtype = torch.float16 if DEVICE == "cuda" else torch.float32
-            introspection_tensor = torch.tensor(introspection_dir, dtype=dtype, device=DEVICE)
-            control_dirs = generate_orthogonal_directions(introspection_dir, num_controls)
-            control_tensors = [torch.tensor(cd, dtype=dtype, device=DEVICE) for cd in control_dirs]
-
-        layer_results = {
-            "baseline": shared_baseline,
-            "introspection": {m: [] for m in multipliers},
-            "controls": {f"control_{i}": {m: [] for m in multipliers} for i in range(num_controls)},
-        }
-
-        
-        # Introspection steering (vectorized over multipliers)
-        if 0.0 in layer_results["introspection"]:
-            layer_results["introspection"][0.0] = layer_results["baseline"]
-
-        if k_mult > 0:
-            multi_results = run_all_questions_multi(layer_module, introspection_tensor)
-            for mult, res in multi_results.items():
-                layer_results["introspection"][mult] = res
-
-
-        # Control steering (vectorized over multipliers)
-        for ctrl_idx, ctrl_tensor in enumerate(tqdm(control_tensors, desc="Controls", leave=False)):
-            ctrl_key = f"control_{ctrl_idx}"
-            if 0.0 in layer_results["controls"][ctrl_key]:
-                layer_results["controls"][ctrl_key][0.0] = layer_results["baseline"]
-
-            if k_mult > 0:
-                multi_results = run_all_questions_multi(layer_module, ctrl_tensor)
-                for mult, res in multi_results.items():
-                    layer_results["controls"][ctrl_key][mult] = res
-
-        results["layer_results"][layer_idx] = layer_results
-
-    return results
-
+    return {
+        "layers": layers,
+        "multipliers": multipliers,
+        "num_questions": len(questions),
+        "num_controls": num_controls,
+        "layer_results": final_layer_results
+    }
 
 # ============================================================================
 # ABLATION EXPERIMENT
 # ============================================================================
-
 def run_ablation_experiment(
     model,
     tokenizer,
@@ -1384,43 +1308,16 @@ def run_ablation_experiment(
     baseline_results: Optional[List[Dict]] = None,
     cached_directions: Optional[Dict] = None
 ) -> Dict:
-    """
-    Run ablation experiment to test causality of introspection direction.
+    print(f"\nRunning ablation experiment (KV Cache - Memory Safe)...")
+    
+    if INTERVENTION_POSITION != "last":
+        print("Warning: INTERVENTION_POSITION != 'last'. KV Cache optimization disabled.")
+        return {} 
 
-    For each layer, we:
-    1. Collect baseline confidence-metric correlation (no intervention)
-    2. Ablate the introspection direction and measure correlation
-    3. Ablate control (random orthogonal) directions and measure correlation
-
-    If the introspection direction is causal, ablating it should degrade the
-    correlation more than ablating random directions.
-
-    Args:
-        direct_metric_values: The selected uncertainty metric values from direct MC task
-                              (e.g., logit_gap, entropy, etc. as specified by METRIC)
-        baseline_results: Optional pre-computed baseline results from steering experiment.
-                          If provided, skips baseline computation for efficiency.
-        cached_directions: Optional precomputed direction tensors on GPU.
-    """
-    print(f"\nRunning ablation experiment...")
-    print(f"  Layers: {layers}")
-    print(f"  Questions: {len(questions)}")
-    print(f"  Control directions: {num_controls}")
-    if baseline_results is not None:
-        print(f"  Reusing baseline from steering experiment")
-
-    results = {
-        "layers": layers,
-        "num_questions": len(questions),
-        "num_controls": num_controls,
-        "layer_results": {},
-    }
-
-    # Compute metric stats for alignment calculation
+    # 1. Setup
     metric_mean = direct_metric_values.mean()
     metric_std = direct_metric_values.std()
 
-    # Pre-format all prompts (avoid repeated work)
     prompts = []
     mappings = []
     for q_idx, question in enumerate(questions):
@@ -1432,10 +1329,8 @@ def run_ablation_experiment(
         prompts.append(prompt)
         mappings.append(mapping)
 
-    # Pre-tokenize all prompts once (BPE only, no padding yet)
     cached_inputs = pretokenize_prompts(prompts, tokenizer, DEVICE)
-
-    # Get option token IDs
+    
     if META_TASK == "delegate":
         option_token_ids = _CACHED_TOKEN_IDS["delegate_options"]
         options = DELEGATE_OPTIONS
@@ -1443,205 +1338,117 @@ def run_ablation_experiment(
         option_token_ids = _CACHED_TOKEN_IDS["meta_options"]
         options = META_OPTIONS
 
-    # Fast path: avoid computing full vocab logits.
     transformer, lm_head = _get_transformer_and_lm_head(model)
     W_opt = _prepare_option_weight(lm_head, model, option_token_ids)
 
-    # Pad batches once and keep them on-device (reused across all sweeps).
-    gpu_batches = build_padded_gpu_batches(cached_inputs, tokenizer, DEVICE, BATCH_SIZE)
-
-    def run_all_questions():
-        """Run all questions in batches and return list of results.
-
-        Uses length-sorted batching: process prompts in order of length so each batch
-        has similar-length prompts, minimizing padding waste.
-        """
-        results_list = [None] * len(prompts)  # Pre-allocate to maintain order
-
+    # 2. Compute Baseline (Standard forward pass is fine, or use KV)
+    if baseline_results is None:
+        print("Computing baseline...")
+        gpu_batches = build_padded_gpu_batches(cached_inputs, tokenizer, DEVICE, BATCH_SIZE)
+        baseline_results = [None] * len(questions)
         for batch_indices, batch_inputs in gpu_batches:
+            # We can use KV cache logic here too for consistency, but standard forward is fine for baseline
             with torch.inference_mode():
-                batch_option_logits = _compute_batch_option_logits(
-                    model, transformer, W_opt, option_token_ids, batch_inputs
-                )
-                batch_option_probs = torch.softmax(batch_option_logits, dim=-1).float().cpu().numpy()
-
-            # Process each item in the batch (map back to original indices)
+                logits = _compute_batch_option_logits(model, transformer, W_opt, option_token_ids, batch_inputs)
+                probs = torch.softmax(logits, dim=-1).float().cpu().numpy()
             for i, q_idx in enumerate(batch_indices):
-                option_probs = batch_option_probs[i]
-                response = options[np.argmax(option_probs)]
-                confidence = local_response_to_confidence(response, option_probs, mappings[q_idx])
-
-                metric_val = direct_metric_values[q_idx]
-                metric_z = (metric_val - metric_mean) / metric_std
-                confidence_z = (confidence - 0.5) / 0.25
-                alignment = -metric_z * confidence_z
-
-                results_list[q_idx] = {
-                    "question_idx": q_idx,
-                    "response": response,
-                    "confidence": confidence,
-                    "metric": float(metric_val),  # Selected metric value
-                    "alignment": float(alignment),
+                p = probs[i]
+                resp = options[np.argmax(p)]
+                conf = local_response_to_confidence(resp, p, mappings[q_idx])
+                m_val = direct_metric_values[q_idx]
+                align = -((m_val - metric_mean)/metric_std) * ((conf - 0.5)/0.25)
+                baseline_results[q_idx] = {
+                    "question_idx": q_idx, "response": resp, "confidence": conf, 
+                    "metric": float(m_val), "alignment": float(align)
                 }
 
-        return results_list
-
-    # ------------------------------------------------------------------
-    # Batched ablation: process multiple control directions in one pass
-    # ------------------------------------------------------------------
-    # Compute how many directions we can batch together based on EXPANDED_BATCH_TARGET
-    k_dirs = max(1, EXPANDED_BATCH_TARGET // BATCH_SIZE)
-    print(f"  Batching up to {k_dirs} control directions per forward pass")
-
-    # Build expanded batches for batched ablation
-    expanded_base_bs = max(1, EXPANDED_BATCH_TARGET // k_dirs)
-    gpu_batches_expanded = build_padded_gpu_batches(cached_inputs, tokenizer, DEVICE, expanded_base_bs)
-
-    # Precompute expanded inputs (reused for every batch of directions)
-    precomputed_expanded_batches = []
-    for batch_indices, batch_inputs in gpu_batches_expanded:
-        expanded_inputs = {
-            name: tensor.repeat_interleave(k_dirs, dim=0)
-            for name, tensor in batch_inputs.items()
-        }
-        precomputed_expanded_batches.append((batch_indices, expanded_inputs))
-
-    def run_all_questions_multi_ablation(
-        layer_module,
-        direction_tensors: List[torch.Tensor]
-    ) -> Dict[int, List[Dict]]:
-        """Run all questions for multiple ablation directions in one sweep.
-
-        Args:
-            layer_module: The transformer layer module to hook
-            direction_tensors: List of direction tensors (normalized, on GPU)
-
-        Returns:
-            dict: direction_index -> results_list (same format as run_all_questions())
-        """
-        k = len(direction_tensors)
-        if k == 0:
-            return {}
-
-        results_by_dir = {i: [None] * len(prompts) for i in range(k)}
-
-        # Stack directions: (k, hidden_dim)
-        dirs_stacked = torch.stack(direction_tensors, dim=0)
-
-        # Handle partial batches: if k < k_dirs, we need to re-expand with correct k
-        # Use precomputed batches if k == k_dirs, otherwise rebuild from base batches
-        use_precomputed = (k == k_dirs)
-
-        hook = BatchAblationHook()
-        hook.register(layer_module)
-        try:
-            if use_precomputed:
-                batches_to_use = precomputed_expanded_batches
-            else:
-                # Build expanded batches for this smaller k from the base batches
-                batches_to_use = [
-                    (batch_indices, {
-                        name: tensor.repeat_interleave(k, dim=0)
-                        for name, tensor in batch_inputs.items()
-                    })
-                    for batch_indices, batch_inputs in gpu_batches_expanded
-                ]
-
-            for batch_indices, expanded_inputs in batches_to_use:
-                B = len(batch_indices)  # Original batch size (before expansion)
-
-                # Build per-example directions aligned with repeat_interleave order:
-                # [ex0*dir0..dirk-1, ex1*dir0..dirk-1, ...]
-                # Each example is repeated k times, once per direction
-                # dirs_stacked: (k, hidden) -> repeat B times -> (B*k, hidden)
-                dirs_bh = dirs_stacked.repeat(B, 1)  # (B*k, hidden)
-                hook.set_directions(dirs_bh)
-
-                with torch.inference_mode():
-                    batch_option_logits = _compute_batch_option_logits(
-                        model, transformer, W_opt, option_token_ids, expanded_inputs
-                    )
-                    batch_option_probs = torch.softmax(batch_option_logits, dim=-1).float().cpu().numpy()
-
-                # Map expanded outputs back to (question, direction)
-                for i, q_idx in enumerate(batch_indices):
-                    base = i * k
-                    metric_val = direct_metric_values[q_idx]
-                    metric_z = (metric_val - metric_mean) / metric_std
-
-                    for j in range(k):
-                        option_probs = batch_option_probs[base + j]
-                        response = options[np.argmax(option_probs)]
-                        confidence = local_response_to_confidence(response, option_probs, mappings[q_idx])
-
-                        confidence_z = (confidence - 0.5) / 0.25
-                        alignment = -metric_z * confidence_z
-
-                        results_by_dir[j][q_idx] = {
-                            "question_idx": q_idx,
-                            "response": response,
-                            "confidence": confidence,
-                            "metric": float(metric_val),
-                            "alignment": float(alignment),
-                        }
-
-            return results_by_dir
-        finally:
-            hook.remove()
-
-    # Compute baseline once if not provided
-    if baseline_results is None:
-        print("Computing baseline (no intervention)...")
-        baseline_results = run_all_questions()
-
-    for layer_idx in tqdm(layers, desc="Ablation layers"):
-        # Get layer module once
-        if hasattr(model, 'get_base_model'):
-            layer_module = model.get_base_model().model.layers[layer_idx]
-        else:
-            layer_module = model.model.layers[layer_idx]
-
-        # Get precomputed tensors or compute them
-        if cached_directions and layer_idx in cached_directions:
-            introspection_tensor = cached_directions[layer_idx]["introspection"]
-            control_tensors = cached_directions[layer_idx]["controls"]
-        else:
-            introspection_dir = np.array(directions[f"layer_{layer_idx}_introspection"])
-            introspection_dir = introspection_dir / np.linalg.norm(introspection_dir)
-            dtype = torch.float16 if DEVICE == "cuda" else torch.float32
-            introspection_tensor = torch.tensor(introspection_dir, dtype=dtype, device=DEVICE)
-            control_dirs = generate_orthogonal_directions(introspection_dir, num_controls)
-            control_tensors = [torch.tensor(cd, dtype=dtype, device=DEVICE) for cd in control_dirs]
-
-        layer_results = {
+    final_layer_results = {}
+    for l in layers:
+        final_layer_results[l] = {
             "baseline": baseline_results,
-            "introspection_ablated": [],
-            "controls_ablated": {f"control_{i}": [] for i in range(num_controls)},
+            "introspection_ablated": [None] * len(questions),
+            "controls_ablated": {f"control_{i}": [None] * len(questions) for i in range(num_controls)}
         }
 
-        # Introspection direction ablation - register hook once
-        hook = AblationHook(introspection_tensor, pre_normalized=True)
-        hook.register(layer_module)
-        try:
-            layer_results["introspection_ablated"] = run_all_questions()
-        finally:
-            hook.remove()
+    # 3. Main Loop
+    if cached_directions is None:
+        cached_directions = precompute_direction_tensors(
+            directions, layers, num_controls, DEVICE, 
+            torch.float16 if DEVICE == "cuda" else torch.float32
+        )
 
-        # Control direction ablations - batched for efficiency
-        # Process k_dirs controls per forward pass to reduce total passes
-        for batch_start in range(0, num_controls, k_dirs):
-            batch_end = min(batch_start + k_dirs, num_controls)
-            batch_ctrl_tensors = control_tensors[batch_start:batch_end]
+    # Use standard batch size (e.g., 8). No expansion needed.
+    gpu_batches = build_padded_gpu_batches(cached_inputs, tokenizer, DEVICE, BATCH_SIZE)
+    print(f"Processing {len(gpu_batches)} batches (KV-Cached)...")
+    
+    for batch_indices, batch_inputs in tqdm(gpu_batches, desc="Batches"):
+        B = len(batch_indices)
+        
+        # A. Compute KV Cache for this specific batch of questions
+        # This runs the heavy prefix (~200+ tokens) ONCE per batch.
+        base_step_inputs = get_kv_cache(model, batch_inputs)
+        
+        # B. Iterate Layers
+        for layer_idx in layers:
+            if hasattr(model, 'get_base_model'):
+                layer_module = model.get_base_model().model.layers[layer_idx]
+            else:
+                layer_module = model.model.layers[layer_idx]
 
-            batch_results = run_all_questions_multi_ablation(layer_module, batch_ctrl_tensors)
-            for local_idx, results_list in batch_results.items():
-                global_idx = batch_start + local_idx
-                layer_results["controls_ablated"][f"control_{global_idx}"] = results_list
+            intro_dir = cached_directions[layer_idx]["introspection"] # (H,)
+            control_dirs = cached_directions[layer_idx]["controls"]   # List[(H,)]
 
-        results["layer_results"][layer_idx] = layer_results
+            # Setup Hook
+            hook = BatchAblationHook()
+            hook.register(layer_module)
+            
+            # --- Helper to run one direction ---
+            def run_single_ablation(direction_vector, result_storage, key=None):
+                # direction_vector is (H,). We need (Batch, H)
+                dirs_batch = direction_vector.unsqueeze(0).expand(B, -1)
+                
+                hook.set_directions(dirs_batch)
+                
+                with torch.inference_mode():
+                    # This runs ONLY the last token (Length=1). Very fast.
+                    out = model(**base_step_inputs)
+                    logits = out.logits[:, -1, :][:, option_token_ids]
+                    probs = torch.softmax(logits, dim=-1).float().cpu().numpy()
+                
+                for i, q_idx in enumerate(batch_indices):
+                    p = probs[i]
+                    resp = options[np.argmax(p)]
+                    conf = local_response_to_confidence(resp, p, mappings[q_idx])
+                    m_val = direct_metric_values[q_idx]
+                    align = -((m_val - metric_mean)/metric_std) * ((conf - 0.5)/0.25)
+                    
+                    data = {
+                        "question_idx": q_idx, "response": resp, "confidence": conf,
+                        "metric": float(m_val), "alignment": float(align)
+                    }
+                    if key: result_storage[key][q_idx] = data
+                    else: result_storage[q_idx] = data
 
-    return results
+            try:
+                # 1. Run Introspection
+                run_single_ablation(intro_dir, final_layer_results[layer_idx]["introspection_ablated"])
+                
+                # 2. Run Controls (Sequentially reuse the same KV cache)
+                for i_c, ctrl_dir in enumerate(control_dirs):
+                    run_single_ablation(
+                        ctrl_dir, 
+                        final_layer_results[layer_idx]["controls_ablated"], 
+                        key=f"control_{i_c}"
+                    )
+            finally:
+                hook.remove()
 
+    return {
+        "layers": layers,
+        "num_questions": len(questions),
+        "num_controls": num_controls,
+        "layer_results": final_layer_results
+    }
 
 def compute_correlation(confidences: np.ndarray, metric_values: np.ndarray) -> float:
     """Compute Pearson correlation between confidence and uncertainty metric."""
