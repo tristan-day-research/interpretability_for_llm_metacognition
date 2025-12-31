@@ -131,13 +131,18 @@ def compute_uncertainty_metrics(probs: np.ndarray, logits: np.ndarray = None) ->
     }
 
 
-def get_output_prefix(metric: str) -> str:
-    """Generate output filename prefix based on config."""
+def get_base_output_prefix() -> str:
+    """Generate base output filename prefix (without metric) for shared files like activations."""
     model_short = get_model_short_name(BASE_MODEL_NAME)
     if MODEL_NAME != BASE_MODEL_NAME:
         adapter_short = get_model_short_name(MODEL_NAME)
-        return str(OUTPUTS_DIR / f"{model_short}_adapter-{adapter_short}_{DATASET_NAME}_mc_{metric}")
-    return str(OUTPUTS_DIR / f"{model_short}_{DATASET_NAME}_mc_{metric}")
+        return str(OUTPUTS_DIR / f"{model_short}_adapter-{adapter_short}_{DATASET_NAME}_mc")
+    return str(OUTPUTS_DIR / f"{model_short}_{DATASET_NAME}_mc")
+
+
+def get_output_prefix(metric: str) -> str:
+    """Generate output filename prefix for metric-specific files."""
+    return f"{get_base_output_prefix()}_{metric}"
 
 
 def load_questions(dataset_name: str, num_questions: int = None) -> List[Dict]:
@@ -718,6 +723,8 @@ def main():
     parser = argparse.ArgumentParser(description="Train uncertainty probes on MC questions")
     parser.add_argument("--metric", type=str, default=METRIC, choices=AVAILABLE_METRICS,
                         help=f"Metric to probe (default: {METRIC})")
+    parser.add_argument("--all-metrics", action="store_true",
+                        help="Train probes for all metrics (takes ~5x longer than single metric)")
     parser.add_argument("--plot-only", action="store_true",
                         help="Skip extraction, load saved activations and retrain probes")
     parser.add_argument("--batch-size", type=int, default=8,
@@ -729,19 +736,22 @@ def main():
     args = parser.parse_args()
 
     METRIC = args.metric
+    run_all_metrics = args.all_metrics
     print(f"Device: {DEVICE}")
-    print(f"Metric: {METRIC}")
+    if run_all_metrics:
+        print(f"Metrics: ALL ({', '.join(AVAILABLE_METRICS)})")
+    else:
+        print(f"Metric: {METRIC}")
 
-    # Generate output prefix (includes metric name)
-    output_prefix = get_output_prefix(METRIC)
-    print(f"Output prefix: {output_prefix}")
+    # Generate output prefixes
+    base_prefix = get_base_output_prefix()  # For shared files (activations, dataset)
+    print(f"Base output prefix: {base_prefix}")
 
     # Define output paths
-    activations_path = Path(f"{output_prefix}_activations.npz")
-    dataset_path = Path(f"{output_prefix}_dataset.json")
-    results_path = Path(f"{output_prefix}_results.json")
-    directions_path = Path(f"{output_prefix}_directions.npz")
-    plot_path = Path(f"{output_prefix}_results.png")
+    # Shared files (metric-agnostic): activations and dataset
+    activations_path = Path(f"{base_prefix}_activations.npz")
+    dataset_path = Path(f"{base_prefix}_dataset.json")
+    # Metric-specific files are generated later in the loop
 
     metadata = None  # Will be loaded or computed
 
@@ -820,26 +830,16 @@ def main():
             json.dump(output_data, f, indent=2)
         print(f"Saved dataset to {dataset_path}")
 
-    # Train probes for the selected metric
-    single_metric = {METRIC: target}
-    results, directions = run_all_probes(activations, single_metric)
+    # Determine which metrics to train probes for
+    if run_all_metrics:
+        metrics_to_train = all_metrics  # All 5 metrics
+    else:
+        metrics_to_train = {METRIC: target}  # Just the selected one
 
-    # Extract results for this metric
-    layer_results = results[METRIC]
-    layer_directions = directions[METRIC]
+    # Train probes for all requested metrics
+    results, directions = run_all_probes(activations, metrics_to_train)
 
-    # Save directions
-    directions_data = {
-        f"layer_{layer_idx}": direction
-        for layer_idx, direction in layer_directions.items()
-    }
-    directions_data["_metadata_dataset"] = np.array(DATASET_NAME)
-    directions_data["_metadata_model"] = np.array(BASE_MODEL_NAME)
-    directions_data["_metadata_metric"] = np.array(METRIC)
-    np.savez_compressed(directions_path, **directions_data)
-    print(f"Saved directions to {directions_path}")
-
-    # Compute accuracy from metadata if available
+    # Compute accuracy from metadata if available (shared across all metrics)
     accuracy_stats = None
     if metadata:
         correct_count = sum(1 for m in metadata if m.get("is_correct", False))
@@ -849,45 +849,70 @@ def main():
             "total_count": len(metadata),
         }
 
-    # Save results
-    output_data = {
-        "config": {
-            "base_model": BASE_MODEL_NAME,
-            "dataset": DATASET_NAME,
-            "adapter": MODEL_NAME if MODEL_NAME != BASE_MODEL_NAME else None,
-            "metric": METRIC,
-            "train_split": TRAIN_SPLIT,
-            "probe_alpha": PROBE_ALPHA,
-            "use_pca": USE_PCA,
-            "pca_components": PCA_COMPONENTS,
-            "n_bootstrap": N_BOOTSTRAP,
-            "seed": SEED,
-        },
-        "metric_stats": {
-            "mean": float(target.mean()),
-            "std": float(target.std()),
-            "min": float(target.min()),
-            "max": float(target.max()),
-            "variance": float(target.var()),
-            "median": float(np.median(target)),
-            "iqr": float(np.percentile(target, 75) - np.percentile(target, 25)),
-        },
-        "results": {str(k): v for k, v in layer_results.items()}
-    }
+    # Save results and directions for each metric
+    for metric_name in metrics_to_train.keys():
+        metric_target = metrics_to_train[metric_name]
+        layer_results = results[metric_name]
+        layer_directions = directions[metric_name]
 
-    if accuracy_stats:
-        output_data["accuracy"] = accuracy_stats
+        # Generate metric-specific output paths
+        metric_output_prefix = get_output_prefix(metric_name)
+        metric_directions_path = Path(f"{metric_output_prefix}_directions.npz")
+        metric_results_path = Path(f"{metric_output_prefix}_results.json")
+        metric_plot_path = Path(f"{metric_output_prefix}_results.png")
 
-    with open(results_path, "w") as f:
-        json.dump(output_data, f, indent=2)
-    print(f"Saved results to {results_path}")
+        # Save directions
+        directions_data = {
+            f"layer_{layer_idx}": direction
+            for layer_idx, direction in layer_directions.items()
+        }
+        directions_data["_metadata_dataset"] = np.array(DATASET_NAME)
+        directions_data["_metadata_model"] = np.array(BASE_MODEL_NAME)
+        directions_data["_metadata_metric"] = np.array(metric_name)
+        np.savez_compressed(metric_directions_path, **directions_data)
+        print(f"Saved {metric_name} directions to {metric_directions_path}")
 
-    # Print and plot results (wrap in dict for existing functions)
-    print_results({METRIC: layer_results})
-    plot_results({METRIC: layer_results}, plot_path)
+        # Save results
+        output_data = {
+            "config": {
+                "base_model": BASE_MODEL_NAME,
+                "dataset": DATASET_NAME,
+                "adapter": MODEL_NAME if MODEL_NAME != BASE_MODEL_NAME else None,
+                "metric": metric_name,
+                "train_split": TRAIN_SPLIT,
+                "probe_alpha": PROBE_ALPHA,
+                "use_pca": USE_PCA,
+                "pca_components": PCA_COMPONENTS,
+                "n_bootstrap": N_BOOTSTRAP,
+                "seed": SEED,
+            },
+            "metric_stats": {
+                "mean": float(metric_target.mean()),
+                "std": float(metric_target.std()),
+                "min": float(metric_target.min()),
+                "max": float(metric_target.max()),
+                "variance": float(metric_target.var()),
+                "median": float(np.median(metric_target)),
+                "iqr": float(np.percentile(metric_target, 75) - np.percentile(metric_target, 25)),
+            },
+            "results": {str(k): v for k, v in layer_results.items()}
+        }
+
+        if accuracy_stats:
+            output_data["accuracy"] = accuracy_stats
+
+        with open(metric_results_path, "w") as f:
+            json.dump(output_data, f, indent=2)
+        print(f"Saved {metric_name} results to {metric_results_path}")
+
+        # Plot results for this metric
+        plot_results({metric_name: layer_results}, metric_plot_path)
+
+    # Print results summary (all metrics together)
+    print_results(results)
 
     # Print diagnostic summary
-    print_diagnostic_summary({METRIC: target}, {METRIC: layer_results})
+    print_diagnostic_summary(metrics_to_train, results)
 
 
 if __name__ == "__main__":

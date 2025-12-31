@@ -52,6 +52,13 @@ from tasks import (
     STATED_CONFIDENCE_MIDPOINTS,
     STATED_CONFIDENCE_QUESTION,
     format_stated_confidence_prompt,
+    get_stated_confidence_signal,
+    # Other-confidence task (control: estimate human difficulty)
+    OTHER_CONFIDENCE_SETUP,
+    OTHER_CONFIDENCE_OPTIONS,
+    OTHER_CONFIDENCE_QUESTION,
+    format_other_confidence_prompt,
+    get_other_confidence_signal,
     # Delegate task
     ANSWER_OR_DELEGATE_SETUP,
     ANSWER_OR_DELEGATE_SYSPROMPT,
@@ -758,6 +765,96 @@ def collect_meta_only(
     }
 
 
+def collect_other_confidence(
+    questions: List[Dict],
+    model,
+    tokenizer,
+    num_layers: int,
+    use_chat_template: bool,
+    batch_size: int = BATCH_SIZE
+) -> Dict:
+    """
+    Collect other-confidence (human difficulty estimation) responses.
+
+    This is a control task: asks model to estimate what % of college-educated
+    people would know the answer (instead of asking about its own confidence).
+
+    If the model is truly introspecting on its own uncertainty, the self-confidence
+    task should correlate more strongly with its actual uncertainty metrics than
+    this other-confidence task.
+
+    Returns dict with:
+        - other_probs: list of prob arrays over S-Z options
+        - other_responses: list of predicted confidence letters
+        - other_signals: list of expected confidence values (weighted avg of midpoints)
+    """
+    print(f"\nCollecting other-confidence (control) data for {len(questions)} questions...")
+
+    extractor = BatchedExtractor(model, num_layers)
+    extractor.register_hooks()
+
+    # Storage
+    other_probs_list = []
+    other_responses = []
+    other_signals = []
+
+    model.eval()
+
+    # Other-confidence uses same S-Z options as stated confidence
+    other_options = list(OTHER_CONFIDENCE_OPTIONS.keys())
+    other_option_token_ids = [tokenizer.encode(opt, add_special_tokens=False)[0] for opt in other_options]
+
+    try:
+        num_batches = (len(questions) + batch_size - 1) // batch_size
+
+        for batch_idx in tqdm(range(num_batches), desc="Processing other-confidence"):
+            start_idx = batch_idx * batch_size
+            end_idx = min(start_idx + batch_size, len(questions))
+            batch_questions = questions[start_idx:end_idx]
+
+            # Format prompts for other-confidence task
+            other_prompts = []
+            for q in batch_questions:
+                prompt, _ = format_other_confidence_prompt(q, tokenizer, use_chat_template)
+                other_prompts.append(prompt)
+
+            inputs = tokenizer(
+                other_prompts,
+                return_tensors="pt",
+                padding=True,
+            ).to(DEVICE)
+
+            _, batch_probs, _, _ = extractor.extract_batch(
+                inputs["input_ids"],
+                inputs["attention_mask"],
+                other_option_token_ids
+            )
+
+            for probs in batch_probs:
+                other_probs_list.append(probs.tolist())
+                other_response = other_options[np.argmax(probs)]
+                other_responses.append(other_response)
+                # Compute expected signal (weighted avg)
+                signal = get_other_confidence_signal(probs)
+                other_signals.append(signal)
+
+            del inputs
+
+            if (batch_idx + 1) % 10 == 0:
+                torch.cuda.empty_cache()
+
+    finally:
+        extractor.remove_hooks()
+
+    print(f"Other-confidence signals: mean={np.mean(other_signals):.3f}, std={np.std(other_signals):.3f}")
+
+    return {
+        "other_probs": other_probs_list,
+        "other_responses": other_responses,
+        "other_signals": np.array(other_signals),
+    }
+
+
 # ============================================================================
 # PROBE TRAINING AND EVALUATION
 # ============================================================================
@@ -1065,7 +1162,7 @@ def analyze_behavioral_introspection(
     correlate with direct entropy (high confidence = low entropy).
 
     For delegate task, confidence = P(Answer) from meta_probs.
-    For confidence task, confidence = midpoint of chosen range.
+    For confidence task, confidence = weighted average of midpoints (expected value).
 
     For delegate task, also computes:
     - Delegation rate: fraction of questions delegated
@@ -1073,28 +1170,132 @@ def analyze_behavioral_introspection(
     - Teammate accuracy when delegated (fixed at 50%)
     """
     # Convert meta responses to confidence values
-    stated_confidence = np.array([
-        local_response_to_confidence(r, np.array(p) if p else None, m)
-        for r, p, m in zip(
-            meta_responses,
-            meta_probs or [None] * len(meta_responses),
-            meta_mappings or [None] * len(meta_responses)
-        )
-    ])
+    # For confidence task, use weighted average of midpoints (expected value)
+    # For delegate task, use P(Answer)
+    if META_TASK == "delegate":
+        stated_confidence = np.array([
+            local_response_to_confidence(r, np.array(p) if p else None, m)
+            for r, p, m in zip(
+                meta_responses,
+                meta_probs or [None] * len(meta_responses),
+                meta_mappings or [None] * len(meta_responses)
+            )
+        ])
+    else:
+        # Confidence task: weighted average of midpoints
+        from tasks import get_stated_confidence_signal
+        stated_confidence = np.array([
+            get_stated_confidence_signal(np.array(p)) if p else 0.5
+            for p in meta_probs
+        ])
 
-    # Use test set only for fair comparison with probe results
+    # Split into test set (same split used for probe evaluation)
     test_confidence = stated_confidence[test_idx]
     test_entropy = direct_entropies[test_idx]
 
-    # Correlation (should be negative if introspecting correctly)
-    correlation = np.corrcoef(test_confidence, test_entropy)[0, 1]
+    # Subsample-to-m interval approach for CIs
+    # This gives intervals calibrated to test size, centered on point estimates
+    from scipy import stats
+    n_subsamples = 200  # K iterations
+    n = len(direct_entropies)
+    m = len(test_idx)  # test size
 
-    # Also compute on full dataset
-    full_correlation = np.corrcoef(stated_confidence, direct_entropies)[0, 1]
+    # Helper: Fisher z transform and inverse
+    def fisher_z(r):
+        # Clip to avoid inf at r=±1
+        r = np.clip(r, -0.9999, 0.9999)
+        return 0.5 * np.log((1 + r) / (1 - r))
+
+    def fisher_z_inv(z):
+        return (np.exp(2 * z) - 1) / (np.exp(2 * z) + 1)
+
+    # Full correlation (point estimate on all data - stable)
+    full_r = np.corrcoef(stated_confidence, direct_entropies)[0, 1]
+    full_z = fisher_z(full_r)
+
+    # Test correlation (point estimate on specific test_idx)
+    test_r = np.corrcoef(test_confidence, test_entropy)[0, 1]
+    n_test = len(test_confidence)
+
+    # Subsample-to-m interval for FULL correlation
+    # Subsample m items, compute correlation, get deviation from full_r in z-space
+    full_subsample_deviations = []
+    for k in range(n_subsamples):
+        rng = np.random.default_rng(k)
+        idx = rng.choice(n, size=m, replace=False)
+        sub_r = np.corrcoef(stated_confidence[idx], direct_entropies[idx])[0, 1]
+        if not np.isnan(sub_r):
+            sub_z = fisher_z(sub_r)
+            full_subsample_deviations.append(sub_z - full_z)
+
+    # Get percentiles of deviations, then map back to correlation space
+    dev_lower = np.percentile(full_subsample_deviations, 2.5)
+    dev_upper = np.percentile(full_subsample_deviations, 97.5)
+    full_ci_lower = fisher_z_inv(full_z + dev_lower)
+    full_ci_upper = fisher_z_inv(full_z + dev_upper)
+    full_ci_std = np.std([fisher_z_inv(full_z + d) for d in full_subsample_deviations])
+
+    # Subsample-to-m interval for TEST correlation (random test subsets)
+    # This shows how test correlation varies across different random splits
+    test_subsample_correlations = []
+    for k in range(n_subsamples):
+        rng = np.random.default_rng(k)
+        idx = rng.choice(n, size=m, replace=False)
+        sub_r = np.corrcoef(stated_confidence[idx], direct_entropies[idx])[0, 1]
+        if not np.isnan(sub_r):
+            test_subsample_correlations.append(sub_r)
+
+    test_ci_mean = np.mean(test_subsample_correlations)
+    test_ci_std = np.std(test_subsample_correlations)
+    test_ci_lower = np.percentile(test_subsample_correlations, 2.5)
+    test_ci_upper = np.percentile(test_subsample_correlations, 97.5)
+
+    # P-values using t-distribution
+    if abs(full_r) < 1 and n > 2:
+        t_stat = full_r * np.sqrt((n - 2) / (1 - full_r**2))
+        full_pvalue = 2 * (1 - stats.t.cdf(abs(t_stat), df=n-2))
+    else:
+        full_pvalue = np.nan
+
+    if abs(test_r) < 1 and n_test > 2:
+        t_stat = test_r * np.sqrt((n_test - 2) / (1 - test_r**2))
+        test_pvalue = 2 * (1 - stats.t.cdf(abs(t_stat), df=n_test-2))
+    else:
+        test_pvalue = np.nan
+
+    # Partial correlation (always computed - equals Pearson when no controls)
+    import pandas as pd
+    from logres_helpers import partial_correlation_on_decision
+
+    # Control variables for partial correlation (currently empty, ready for future use)
+    control_series_list = []
+
+    full_partial_result = partial_correlation_on_decision(
+        dv_series=pd.Series(direct_entropies, name='entropy'),
+        iv_series=pd.Series(stated_confidence, name='confidence'),
+        control_series_list=control_series_list
+    )
 
     result = {
-        "test_correlation": correlation,
-        "full_correlation": full_correlation,
+        "full_correlation": float(full_r),
+        "full_correlation_pvalue": float(full_pvalue),
+        "test_correlation": float(test_r),
+        "test_correlation_pvalue": float(test_pvalue),
+        # Subsample-to-m interval for full: centered on full_r, width calibrated to test size
+        "full_correlation_ci95": [float(full_ci_lower), float(full_ci_upper)],
+        "full_correlation_ci_std": float(full_ci_std),
+        # Subsample-to-m interval for test: distribution of correlations at test size
+        "test_correlation_ci95": [float(test_ci_lower), float(test_ci_upper)],
+        "test_correlation_ci_mean": float(test_ci_mean),
+        "test_correlation_ci_std": float(test_ci_std),
+        "n_subsamples": n_subsamples,
+        # Partial correlation (equals Pearson when no controls)
+        "partial_correlation": float(full_partial_result['correlation']),
+        "partial_correlation_ci95": [float(full_partial_result['ci_lower']), float(full_partial_result['ci_upper'])],
+        "partial_correlation_pvalue": float(full_partial_result['p_value']),
+        "partial_correlation_controls": [s.name for s in control_series_list],
+        "n_samples_full": n,
+        "n_samples_test": n_test,
         "test_confidence_mean": float(test_confidence.mean()),
         "test_confidence_std": float(test_confidence.std()),
         "test_entropy_mean": float(test_entropy.mean()),
@@ -1147,17 +1348,208 @@ def analyze_behavioral_introspection(
     return result
 
 
-def print_results(results: Dict, behavioral: Dict):
+def analyze_other_confidence_control(
+    other_signals: np.ndarray,
+    self_confidence: np.ndarray,
+    direct_metric: np.ndarray,
+    test_idx: np.ndarray
+) -> Dict:
+    """
+    Analyze other-confidence (human difficulty estimation) as a control.
+
+    Compares:
+    1. Correlation of self-confidence vs direct metric (introspection)
+    2. Correlation of other-confidence vs direct metric (control)
+    3. Correlation between self and other confidence
+
+    If the model is truly introspecting, self-confidence should correlate
+    more strongly with its own uncertainty than other-confidence does.
+    """
+    from scipy import stats
+
+    n = len(direct_metric)
+    n_test = len(test_idx)
+
+    # Helper: Fisher z transform
+    def fisher_z(r):
+        r = np.clip(r, -0.9999, 0.9999)
+        return 0.5 * np.log((1 + r) / (1 - r))
+
+    def fisher_z_inv(z):
+        return (np.exp(2 * z) - 1) / (np.exp(2 * z) + 1)
+
+    # 1. Self-confidence vs direct metric (already computed in behavioral analysis,
+    #    but we recompute for completeness and to use for comparison)
+    self_r = np.corrcoef(self_confidence, direct_metric)[0, 1]
+    if abs(self_r) < 1 and n > 2:
+        t_stat = self_r * np.sqrt((n - 2) / (1 - self_r**2))
+        self_pvalue = 2 * (1 - stats.t.cdf(abs(t_stat), df=n-2))
+    else:
+        self_pvalue = np.nan
+
+    # 2. Other-confidence vs direct metric
+    other_r = np.corrcoef(other_signals, direct_metric)[0, 1]
+    if abs(other_r) < 1 and n > 2:
+        t_stat = other_r * np.sqrt((n - 2) / (1 - other_r**2))
+        other_pvalue = 2 * (1 - stats.t.cdf(abs(t_stat), df=n-2))
+    else:
+        other_pvalue = np.nan
+
+    # 3. Self vs Other confidence correlation
+    self_other_r = np.corrcoef(self_confidence, other_signals)[0, 1]
+    if abs(self_other_r) < 1 and n > 2:
+        t_stat = self_other_r * np.sqrt((n - 2) / (1 - self_other_r**2))
+        self_other_pvalue = 2 * (1 - stats.t.cdf(abs(t_stat), df=n-2))
+    else:
+        self_other_pvalue = np.nan
+
+    # 4. Compare correlations: is self-confidence significantly more correlated
+    #    with direct metric than other-confidence?
+    # Use Steiger's Z-test for comparing dependent correlations
+    # (self vs metric) vs (other vs metric), where self and other are correlated
+    r12 = self_r  # self vs metric
+    r13 = other_r  # other vs metric
+    r23 = self_other_r  # self vs other
+
+    # Steiger's Z formula for comparing dependent correlations
+    if abs(r12) < 1 and abs(r13) < 1 and abs(r23) < 1:
+        # Average correlation
+        r_avg = (r12 + r13) / 2
+
+        # Hotelling-Williams t-test approximation
+        f = (1 - r23) / (2 * (1 - r_avg**2)) if abs(r_avg) < 1 else 1
+        det = 1 - r12**2 - r13**2 - r23**2 + 2*r12*r13*r23
+
+        if det > 0:
+            t_stat = (r12 - r13) * np.sqrt((n - 3) * (1 + r23) / (2 * det))
+            diff_pvalue = 2 * (1 - stats.t.cdf(abs(t_stat), df=n-3))
+        else:
+            diff_pvalue = np.nan
+    else:
+        diff_pvalue = np.nan
+
+    # Bootstrap CI for the difference in correlations
+    n_bootstrap = 1000
+    diff_samples = []
+    for b in range(n_bootstrap):
+        rng = np.random.default_rng(b)
+        idx = rng.choice(n, size=n, replace=True)
+        self_r_b = np.corrcoef(self_confidence[idx], direct_metric[idx])[0, 1]
+        other_r_b = np.corrcoef(other_signals[idx], direct_metric[idx])[0, 1]
+        if not np.isnan(self_r_b) and not np.isnan(other_r_b):
+            diff_samples.append(self_r_b - other_r_b)
+
+    if diff_samples:
+        diff_mean = np.mean(diff_samples)
+        diff_ci_lower = np.percentile(diff_samples, 2.5)
+        diff_ci_upper = np.percentile(diff_samples, 97.5)
+    else:
+        diff_mean = self_r - other_r
+        diff_ci_lower = diff_ci_upper = np.nan
+
+    return {
+        # Self-confidence analysis
+        "self_vs_metric_r": float(self_r),
+        "self_vs_metric_pvalue": float(self_pvalue),
+        # Other-confidence analysis
+        "other_vs_metric_r": float(other_r),
+        "other_vs_metric_pvalue": float(other_pvalue),
+        # Self vs Other correlation
+        "self_vs_other_r": float(self_other_r),
+        "self_vs_other_pvalue": float(self_other_pvalue),
+        # Comparison
+        "correlation_difference": float(self_r - other_r),
+        "correlation_difference_ci95": [float(diff_ci_lower), float(diff_ci_upper)],
+        "correlation_difference_pvalue": float(diff_pvalue) if not np.isnan(diff_pvalue) else None,
+        # Descriptives
+        "self_confidence_mean": float(self_confidence.mean()),
+        "self_confidence_std": float(self_confidence.std()),
+        "other_confidence_mean": float(other_signals.mean()),
+        "other_confidence_std": float(other_signals.std()),
+        "n_samples": n,
+    }
+
+
+def print_results(results: Dict, behavioral: Dict, other_confidence_analysis: Dict = None):
     """Print summary of results."""
     print("\n" + "=" * 100)
     print("INTROSPECTION EXPERIMENT RESULTS")
     print("=" * 100)
 
     print("\n--- Behavioral Analysis ---")
+    n_full = behavioral.get('n_samples_full', '?')
+    n_test = behavioral.get('n_samples_test', '?')
+    n_subsamples = behavioral.get('n_subsamples', '?')
     print(f"Correlation (stated confidence vs direct entropy):")
-    print(f"  Full dataset:  {behavioral['full_correlation']:.4f}")
-    print(f"  Test set only: {behavioral['test_correlation']:.4f}")
+
+    # Full dataset correlation with subsample-to-m CI
+    full_p = behavioral.get('full_correlation_pvalue')
+    p_str = f", p = {full_p:.2e}" if full_p is not None and not np.isnan(full_p) else ""
+    full_ci = behavioral.get('full_correlation_ci95', [None, None])
+    full_ci_std = behavioral.get('full_correlation_ci_std')
+    if full_ci[0] is not None:
+        print(f"  Full  (n={n_full}):  r = {behavioral['full_correlation']:.4f} ± {full_ci_std:.4f}  [95% CI: {full_ci[0]:.4f}, {full_ci[1]:.4f}]{p_str}")
+    else:
+        print(f"  Full  (n={n_full}):  r = {behavioral['full_correlation']:.4f}{p_str}")
+
+    # Test set correlation with subsample CI
+    test_p = behavioral.get('test_correlation_pvalue')
+    p_str = f", p = {test_p:.2e}" if test_p is not None and not np.isnan(test_p) else ""
+    test_ci = behavioral.get('test_correlation_ci95', [None, None])
+    test_ci_std = behavioral.get('test_correlation_ci_std')
+    if test_ci[0] is not None:
+        print(f"  Test  (n={n_test}):  r = {behavioral['test_correlation']:.4f} ± {test_ci_std:.4f}  [95% CI: {test_ci[0]:.4f}, {test_ci[1]:.4f}]{p_str}")
+    else:
+        print(f"  Test  (n={n_test}):  r = {behavioral['test_correlation']:.4f}{p_str}")
+
+    print(f"  (CIs from {n_subsamples} subsamples to test size, centered on point estimate)")
+
+    # Partial correlation
+    partial_r = behavioral.get('partial_correlation')
+    partial_ci = behavioral.get('partial_correlation_ci95', [None, None])
+    partial_p = behavioral.get('partial_correlation_pvalue')
+    controls = behavioral.get('partial_correlation_controls', [])
+    if partial_r is not None:
+        p_str = f", p = {partial_p:.2e}" if partial_p is not None and not np.isnan(partial_p) else ""
+        ctrl_str = f" (controlling for {', '.join(controls)})" if controls else ""
+        print(f"  Partial{ctrl_str}: r = {partial_r:.4f}  [95% CI: {partial_ci[0]:.4f}, {partial_ci[1]:.4f}]{p_str}")
+
     print(f"  (Negative correlation suggests introspection; positive suggests miscalibration)")
+
+    # Other-confidence control analysis (only for confidence task)
+    if other_confidence_analysis is not None:
+        print("\n--- Other-Confidence Control (Human Difficulty Estimation) ---")
+        self_r = other_confidence_analysis['self_vs_metric_r']
+        other_r = other_confidence_analysis['other_vs_metric_r']
+        diff = other_confidence_analysis['correlation_difference']
+        diff_ci = other_confidence_analysis['correlation_difference_ci95']
+        diff_p = other_confidence_analysis.get('correlation_difference_pvalue')
+
+        self_p = other_confidence_analysis['self_vs_metric_pvalue']
+        other_p = other_confidence_analysis['other_vs_metric_pvalue']
+
+        self_p_str = f", p = {self_p:.2e}" if self_p is not None and not np.isnan(self_p) else ""
+        other_p_str = f", p = {other_p:.2e}" if other_p is not None and not np.isnan(other_p) else ""
+
+        print(f"  Self-confidence vs {METRIC}:    r = {self_r:.4f}{self_p_str}")
+        print(f"  Other-confidence vs {METRIC}:   r = {other_r:.4f}{other_p_str}")
+        print(f"  Self vs Other confidence:       r = {other_confidence_analysis['self_vs_other_r']:.4f}")
+        print(f"")
+        print(f"  Difference (self - other):      Δr = {diff:.4f}  [95% CI: {diff_ci[0]:.4f}, {diff_ci[1]:.4f}]")
+
+        if diff_p is not None:
+            print(f"  Steiger's test p-value:         p = {diff_p:.4e}")
+            if diff_p < 0.05 and diff < 0:
+                print(f"  → Self-confidence significantly MORE correlated with {METRIC} than other-confidence")
+                print(f"    This suggests the model is introspecting on its own uncertainty,")
+                print(f"    not just assessing question difficulty.")
+            elif diff_p < 0.05 and diff > 0:
+                print(f"  → Self-confidence significantly LESS correlated with {METRIC} than other-confidence")
+                print(f"    This is unexpected - the model may be using question difficulty as a proxy.")
+            else:
+                print(f"  → No significant difference between self and other confidence correlations")
+        else:
+            print(f"  → Could not compute significance test")
 
     # Delegate-specific summary statistics
     if META_TASK == "delegate" and "delegation_rate" in behavioral:
@@ -1285,12 +1677,27 @@ def plot_results(
 
     transfer_ratio = max(d2m_r2_fixed) / max(max(d2d_r2), 0.001)
 
+    # Format correlation strings with subsample-to-m CIs
+    full_p = behavioral.get('full_correlation_pvalue')
+    full_p_str = f"p={full_p:.1e}" if full_p is not None and not np.isnan(full_p) else ""
+
+    full_ci = behavioral.get('full_correlation_ci95', [None, None])
+    full_ci_std = behavioral.get('full_correlation_ci_std', 0)
+    test_ci = behavioral.get('test_correlation_ci95', [None, None])
+    test_ci_std = behavioral.get('test_correlation_ci_std', 0)
+
+    n_full = behavioral.get('n_samples_full', '?')
+    n_test = behavioral.get('n_samples_test', '?')
+
+    full_ci_str = f"±{full_ci_std:.3f} [{full_ci[0]:.3f}, {full_ci[1]:.3f}]" if full_ci[0] is not None else ""
+    test_ci_str = f"±{test_ci_std:.3f} [{test_ci[0]:.3f}, {test_ci[1]:.3f}]" if test_ci[0] is not None else ""
+
     summary_text = f"""
 INTROSPECTION EXPERIMENT SUMMARY
 
-Behavioral Correlation:
-  Full dataset:  {behavioral['full_correlation']:.4f}
-  Test set only: {behavioral['test_correlation']:.4f}
+Behavioral Correlation (stated conf vs entropy):
+  Full (n={n_full}):  r = {behavioral['full_correlation']:.4f} {full_ci_str}  {full_p_str}
+  Test (n={n_test}):  r = {behavioral['test_correlation']:.4f} {test_ci_str}
   (Negative = model reports low confidence when uncertain)
 
 Best Layer Results:
@@ -1329,12 +1736,14 @@ def try_load_mc_data() -> Optional[Dict]:
     """
     Try to load existing MC data from mc_entropy_probe.py output.
 
-    Returns dict with direct_activations, direct_entropies, questions, metadata
+    Returns dict with direct_activations, direct_metrics, metadata
     if files exist and config matches. Returns None otherwise.
+
+    direct_metrics is a dict mapping metric names to numpy arrays.
     """
     mc_prefix = get_mc_prefix()
     activations_path = Path(f"{mc_prefix}_activations.npz")
-    dataset_path = Path(f"{mc_prefix}_entropy_dataset.json")
+    dataset_path = Path(f"{mc_prefix}_dataset.json")
 
     if not activations_path.exists() or not dataset_path.exists():
         return None
@@ -1363,17 +1772,28 @@ def try_load_mc_data() -> Optional[Dict]:
         int(k.split("_")[1]): acts_data[k]
         for k in acts_data.files if k.startswith("layer_")
     }
-    direct_entropies = acts_data["entropies"]
+
+    # Load all metrics (new format stores: entropy, top_prob, margin, logit_gap, top_logit)
+    # Fall back to "entropies" key for backward compatibility with old files
+    direct_metrics = {}
+    metric_keys = ["entropy", "top_prob", "margin", "logit_gap", "top_logit"]
+    for key in metric_keys:
+        if key in acts_data.files:
+            direct_metrics[key] = acts_data[key]
+    # Backward compatibility: old files have "entropies" key
+    if not direct_metrics and "entropies" in acts_data.files:
+        direct_metrics["entropy"] = acts_data["entropies"]
 
     # Get metadata (includes questions, probs, etc.)
     metadata = dataset_data.get("data", [])
 
-    print(f"  Loaded {len(direct_activations)} layers, {len(direct_entropies)} questions")
+    print(f"  Loaded {len(direct_activations)} layers, {len(direct_metrics.get('entropy', []))} questions")
+    print(f"  Metrics available: {list(direct_metrics.keys())}")
     print(f"  Reusing direct activations from mc_entropy_probe.py!")
 
     return {
         "direct_activations": direct_activations,
-        "direct_entropies": direct_entropies,
+        "direct_metrics": direct_metrics,
         "metadata": metadata,
     }
 
@@ -1469,6 +1889,46 @@ def main():
     )
     print(f"Saved activations to {base_prefix}_*_activations.npz")
 
+    # Generate example prompts for verification (first 2 questions)
+    example_prompts = []
+    for i in range(min(2, len(questions))):
+        q = questions[i]
+        direct_prompt, direct_options = format_direct_prompt(q, tokenizer, use_chat_template)
+        if META_TASK == "delegate":
+            meta_prompt, meta_options_list, mapping = format_delegate_prompt(q, tokenizer, use_chat_template, trial_index=i)
+        else:
+            meta_prompt, meta_options_list = format_meta_prompt(q, tokenizer, use_chat_template)
+            mapping = None
+        example_prompts.append({
+            "question_index": i,
+            "question_text": q.get("question", ""),
+            "direct_prompt": direct_prompt,
+            "direct_options": direct_options,
+            "meta_prompt": meta_prompt,
+            "meta_options": meta_options_list,
+            "meta_mapping": mapping,
+        })
+
+    # Collect other-confidence control data (only for confidence task)
+    # Do this before saving paired_data so we can include it
+    other_data = None
+    if META_TASK == "confidence":
+        print("\n" + "=" * 60)
+        print("Running OTHER-CONFIDENCE control task...")
+        print("(Asks model to estimate what % of college-educated people would know the answer)")
+        print("=" * 60)
+
+        other_data = collect_other_confidence(
+            questions, model, tokenizer, num_layers, use_chat_template, batch_size=args.batch_size
+        )
+
+        # Add example prompts for other-confidence
+        for i in range(min(2, len(questions))):
+            q = questions[i]
+            other_prompt, _ = format_other_confidence_prompt(q, tokenizer, use_chat_template)
+            if i < len(example_prompts):
+                example_prompts[i]["other_confidence_prompt"] = other_prompt
+
     # Save paired data (for reproducibility and further analysis)
     paired_data = {
         "direct_metrics": {k: v.tolist() for k, v in data["direct_metrics"].items()},
@@ -1487,6 +1947,7 @@ def main():
             }
             for i, q in enumerate(data["questions"])
         ],
+        "example_prompts": example_prompts,  # For verification of prompt formatting
         "config": {
             "model_name": MODEL_NAME,
             "base_model_name": BASE_MODEL_NAME,
@@ -1506,6 +1967,15 @@ def main():
             } if META_TASK == "delegate" else None,
         }
     }
+
+    # Add other-confidence data if collected
+    if other_data is not None:
+        paired_data["other_confidence"] = {
+            "probs": other_data["other_probs"],
+            "responses": other_data["other_responses"],
+            "signals": other_data["other_signals"].tolist(),
+        }
+
     with open(f"{base_prefix}_paired_data.json", "w") as f:
         json.dump(paired_data, f, indent=2)
     print(f"Saved paired data to {base_prefix}_paired_data.json")
@@ -1534,16 +2004,33 @@ def main():
         )
         print(f"Saved {METRIC} directions to {metric_prefix}_directions.npz")
 
-    # Behavioral analysis (always uses entropy for correlation with confidence)
+    # Behavioral analysis (uses selected METRIC for correlation with stated confidence)
     behavioral = analyze_behavioral_introspection(
         data["meta_responses"],
-        data["direct_metrics"]["entropy"],  # Always use entropy for behavioral correlation
+        data["direct_metrics"][METRIC],  # Use the selected metric for behavioral correlation
         test_idx,
         data["meta_probs"],
         data.get("meta_mappings"),
         data["direct_probs"],
         data["questions"]
     )
+
+    # Other-confidence control analysis (only for confidence task)
+    # other_data was collected earlier, now we analyze it
+    other_confidence_analysis = None
+    if META_TASK == "confidence" and other_data is not None:
+        # Compute self-confidence signals for comparison
+        self_confidence = np.array([
+            get_stated_confidence_signal(np.array(p)) if p else 0.5
+            for p in data["meta_probs"]
+        ])
+
+        other_confidence_analysis = analyze_other_confidence_control(
+            other_data["other_signals"],
+            self_confidence,
+            data["direct_metrics"][METRIC],
+            test_idx
+        )
 
     # Save results (metric-specific filename)
     results_to_save = {
@@ -1568,6 +2055,7 @@ def main():
             for layer_idx, layer_results in results.items()
         },
         "behavioral": behavioral,
+        "other_confidence_analysis": other_confidence_analysis,  # None if not confidence task
         "test_indices": test_idx.tolist(),
     }
 
@@ -1585,7 +2073,7 @@ def main():
     print(f"Saved results to {metric_prefix}_results.json")
 
     # Print and plot results
-    print_results(results, behavioral)
+    print_results(results, behavioral, other_confidence_analysis)
     plot_results(
         results, behavioral,
         direct_target, test_idx,

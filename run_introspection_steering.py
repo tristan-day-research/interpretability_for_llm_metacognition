@@ -50,6 +50,11 @@ from tasks import (
     STATED_CONFIDENCE_OPTIONS,
     STATED_CONFIDENCE_MIDPOINTS,
     format_stated_confidence_prompt,
+    get_stated_confidence_signal,
+    # Other-confidence task (control)
+    OTHER_CONFIDENCE_OPTIONS,
+    format_other_confidence_prompt,
+    get_other_confidence_signal,
     # Delegate task
     ANSWER_OR_DELEGATE_OPTIONS,
     format_answer_or_delegate_prompt,
@@ -62,8 +67,8 @@ from tasks import (
 # CONFIGURATION
 # =============================================================================
 BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
-MODEL_NAME = BASE_MODEL_NAME  # Set to adapter path for fine-tuned model
-DATASET_NAME = "SimpleMC"
+MODEL_NAME = "Tristan-Day/ect_20251222_215412_v0uei7y1_2000"###BASE_MODEL_NAME  # 
+DATASET_NAME = "TriviaMC"
 
 # Direction type: "introspection", "entropy", or "shared"
 # - "introspection": Uses directions from run_introspection_probe.py
@@ -72,17 +77,22 @@ DATASET_NAME = "SimpleMC"
 #              (direct activations → selected metric, for direct→meta transfer test)
 # - "shared": Uses shared MC entropy direction from analyze_shared_unique.py
 #             (average of MC directions across datasets - tests general uncertainty)
-DIRECTION_TYPE = "shared"  # "introspection", "entropy", or "shared"
+DIRECTION_TYPE = "entropy"  # "introspection", "entropy", or "shared"
 
 # Metric to use when DIRECTION_TYPE == "entropy"
 # Prob-based (nonlinear): entropy, top_prob, margin
 # Logit-based (linear, better for probes): logit_gap, top_logit
 AVAILABLE_METRICS = ["entropy", "top_prob", "margin", "logit_gap", "top_logit"]
-METRIC = "logit_gap"  # Which metric's directions to use (set via --metric flag)
+METRIC = "entropy"  # Which metric's directions to use (set via --metric flag)
 
-# Threshold for layer selection when using "shared" direction type
-# Only layers where direct→meta R² exceeds this threshold will be tested
-META_R2_THRESHOLD = 0.25
+# Thresholds for layer selection
+# D2M_R2_THRESHOLD: direct→meta R² must exceed this (primary filter)
+# D2D_R2_THRESHOLD: direct→direct R² must exceed 1.5x the D2M threshold
+D2M_R2_THRESHOLD = 0.20
+D2D_R2_THRESHOLD = D2M_R2_THRESHOLD * 1.5  # = 0.30
+
+# Legacy alias for "shared" direction type (uses D2M threshold)
+META_R2_THRESHOLD = D2M_R2_THRESHOLD
 
 # Meta-judgment task: "confidence" or "delegate"
 # - "confidence": Explicit confidence rating on S-Z scale
@@ -110,8 +120,19 @@ def get_output_prefix() -> str:
 STEERING_LAYERS = None  # None = auto-select from probe results
 STEERING_MULTIPLIERS = [-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]
 NUM_STEERING_QUESTIONS = 100
-NUM_CONTROL_DIRECTIONS = 20
+# Number of control directions per layer. Set to None for dynamic scaling.
+# Dynamic scaling: NUM_CONTROL_DIRECTIONS = max(MIN_CONTROLS_PER_LAYER, TARGET_POOLED_SAMPLES // num_layers)
+# This ensures ~100 total pooled samples for statistical testing regardless of layer count.
+NUM_CONTROL_DIRECTIONS = None  # None = dynamic based on num_layers, or set explicit value
+TARGET_POOLED_SAMPLES = 100   # Target total samples when pooling controls across layers
+MIN_CONTROLS_PER_LAYER = 5    # Minimum controls even for many layers
+
 BATCH_SIZE = 8  # Batch size for baseline/single-direction forward passes
+
+# Intervention position: "last" or "all"
+# - "last": Only modify the final token position (more precise, comparable to patching)
+# - "all": Modify all token positions (standard steering approach)
+INTERVENTION_POSITION = "last"
 
 # Expanded batch target for multi-multiplier sweeps.
 # When sweeping k multipliers simultaneously, we expand each base batch by k.
@@ -162,6 +183,12 @@ def format_meta_prompt(question: Dict, tokenizer, use_chat_template: bool = True
     return full_prompt
 
 
+def format_other_meta_prompt(question: Dict, tokenizer, use_chat_template: bool = True) -> str:
+    """Format an other-confidence (human difficulty estimation) question."""
+    full_prompt, _ = format_other_confidence_prompt(question, tokenizer, use_chat_template)
+    return full_prompt
+
+
 def format_delegate_prompt(
     question: Dict,
     tokenizer,
@@ -202,7 +229,12 @@ def local_response_to_confidence(
 # ============================================================================
 
 class SteeringHook:
-    """Hook that adds a steering vector to activations."""
+    """Hook that adds a steering vector to activations.
+
+    Respects INTERVENTION_POSITION setting:
+    - "last": Only modify the final token position
+    - "all": Modify all token positions
+    """
 
     def __init__(self, steering_vector: torch.Tensor, multiplier: float, pre_normalized: bool = False):
         # Ensure normalized so multiplier has consistent meaning across directions
@@ -216,10 +248,22 @@ class SteeringHook:
     def __call__(self, module, input, output):
         if isinstance(output, tuple):
             hidden_states = output[0]
-            steered = hidden_states + self.multiplier * self.steering_vector.unsqueeze(0).unsqueeze(0)
-            return (steered,) + output[1:]
         else:
-            return output + self.multiplier * self.steering_vector.unsqueeze(0).unsqueeze(0)
+            hidden_states = output
+
+        delta = self.multiplier * self.steering_vector.to(device=hidden_states.device, dtype=hidden_states.dtype)
+
+        if INTERVENTION_POSITION == "last":
+            # Only modify the last token position
+            hidden_states = hidden_states.clone()
+            hidden_states[:, -1, :] = hidden_states[:, -1, :] + delta
+        else:
+            # Modify all positions (original behavior)
+            hidden_states = hidden_states + delta.unsqueeze(0).unsqueeze(0)
+
+        if isinstance(output, tuple):
+            return (hidden_states,) + output[1:]
+        return hidden_states
 
     def set_multiplier(self, multiplier: float):
         """Update multiplier without recreating the hook."""
@@ -240,6 +284,10 @@ class BatchSteeringHook:
     This is designed for "multiplier sweep in one pass" by expanding the batch:
     each prompt is duplicated for each multiplier, and this hook adds a different
     delta vector for each expanded example.
+
+    Respects INTERVENTION_POSITION setting:
+    - "last": Only modify the final token position
+    - "all": Modify all token positions
     """
 
     def __init__(self, delta_bh: Optional[torch.Tensor] = None):
@@ -256,10 +304,16 @@ class BatchSteeringHook:
         hs = output[0] if isinstance(output, tuple) else output
 
         # hs: (batch, seq, hidden); delta_bh: (batch, hidden)
-        # Broadcast delta across sequence length.
         # Must cast both device and dtype for compatibility with device_map="auto"
-        delta = self.delta_bh[:, None, :].to(device=hs.device, dtype=hs.dtype)
-        hs = hs + delta
+        delta = self.delta_bh.to(device=hs.device, dtype=hs.dtype)
+
+        if INTERVENTION_POSITION == "last":
+            # Only modify the last token position
+            hs = hs.clone()
+            hs[:, -1, :] = hs[:, -1, :] + delta
+        else:
+            # Broadcast delta across all sequence positions (original behavior)
+            hs = hs + delta[:, None, :]
 
         if isinstance(output, tuple):
             return (hs,) + output[1:]
@@ -281,6 +335,10 @@ class AblationHook:
 
     Projects out the direction: x' = x - (x · d) * d
     This tests whether the direction is causally involved in the behavior.
+
+    Respects INTERVENTION_POSITION setting:
+    - "last": Only modify the final token position
+    - "all": Modify all token positions
     """
 
     def __init__(self, direction: torch.Tensor, pre_normalized: bool = False):
@@ -297,15 +355,25 @@ class AblationHook:
         else:
             hidden_states = output
 
-        # Project out the direction from all tokens
-        # hidden_states: (batch, seq_len, hidden_dim)
-        # direction: (hidden_dim,)
-        proj = (hidden_states @ self.direction).unsqueeze(-1) * self.direction
-        ablated = hidden_states - proj
+        # Ensure direction is on correct device/dtype
+        direction = self.direction.to(device=hidden_states.device, dtype=hidden_states.dtype)
+
+        if INTERVENTION_POSITION == "last":
+            # Only modify the last token position
+            hidden_states = hidden_states.clone()
+            last_token = hidden_states[:, -1, :]  # (batch, hidden)
+            proj = (last_token @ direction).unsqueeze(-1) * direction  # (batch, hidden)
+            hidden_states[:, -1, :] = last_token - proj
+        else:
+            # Project out the direction from all tokens (original behavior)
+            # hidden_states: (batch, seq_len, hidden_dim)
+            # direction: (hidden_dim,)
+            proj = (hidden_states @ direction).unsqueeze(-1) * direction
+            hidden_states = hidden_states - proj
 
         if isinstance(output, tuple):
-            return (ablated,) + output[1:]
-        return ablated
+            return (hidden_states,) + output[1:]
+        return hidden_states
 
     def register(self, layer_module):
         self.handle = layer_module.register_forward_hook(self)
@@ -313,6 +381,72 @@ class AblationHook:
     def remove(self):
         if self.handle is not None:
             self.handle.remove()
+
+
+class BatchAblationHook:
+    """Hook that projects out a *per-example* direction from activations.
+
+    For batched ablation: each prompt is duplicated for each direction,
+    and this hook removes a different direction for each expanded example.
+    This allows processing multiple ablation conditions in a single forward pass.
+
+    Respects INTERVENTION_POSITION setting:
+    - "last": Only modify the final token position
+    - "all": Modify all token positions
+    """
+
+    def __init__(self, directions_bh: Optional[torch.Tensor] = None):
+        """
+        Args:
+            directions_bh: (batch, hidden_dim) tensor of normalized directions
+                          Each row is a direction to project out for that example
+        """
+        self.directions_bh = directions_bh
+        self.handle = None
+
+    def set_directions(self, directions_bh: torch.Tensor):
+        self.directions_bh = directions_bh
+
+    def __call__(self, module, input, output):
+        if self.directions_bh is None:
+            return output
+
+        hs = output[0] if isinstance(output, tuple) else output
+        # hs: (batch, seq, hidden); directions_bh: (batch, hidden)
+
+        # Cast directions to match device and dtype
+        dirs = self.directions_bh.to(device=hs.device, dtype=hs.dtype)
+
+        if INTERVENTION_POSITION == "last":
+            # Only modify the last token position
+            hs = hs.clone()
+            last_token = hs[:, -1, :]  # (batch, hidden)
+            # Dot product for last token only: (batch, hidden) * (batch, hidden) -> (batch,)
+            dots = torch.einsum('bh,bh->b', last_token, dirs)
+            # Projection: dots[:, None] * dirs -> (batch, hidden)
+            proj = dots.unsqueeze(-1) * dirs
+            hs[:, -1, :] = last_token - proj
+        else:
+            # Project out direction from all tokens (original behavior):
+            # For each example i: proj_i = (hs_i @ d_i) * d_i
+            # Dot product: (batch, seq, hidden) einsum with (batch, hidden) -> (batch, seq)
+            dots = torch.einsum('bsh,bh->bs', hs, dirs)
+            # Projection: dots[:, :, None] * dirs[:, None, :] -> (batch, seq, hidden)
+            proj = dots.unsqueeze(-1) * dirs.unsqueeze(1)
+            # Remove projection
+            hs = hs - proj
+
+        if isinstance(output, tuple):
+            return (hs,) + output[1:]
+        return hs
+
+    def register(self, layer_module):
+        self.handle = layer_module.register_forward_hook(self)
+
+    def remove(self):
+        if self.handle is not None:
+            self.handle.remove()
+            self.handle = None
 
 
 def generate_orthogonal_directions(direction: np.ndarray, num_directions: int) -> List[np.ndarray]:
@@ -649,6 +783,325 @@ def get_confidence_with_ablation(
     confidence = local_response_to_confidence(response, option_probs, mapping)
 
     return response, confidence, option_probs, mapping
+
+
+# ============================================================================
+# OTHER-CONFIDENCE CONTROL
+# ============================================================================
+
+def run_other_confidence_experiment(
+    model,
+    tokenizer,
+    questions: List[Dict],
+    layers: List[int],
+    directions: Dict,
+    use_chat_template: bool,
+    steering_multiplier: float = 0.0,
+    cached_directions: Optional[Dict] = None
+) -> Dict:
+    """
+    Run other-confidence (human difficulty estimation) prompts with optional steering.
+
+    This is a control task to test whether the introspection direction specifically
+    affects self-confidence or also affects general confidence-like judgments.
+
+    Args:
+        steering_multiplier: If 0.0, runs baseline. Otherwise applies steering at this multiplier.
+
+    Returns:
+        Dict with per-question results: response, signal (expected %), etc.
+    """
+    # Only run for confidence task (not delegate)
+    if META_TASK != "confidence":
+        return None
+
+    print(f"\nRunning other-confidence control (multiplier={steering_multiplier})...")
+
+    # Pre-format other-confidence prompts
+    other_prompts = []
+    for question in questions:
+        prompt = format_other_meta_prompt(question, tokenizer, use_chat_template)
+        other_prompts.append(prompt)
+
+    # Pre-tokenize
+    cached_other_inputs = pretokenize_prompts(other_prompts, tokenizer, DEVICE)
+
+    # Get option token IDs (same S-Z scale as self-confidence)
+    other_option_token_ids = _CACHED_TOKEN_IDS["meta_options"]  # S, T, U, V, W, X, Y, Z
+    other_options = META_OPTIONS
+
+    # Build batches
+    gpu_batches = build_padded_gpu_batches(cached_other_inputs, tokenizer, DEVICE, BATCH_SIZE)
+
+    # Get model components for efficient forward
+    transformer, lm_head = _get_transformer_and_lm_head(model)
+    W_opt = _prepare_option_weight(lm_head, model, other_option_token_ids)
+
+    results = {
+        "layers": layers,
+        "steering_multiplier": steering_multiplier,
+        "num_questions": len(questions),
+        "layer_results": {},
+    }
+
+    for layer_idx in tqdm(layers, desc="Other-confidence layers"):
+        # Get layer module (handle adapter models)
+        if hasattr(model, 'get_base_model'):
+            layer_module = model.get_base_model().model.layers[layer_idx]
+        else:
+            layer_module = model.model.layers[layer_idx]
+
+        # Get direction tensor
+        if cached_directions is not None and layer_idx in cached_directions:
+            introspection_tensor = cached_directions[layer_idx]["introspection"]
+        else:
+            direction_key = f"layer_{layer_idx}_introspection"
+            introspection_dir = directions.get(direction_key)
+            if introspection_dir is None:
+                continue
+            dtype = torch.float16 if DEVICE == "cuda" else torch.float32
+            introspection_dir = introspection_dir / np.linalg.norm(introspection_dir)
+            introspection_tensor = torch.tensor(introspection_dir, dtype=dtype, device=DEVICE)
+
+        # Run with or without steering
+        if steering_multiplier != 0.0:
+            hook = SteeringHook(introspection_tensor, multiplier=steering_multiplier, pre_normalized=True)
+            hook.register(layer_module)
+
+        question_results = [None] * len(other_prompts)
+
+        try:
+            for batch_indices, batch_inputs in gpu_batches:
+                with torch.inference_mode():
+                    batch_option_logits = _compute_batch_option_logits(
+                        model, transformer, W_opt, other_option_token_ids, batch_inputs
+                    )
+                    batch_option_probs = torch.softmax(batch_option_logits, dim=-1).float().cpu().numpy()
+
+                for i, q_idx in enumerate(batch_indices):
+                    option_probs = batch_option_probs[i]
+                    response = other_options[np.argmax(option_probs)]
+                    signal = get_other_confidence_signal(option_probs)
+
+                    question_results[q_idx] = {
+                        "question_idx": q_idx,
+                        "response": response,
+                        "signal": signal,  # Expected % of humans who would know
+                        "probs": option_probs.tolist(),
+                    }
+        finally:
+            if steering_multiplier != 0.0:
+                hook.remove()
+
+        results["layer_results"][layer_idx] = question_results
+
+    return results
+
+
+def analyze_other_confidence_effect(
+    baseline_other: Dict,
+    steered_other: Dict,
+    baseline_self: List[Dict],
+    steered_self: List[Dict],
+    layer_idx: int
+) -> Dict:
+    """
+    Compare steering effect on self-confidence vs other-confidence.
+
+    Returns dict with:
+    - self_effect: mean change in self-confidence signal
+    - other_effect: mean change in other-confidence signal
+    - self_vs_other_ratio: how much more self is affected than other
+    """
+    if baseline_other is None or steered_other is None:
+        return None
+
+    # Get per-question changes
+    self_baseline_signals = np.array([r["confidence"] for r in baseline_self])
+    self_steered_signals = np.array([r["confidence"] for r in steered_self])
+    self_delta = self_steered_signals - self_baseline_signals
+
+    other_baseline_signals = np.array([r["signal"] for r in baseline_other["layer_results"].get(layer_idx, [])])
+    other_steered_signals = np.array([r["signal"] for r in steered_other["layer_results"].get(layer_idx, [])])
+
+    if len(other_baseline_signals) == 0 or len(other_steered_signals) == 0:
+        return None
+
+    other_delta = other_steered_signals - other_baseline_signals
+
+    self_effect = float(np.mean(self_delta))
+    other_effect = float(np.mean(other_delta))
+
+    # Compute ratio (avoid division by zero)
+    if abs(other_effect) > 1e-6:
+        ratio = abs(self_effect) / abs(other_effect)
+    else:
+        ratio = float('inf') if abs(self_effect) > 1e-6 else 1.0
+
+    return {
+        "self_effect_mean": self_effect,
+        "self_effect_std": float(np.std(self_delta)),
+        "other_effect_mean": other_effect,
+        "other_effect_std": float(np.std(other_delta)),
+        "self_vs_other_ratio": ratio,
+        "self_other_correlation": float(np.corrcoef(self_delta, other_delta)[0, 1]) if len(self_delta) > 1 else np.nan,
+    }
+
+
+def run_other_confidence_with_ablation(
+    model,
+    tokenizer,
+    questions: List[Dict],
+    layers: List[int],
+    directions: Dict,
+    use_chat_template: bool,
+    ablate: bool = False,
+    cached_directions: Optional[Dict] = None
+) -> Dict:
+    """
+    Run other-confidence (human difficulty estimation) prompts with optional ablation.
+
+    Args:
+        ablate: If True, ablates the introspection direction. If False, runs baseline.
+
+    Returns:
+        Dict with per-question results: response, signal (expected %), etc.
+    """
+    # Only run for confidence task (not delegate)
+    if META_TASK != "confidence":
+        return None
+
+    condition = "with ablation" if ablate else "baseline"
+    print(f"\nRunning other-confidence control ({condition})...")
+
+    # Pre-format other-confidence prompts
+    other_prompts = []
+    for question in questions:
+        prompt = format_other_meta_prompt(question, tokenizer, use_chat_template)
+        other_prompts.append(prompt)
+
+    # Pre-tokenize
+    cached_other_inputs = pretokenize_prompts(other_prompts, tokenizer, DEVICE)
+
+    # Get option token IDs (same S-Z scale as self-confidence)
+    other_option_token_ids = _CACHED_TOKEN_IDS["meta_options"]  # S, T, U, V, W, X, Y, Z
+    other_options = META_OPTIONS
+
+    # Build batches
+    gpu_batches = build_padded_gpu_batches(cached_other_inputs, tokenizer, DEVICE, BATCH_SIZE)
+
+    # Get model components for efficient forward
+    transformer, lm_head = _get_transformer_and_lm_head(model)
+    W_opt = _prepare_option_weight(lm_head, model, other_option_token_ids)
+
+    results = {
+        "layers": layers,
+        "ablated": ablate,
+        "num_questions": len(questions),
+        "layer_results": {},
+    }
+
+    for layer_idx in tqdm(layers, desc="Other-confidence layers"):
+        # Get layer module (handle adapter models)
+        if hasattr(model, 'get_base_model'):
+            layer_module = model.get_base_model().model.layers[layer_idx]
+        else:
+            layer_module = model.model.layers[layer_idx]
+
+        # Get direction tensor if ablating
+        if ablate:
+            if cached_directions is not None and layer_idx in cached_directions:
+                introspection_tensor = cached_directions[layer_idx]["introspection"]
+            else:
+                direction_key = f"layer_{layer_idx}_introspection"
+                introspection_dir = directions.get(direction_key)
+                if introspection_dir is None:
+                    continue
+                dtype = torch.float16 if DEVICE == "cuda" else torch.float32
+                introspection_dir = introspection_dir / np.linalg.norm(introspection_dir)
+                introspection_tensor = torch.tensor(introspection_dir, dtype=dtype, device=DEVICE)
+
+            hook = AblationHook(introspection_tensor, pre_normalized=True)
+            hook.register(layer_module)
+
+        question_results = [None] * len(other_prompts)
+
+        try:
+            for batch_indices, batch_inputs in gpu_batches:
+                with torch.inference_mode():
+                    batch_option_logits = _compute_batch_option_logits(
+                        model, transformer, W_opt, other_option_token_ids, batch_inputs
+                    )
+                    batch_option_probs = torch.softmax(batch_option_logits, dim=-1).float().cpu().numpy()
+
+                for i, q_idx in enumerate(batch_indices):
+                    option_probs = batch_option_probs[i]
+                    response = other_options[np.argmax(option_probs)]
+                    signal = get_other_confidence_signal(option_probs)
+
+                    question_results[q_idx] = {
+                        "question_idx": q_idx,
+                        "response": response,
+                        "signal": signal,  # Expected % of humans who would know
+                        "probs": option_probs.tolist(),
+                    }
+        finally:
+            if ablate:
+                hook.remove()
+
+        results["layer_results"][layer_idx] = question_results
+
+    return results
+
+
+def analyze_other_confidence_ablation_effect(
+    baseline_other: Dict,
+    ablated_other: Dict,
+    baseline_self: List[Dict],
+    ablated_self: List[Dict],
+    layer_idx: int
+) -> Dict:
+    """
+    Compare ablation effect on self-confidence vs other-confidence.
+
+    Returns dict with:
+    - self_effect: mean change in self-confidence correlation with metric
+    - other_effect: mean change in other-confidence signal
+    - self_vs_other_ratio: how much more self is affected than other
+    """
+    if baseline_other is None or ablated_other is None:
+        return None
+
+    # Get per-question changes in raw signals
+    self_baseline_signals = np.array([r["confidence"] for r in baseline_self])
+    self_ablated_signals = np.array([r["confidence"] for r in ablated_self])
+    self_delta = self_ablated_signals - self_baseline_signals
+
+    other_baseline_signals = np.array([r["signal"] for r in baseline_other["layer_results"].get(layer_idx, [])])
+    other_ablated_signals = np.array([r["signal"] for r in ablated_other["layer_results"].get(layer_idx, [])])
+
+    if len(other_baseline_signals) == 0 or len(other_ablated_signals) == 0:
+        return None
+
+    other_delta = other_ablated_signals - other_baseline_signals
+
+    self_effect = float(np.mean(np.abs(self_delta)))  # Mean absolute change
+    other_effect = float(np.mean(np.abs(other_delta)))
+
+    # Compute ratio (avoid division by zero)
+    if other_effect > 1e-6:
+        ratio = self_effect / other_effect
+    else:
+        ratio = float('inf') if self_effect > 1e-6 else 1.0
+
+    return {
+        "self_effect_mean_abs": self_effect,
+        "self_effect_std": float(np.std(self_delta)),
+        "other_effect_mean_abs": other_effect,
+        "other_effect_std": float(np.std(other_delta)),
+        "self_vs_other_ratio": ratio,
+        "self_other_correlation": float(np.corrcoef(self_delta, other_delta)[0, 1]) if len(self_delta) > 1 else np.nan,
+    }
 
 
 # ============================================================================
@@ -1033,6 +1486,109 @@ def run_ablation_experiment(
 
         return results_list
 
+    # ------------------------------------------------------------------
+    # Batched ablation: process multiple control directions in one pass
+    # ------------------------------------------------------------------
+    # Compute how many directions we can batch together based on EXPANDED_BATCH_TARGET
+    k_dirs = max(1, EXPANDED_BATCH_TARGET // BATCH_SIZE)
+    print(f"  Batching up to {k_dirs} control directions per forward pass")
+
+    # Build expanded batches for batched ablation
+    expanded_base_bs = max(1, EXPANDED_BATCH_TARGET // k_dirs)
+    gpu_batches_expanded = build_padded_gpu_batches(cached_inputs, tokenizer, DEVICE, expanded_base_bs)
+
+    # Precompute expanded inputs (reused for every batch of directions)
+    precomputed_expanded_batches = []
+    for batch_indices, batch_inputs in gpu_batches_expanded:
+        expanded_inputs = {
+            name: tensor.repeat_interleave(k_dirs, dim=0)
+            for name, tensor in batch_inputs.items()
+        }
+        precomputed_expanded_batches.append((batch_indices, expanded_inputs))
+
+    def run_all_questions_multi_ablation(
+        layer_module,
+        direction_tensors: List[torch.Tensor]
+    ) -> Dict[int, List[Dict]]:
+        """Run all questions for multiple ablation directions in one sweep.
+
+        Args:
+            layer_module: The transformer layer module to hook
+            direction_tensors: List of direction tensors (normalized, on GPU)
+
+        Returns:
+            dict: direction_index -> results_list (same format as run_all_questions())
+        """
+        k = len(direction_tensors)
+        if k == 0:
+            return {}
+
+        results_by_dir = {i: [None] * len(prompts) for i in range(k)}
+
+        # Stack directions: (k, hidden_dim)
+        dirs_stacked = torch.stack(direction_tensors, dim=0)
+
+        # Handle partial batches: if k < k_dirs, we need to re-expand with correct k
+        # Use precomputed batches if k == k_dirs, otherwise rebuild from base batches
+        use_precomputed = (k == k_dirs)
+
+        hook = BatchAblationHook()
+        hook.register(layer_module)
+        try:
+            if use_precomputed:
+                batches_to_use = precomputed_expanded_batches
+            else:
+                # Build expanded batches for this smaller k from the base batches
+                batches_to_use = [
+                    (batch_indices, {
+                        name: tensor.repeat_interleave(k, dim=0)
+                        for name, tensor in batch_inputs.items()
+                    })
+                    for batch_indices, batch_inputs in gpu_batches_expanded
+                ]
+
+            for batch_indices, expanded_inputs in batches_to_use:
+                B = len(batch_indices)  # Original batch size (before expansion)
+
+                # Build per-example directions aligned with repeat_interleave order:
+                # [ex0*dir0..dirk-1, ex1*dir0..dirk-1, ...]
+                # Each example is repeated k times, once per direction
+                # dirs_stacked: (k, hidden) -> repeat B times -> (B*k, hidden)
+                dirs_bh = dirs_stacked.repeat(B, 1)  # (B*k, hidden)
+                hook.set_directions(dirs_bh)
+
+                with torch.inference_mode():
+                    batch_option_logits = _compute_batch_option_logits(
+                        model, transformer, W_opt, option_token_ids, expanded_inputs
+                    )
+                    batch_option_probs = torch.softmax(batch_option_logits, dim=-1).float().cpu().numpy()
+
+                # Map expanded outputs back to (question, direction)
+                for i, q_idx in enumerate(batch_indices):
+                    base = i * k
+                    metric_val = direct_metric_values[q_idx]
+                    metric_z = (metric_val - metric_mean) / metric_std
+
+                    for j in range(k):
+                        option_probs = batch_option_probs[base + j]
+                        response = options[np.argmax(option_probs)]
+                        confidence = local_response_to_confidence(response, option_probs, mappings[q_idx])
+
+                        confidence_z = (confidence - 0.5) / 0.25
+                        alignment = -metric_z * confidence_z
+
+                        results_by_dir[j][q_idx] = {
+                            "question_idx": q_idx,
+                            "response": response,
+                            "confidence": confidence,
+                            "metric": float(metric_val),
+                            "alignment": float(alignment),
+                        }
+
+            return results_by_dir
+        finally:
+            hook.remove()
+
     # Compute baseline once if not provided
     if baseline_results is None:
         print("Computing baseline (no intervention)...")
@@ -1071,14 +1627,16 @@ def run_ablation_experiment(
         finally:
             hook.remove()
 
-        # Control direction ablations - register hook once per control
-        for ctrl_idx, ctrl_tensor in enumerate(control_tensors):
-            hook = AblationHook(ctrl_tensor, pre_normalized=True)
-            hook.register(layer_module)
-            try:
-                layer_results["controls_ablated"][f"control_{ctrl_idx}"] = run_all_questions()
-            finally:
-                hook.remove()
+        # Control direction ablations - batched for efficiency
+        # Process k_dirs controls per forward pass to reduce total passes
+        for batch_start in range(0, num_controls, k_dirs):
+            batch_end = min(batch_start + k_dirs, num_controls)
+            batch_ctrl_tensors = control_tensors[batch_start:batch_end]
+
+            batch_results = run_all_questions_multi_ablation(layer_module, batch_ctrl_tensors)
+            for local_idx, results_list in batch_results.items():
+                global_idx = batch_start + local_idx
+                layer_results["controls_ablated"][f"control_{global_idx}"] = results_list
 
         results["layer_results"][layer_idx] = layer_results
 
@@ -1683,11 +2241,13 @@ def plot_ablation_results(analysis: Dict, output_prefix: str):
         pc.set_facecolor('lightgray')
         pc.set_edgecolor('gray')
         pc.set_alpha(0.7)
-    parts['cmeans'].set_color('gray')
-    parts['cmeans'].set_linewidth(2)
-    parts['cbars'].set_color('gray')
-    parts['cmins'].set_color('gray')
-    parts['cmaxs'].set_color('gray')
+    # Style stat lines (keys may vary by matplotlib version)
+    if 'cmeans' in parts:
+        parts['cmeans'].set_color('gray')
+        parts['cmeans'].set_linewidth(2)
+    for key in ['cbars', 'cmins', 'cmaxs']:
+        if key in parts:
+            parts[key].set_color('gray')
 
     # Overlay introspection points
     for i, (pos, intro_val, p_val) in enumerate(zip(positions, intro_points, p_values_fdr)):
@@ -1896,14 +2456,19 @@ def main():
     parser = argparse.ArgumentParser(description="Run steering and ablation experiments")
     parser.add_argument("--metric", type=str, choices=AVAILABLE_METRICS, default=METRIC,
                         help=f"Metric to use for directions when DIRECTION_TYPE='entropy' or 'introspection' (default: {METRIC})")
+    parser.add_argument("--mode", type=str, choices=["both", "steering", "ablation"], default="both",
+                        help="Which experiments to run: 'both', 'steering', or 'ablation' (default: both)")
     args = parser.parse_args()
     METRIC = args.metric
+    RUN_MODE = args.mode
 
     print(f"Device: {DEVICE}")
     print(f"Direction type: {DIRECTION_TYPE}")
     if DIRECTION_TYPE in ("entropy", "introspection"):
         print(f"Metric: {METRIC}")
     print(f"Meta-judgment task: {META_TASK}")
+    print(f"Intervention position: {INTERVENTION_POSITION}")
+    print(f"Run mode: {RUN_MODE}")
 
     # Generate output prefix
     output_prefix = get_output_prefix()
@@ -1998,18 +2563,21 @@ def main():
 
             if "probe_results" in probe_results:
                 # Structure from run_introspection_experiment.py
-                # Find layers with good direct→meta transfer
+                # Find layers with good direct→meta transfer AND good probe fit
                 for layer_str, lr in probe_results["probe_results"].items():
                     d2m_r2 = lr.get("direct_to_meta_fixed", {}).get("r2", 0)
                     d2d_r2 = lr.get("direct_to_direct", {}).get("test_r2", 0)
-                    # Include layer if it has meaningful transfer (threshold of 0.1)
-                    if d2m_r2 > 0.1 and d2d_r2 > 0.05:
+                    # Include layer if it exceeds both thresholds
+                    if d2m_r2 >= D2M_R2_THRESHOLD and d2d_r2 >= D2D_R2_THRESHOLD:
                         layer_candidates.append((int(layer_str), d2m_r2))
                 # Sort by direct→meta R² descending to prioritize best transfer
                 layer_candidates.sort(key=lambda x: -x[1])
+                print(f"  D2M threshold: {D2M_R2_THRESHOLD}, D2D threshold: {D2D_R2_THRESHOLD}")
+                print(f"  Layers passing both thresholds: {len(layer_candidates)}")
                 layers = [l[0] for l in layer_candidates]
                 # If no good layers found, use layers with best direct→direct
                 if not layers:
+                    print(f"  Warning: No layers passed thresholds, using top 5 by D2D R²")
                     all_layers = []
                     for layer_str, lr in probe_results["probe_results"].items():
                         d2d_r2 = lr.get("direct_to_direct", {}).get("test_r2", 0)
@@ -2056,6 +2624,16 @@ def main():
 
     print(f"Steering layers: {layers}")
 
+    # Compute number of control directions (dynamic or fixed)
+    if NUM_CONTROL_DIRECTIONS is None:
+        # Dynamic: scale to target ~100 pooled samples across all layers
+        num_controls = max(MIN_CONTROLS_PER_LAYER, TARGET_POOLED_SAMPLES // len(layers))
+        print(f"Dynamic control directions: {num_controls} per layer "
+              f"(target {TARGET_POOLED_SAMPLES} pooled, {len(layers)} layers)")
+    else:
+        num_controls = NUM_CONTROL_DIRECTIONS
+        print(f"Fixed control directions: {num_controls} per layer")
+
     # Load paired data
     print(f"\nLoading paired data from {paired_data_path}...")
     with open(paired_data_path, "r") as f:
@@ -2101,9 +2679,9 @@ def main():
     print("Precomputing direction tensors...")
     direction_dtype = torch.float16 if DEVICE == "cuda" else torch.float32
     cached_directions = precompute_direction_tensors(
-        directions, layers, NUM_CONTROL_DIRECTIONS, DEVICE, direction_dtype
+        directions, layers, num_controls, DEVICE, direction_dtype
     )
-    print(f"  Cached {len(layers)} layers with {NUM_CONTROL_DIRECTIONS} controls each")
+    print(f"  Cached {len(layers)} layers with {num_controls} controls each")
 
     # Add direction_type suffix to output files to distinguish them
     # Include metric name when using entropy or introspection directions
@@ -2114,89 +2692,240 @@ def main():
     else:
         direction_suffix = f"_{DIRECTION_TYPE}"
 
+    # Determine which experiments to run based on RUN_MODE and DIRECTION_TYPE
+    run_steering = RUN_MODE in ("both", "steering")
+    run_ablation = RUN_MODE in ("both", "ablation")
+
     # Skip steering for introspection directions - steering doesn't make sense conceptually.
     # The introspection direction captures calibration quality (metric-confidence alignment),
     # not a direct uncertainty signal. We can't causally steer toward "being well-calibrated"
     # without knowing a question's actual uncertainty. Ablation still makes sense: removing
     # "awareness of calibration" should degrade the metric-confidence correlation.
     baseline_from_steering = None
-    if DIRECTION_TYPE == "introspection":
-        print("\n" + "=" * 70)
-        print("SKIPPING STEERING EXPERIMENT (introspection directions)")
-        print("=" * 70)
-        print("Steering with introspection directions doesn't make conceptual sense.")
-        print("The direction captures calibration quality, not a causal uncertainty signal.")
-        print("Running ablation experiment only...")
-    else:
-        # Run steering experiment
-        results = run_steering_experiment(
-            model, tokenizer, questions, direct_metric_values,
-            layers, directions, STEERING_MULTIPLIERS, NUM_CONTROL_DIRECTIONS,
-            use_chat_template, cached_directions
-        )
+    if run_steering:
+        if DIRECTION_TYPE == "introspection":
+            print("\n" + "=" * 70)
+            print("SKIPPING STEERING EXPERIMENT (introspection directions)")
+            print("=" * 70)
+            print("Steering with introspection directions doesn't make conceptual sense.")
+            print("The direction captures calibration quality, not a causal uncertainty signal.")
+        else:
+            # Run steering experiment
+            results = run_steering_experiment(
+                model, tokenizer, questions, direct_metric_values,
+                layers, directions, STEERING_MULTIPLIERS, num_controls,
+                use_chat_template, cached_directions
+            )
 
-        # Analyze
-        analysis = analyze_results(results, metric=METRIC)
+            # Analyze
+            analysis = analyze_results(results, metric=METRIC)
 
-        # Save results
-        output_results = f"{output_prefix}_steering{direction_suffix}_results.json"
-        with open(output_results, "w") as f:
-            json.dump(results, f, indent=2, default=lambda x: float(x) if isinstance(x, np.floating) else x)
-        print(f"\nSaved {output_results}")
+            # Save results
+            output_results = f"{output_prefix}_steering{direction_suffix}_results.json"
+            with open(output_results, "w") as f:
+                json.dump(results, f, indent=2, default=lambda x: float(x) if isinstance(x, np.floating) else x)
+            print(f"\nSaved {output_results}")
 
-        output_analysis = f"{output_prefix}_steering{direction_suffix}_analysis.json"
-        with open(output_analysis, "w") as f:
-            json.dump(analysis, f, indent=2)
-        print(f"Saved {output_analysis}")
+            output_analysis = f"{output_prefix}_steering{direction_suffix}_analysis.json"
+            with open(output_analysis, "w") as f:
+                json.dump(analysis, f, indent=2)
+            print(f"Saved {output_analysis}")
 
-        # Print and plot steering results
-        print_summary(analysis)
-        plot_results(analysis, f"{output_prefix}{direction_suffix}")
+            # Print and plot steering results
+            print_summary(analysis)
+            plot_results(analysis, f"{output_prefix}{direction_suffix}")
 
-        print("\n✓ Steering experiment complete!")
+            print("\n✓ Steering experiment complete!")
 
-        # Extract baseline from steering results for ablation (first layer's baseline, they're all the same)
-        first_layer = layers[0]
-        baseline_from_steering = results["layer_results"][first_layer]["baseline"]
+            # Extract baseline from steering results for ablation (first layer's baseline, they're all the same)
+            first_layer = layers[0]
+            baseline_from_steering = results["layer_results"][first_layer]["baseline"]
+
+            # ==================================================================
+            # OTHER-CONFIDENCE CONTROL (for confidence task only)
+            # ==================================================================
+            if META_TASK == "confidence":
+                print("\n" + "-" * 50)
+                print("OTHER-CONFIDENCE CONTROL EXPERIMENT")
+                print("-" * 50)
+                print("Testing whether steering affects self-confidence specifically,")
+                print("or also affects general confidence-like judgments (human difficulty estimation).")
+
+                # Run other-confidence at baseline (no steering)
+                other_baseline = run_other_confidence_experiment(
+                    model, tokenizer, questions, layers, directions, use_chat_template,
+                    steering_multiplier=0.0, cached_directions=cached_directions
+                )
+
+                # Run other-confidence with max positive steering multiplier
+                max_mult = max(STEERING_MULTIPLIERS)
+                other_steered = run_other_confidence_experiment(
+                    model, tokenizer, questions, layers, directions, use_chat_template,
+                    steering_multiplier=max_mult, cached_directions=cached_directions
+                )
+
+                # Analyze: compare self vs other effects for each layer
+                other_confidence_analysis = {}
+                for layer_idx in layers:
+                    # Get self-confidence baseline and steered results for this layer
+                    layer_results = results["layer_results"].get(layer_idx, {})
+                    self_baseline = layer_results.get("baseline", [])
+                    self_steered = layer_results.get("steered", {}).get(max_mult, [])
+
+                    if self_baseline and self_steered:
+                        effect = analyze_other_confidence_effect(
+                            other_baseline, other_steered,
+                            self_baseline, self_steered, layer_idx
+                        )
+                        if effect is not None:
+                            other_confidence_analysis[str(layer_idx)] = effect
+
+                # Store in results
+                results["other_confidence"] = {
+                    "baseline": other_baseline,
+                    "steered": other_steered,
+                    "steering_multiplier": max_mult,
+                    "analysis": other_confidence_analysis,
+                }
+
+                # Print other-confidence summary
+                print("\n--- Other-Confidence Control Results ---")
+                print(f"Comparing steering effect (multiplier={max_mult}) on self vs other confidence:")
+                for layer_str, effect in other_confidence_analysis.items():
+                    self_eff = effect["self_effect_mean"]
+                    other_eff = effect["other_effect_mean"]
+                    ratio = effect["self_vs_other_ratio"]
+                    print(f"  Layer {layer_str}: self={self_eff:+.3f}, other={other_eff:+.3f}, ratio={ratio:.2f}x")
+
+                # Overall assessment
+                if other_confidence_analysis:
+                    mean_ratio = np.mean([e["self_vs_other_ratio"] for e in other_confidence_analysis.values() if not np.isinf(e["self_vs_other_ratio"])])
+                    mean_self = np.mean([e["self_effect_mean"] for e in other_confidence_analysis.values()])
+                    mean_other = np.mean([e["other_effect_mean"] for e in other_confidence_analysis.values()])
+                    print(f"\n  Mean across layers: self={mean_self:+.3f}, other={mean_other:+.3f}, ratio={mean_ratio:.2f}x")
+                    if mean_ratio > 2.0:
+                        print("  → Steering primarily affects SELF-confidence (introspection-specific)")
+                    elif mean_ratio > 1.2:
+                        print("  → Steering affects self-confidence more than other-confidence")
+                    elif mean_ratio > 0.8:
+                        print("  → Steering affects self and other confidence similarly (general effect)")
+                    else:
+                        print("  → Steering affects other-confidence more than self (unexpected)")
 
     # ==========================================================================
     # ABLATION EXPERIMENT
     # ==========================================================================
+    if run_ablation:
+        print("\n" + "=" * 70)
+        print("RUNNING ABLATION EXPERIMENT")
+        print("=" * 70)
+
+        # baseline_from_steering is set above (None if we skipped steering, otherwise from steering results)
+        # run_ablation_experiment will compute its own baseline if baseline_results=None
+        ablation_results = run_ablation_experiment(
+            model, tokenizer, questions, direct_metric_values,
+            layers, directions, num_controls,
+            use_chat_template,
+            baseline_results=baseline_from_steering,
+            cached_directions=cached_directions
+        )
+
+        # Analyze ablation results
+        ablation_analysis = analyze_ablation_results(ablation_results)
+
+        # Save ablation results
+        ablation_results_path = f"{output_prefix}_ablation{direction_suffix}_results.json"
+        with open(ablation_results_path, "w") as f:
+            json.dump(ablation_results, f, indent=2, default=lambda x: float(x) if isinstance(x, np.floating) else x)
+        print(f"\nSaved {ablation_results_path}")
+
+        ablation_analysis_path = f"{output_prefix}_ablation{direction_suffix}_analysis.json"
+        with open(ablation_analysis_path, "w") as f:
+            json.dump(ablation_analysis, f, indent=2)
+        print(f"Saved {ablation_analysis_path}")
+
+        # Print and plot ablation results
+        print_ablation_summary(ablation_analysis)
+        plot_ablation_results(ablation_analysis, f"{output_prefix}{direction_suffix}")
+
+        print("\n✓ Ablation experiment complete!")
+
+        # ==================================================================
+        # OTHER-CONFIDENCE CONTROL FOR ABLATION (for confidence task only)
+        # ==================================================================
+        if META_TASK == "confidence":
+            print("\n" + "-" * 50)
+            print("OTHER-CONFIDENCE CONTROL (ABLATION)")
+            print("-" * 50)
+            print("Testing whether ablation affects self-confidence specifically,")
+            print("or also affects general confidence-like judgments.")
+
+            # Run other-confidence at baseline (no ablation)
+            other_baseline_abl = run_other_confidence_with_ablation(
+                model, tokenizer, questions, layers, directions, use_chat_template,
+                ablate=False, cached_directions=cached_directions
+            )
+
+            # Run other-confidence with ablation
+            other_ablated = run_other_confidence_with_ablation(
+                model, tokenizer, questions, layers, directions, use_chat_template,
+                ablate=True, cached_directions=cached_directions
+            )
+
+            # Analyze: compare self vs other ablation effects for each layer
+            other_confidence_ablation_analysis = {}
+            for layer_idx in layers:
+                # Get self-confidence baseline and ablated results for this layer
+                layer_results = ablation_results["layer_results"].get(str(layer_idx), {})
+                self_baseline = layer_results.get("baseline", [])
+                self_ablated = layer_results.get("introspection_ablated", [])
+
+                if self_baseline and self_ablated:
+                    effect = analyze_other_confidence_ablation_effect(
+                        other_baseline_abl, other_ablated,
+                        self_baseline, self_ablated, layer_idx
+                    )
+                    if effect is not None:
+                        other_confidence_ablation_analysis[str(layer_idx)] = effect
+
+            # Store in ablation results
+            ablation_results["other_confidence"] = {
+                "baseline": other_baseline_abl,
+                "ablated": other_ablated,
+                "analysis": other_confidence_ablation_analysis,
+            }
+
+            # Re-save ablation results with other-confidence data
+            with open(ablation_results_path, "w") as f:
+                json.dump(ablation_results, f, indent=2, default=lambda x: float(x) if isinstance(x, np.floating) else x)
+            print(f"\nRe-saved {ablation_results_path} with other-confidence data")
+
+            # Print other-confidence ablation summary
+            print("\n--- Other-Confidence Control Results (Ablation) ---")
+            print("Comparing ablation effect on self vs other confidence:")
+            for layer_str, effect in other_confidence_ablation_analysis.items():
+                self_eff = effect["self_effect_mean_abs"]
+                other_eff = effect["other_effect_mean_abs"]
+                ratio = effect["self_vs_other_ratio"]
+                print(f"  Layer {layer_str}: |Δself|={self_eff:.3f}, |Δother|={other_eff:.3f}, ratio={ratio:.2f}x")
+
+            # Overall assessment
+            if other_confidence_ablation_analysis:
+                mean_ratio = np.mean([e["self_vs_other_ratio"] for e in other_confidence_ablation_analysis.values() if not np.isinf(e["self_vs_other_ratio"])])
+                mean_self = np.mean([e["self_effect_mean_abs"] for e in other_confidence_ablation_analysis.values()])
+                mean_other = np.mean([e["other_effect_mean_abs"] for e in other_confidence_ablation_analysis.values()])
+                print(f"\n  Mean across layers: |Δself|={mean_self:.3f}, |Δother|={mean_other:.3f}, ratio={mean_ratio:.2f}x")
+                if mean_ratio > 2.0:
+                    print("  → Ablation primarily affects SELF-confidence (introspection-specific)")
+                elif mean_ratio > 1.2:
+                    print("  → Ablation affects self-confidence more than other-confidence")
+                elif mean_ratio > 0.8:
+                    print("  → Ablation affects self and other confidence similarly (general effect)")
+                else:
+                    print("  → Ablation affects other-confidence more than self (unexpected)")
+
     print("\n" + "=" * 70)
-    print("RUNNING ABLATION EXPERIMENT")
-    print("=" * 70)
-
-    # baseline_from_steering is set above (None if we skipped steering, otherwise from steering results)
-    # run_ablation_experiment will compute its own baseline if baseline_results=None
-    ablation_results = run_ablation_experiment(
-        model, tokenizer, questions, direct_metric_values,
-        layers, directions, NUM_CONTROL_DIRECTIONS,
-        use_chat_template,
-        baseline_results=baseline_from_steering,
-        cached_directions=cached_directions
-    )
-
-    # Analyze ablation results
-    ablation_analysis = analyze_ablation_results(ablation_results)
-
-    # Save ablation results
-    ablation_results_path = f"{output_prefix}_ablation{direction_suffix}_results.json"
-    with open(ablation_results_path, "w") as f:
-        json.dump(ablation_results, f, indent=2, default=lambda x: float(x) if isinstance(x, np.floating) else x)
-    print(f"\nSaved {ablation_results_path}")
-
-    ablation_analysis_path = f"{output_prefix}_ablation{direction_suffix}_analysis.json"
-    with open(ablation_analysis_path, "w") as f:
-        json.dump(ablation_analysis, f, indent=2)
-    print(f"Saved {ablation_analysis_path}")
-
-    # Print and plot ablation results
-    print_ablation_summary(ablation_analysis)
-    plot_ablation_results(ablation_analysis, f"{output_prefix}{direction_suffix}")
-
-    print("\n✓ Ablation experiment complete!")
-    print("\n" + "=" * 70)
-    print("ALL EXPERIMENTS COMPLETE")
+    print("EXPERIMENTS COMPLETE")
     print("=" * 70)
 
 

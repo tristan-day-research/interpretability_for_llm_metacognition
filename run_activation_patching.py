@@ -49,6 +49,10 @@ from tasks import (
     ANSWER_OR_DELEGATE_OPTIONS,
     format_answer_or_delegate_prompt,
     response_to_confidence,
+    # Other-confidence task (control)
+    OTHER_CONFIDENCE_OPTIONS,
+    format_other_confidence_prompt,
+    get_other_confidence_signal,
 )
 
 # =============================================================================
@@ -117,6 +121,7 @@ def create_patch_pairs(
     metric_values: np.ndarray,
     n_pairs: int,
     method: str = "extremes",
+    direction: str = "high_to_low",
     seed: int = 42
 ) -> List[Tuple[int, int]]:
     """
@@ -132,6 +137,9 @@ def create_patch_pairs(
             - "extremes": Pair low-metric sources with high-metric targets
             - "random": Random pairs from different quartiles
             - "quartile": Systematic quartile-to-quartile pairs
+        direction: Which direction to patch:
+            - "high_to_low": Patch high-metric activations into low-metric questions
+            - "low_to_high": Patch low-metric activations into high-metric questions
 
     Returns:
         List of (source_idx, target_idx) tuples
@@ -143,47 +151,64 @@ def create_patch_pairs(
     pairs = []
 
     if method == "extremes":
-        # Pair bottom quartile sources with top quartile targets
         n_quartile = n // 4
         low_indices = sorted_idx[:n_quartile]
         high_indices = sorted_idx[-n_quartile:]
 
-        # Create pairs: low source → high target
-        for _ in range(n_pairs):
-            source = rng.choice(low_indices)
-            target = rng.choice(high_indices)
-            pairs.append((source, target))
+        if direction == "high_to_low":
+            # Source = low metric question, Target = high metric activation
+            for _ in range(n_pairs):
+                source = rng.choice(low_indices)
+                target = rng.choice(high_indices)
+                pairs.append((source, target))
+        else:  # low_to_high
+            # Source = high metric question, Target = low metric activation
+            for _ in range(n_pairs):
+                source = rng.choice(high_indices)
+                target = rng.choice(low_indices)
+                pairs.append((source, target))
 
     elif method == "random":
-        # Random pairs from different halves
         n_half = n // 2
         low_half = sorted_idx[:n_half]
         high_half = sorted_idx[n_half:]
 
-        for _ in range(n_pairs):
-            source = rng.choice(low_half)
-            target = rng.choice(high_half)
-            pairs.append((source, target))
+        if direction == "high_to_low":
+            for _ in range(n_pairs):
+                source = rng.choice(low_half)
+                target = rng.choice(high_half)
+                pairs.append((source, target))
+        else:
+            for _ in range(n_pairs):
+                source = rng.choice(high_half)
+                target = rng.choice(low_half)
+                pairs.append((source, target))
 
     elif method == "quartile":
-        # Systematic: Q1→Q4, Q2→Q4, Q1→Q3, etc.
         n_quartile = n // 4
         q1 = sorted_idx[:n_quartile]
         q2 = sorted_idx[n_quartile:2*n_quartile]
         q3 = sorted_idx[2*n_quartile:3*n_quartile]
         q4 = sorted_idx[3*n_quartile:]
 
-        # Primary: Q1→Q4 (low to high)
-        n_primary = n_pairs // 2
-        for _ in range(n_primary):
-            pairs.append((rng.choice(q1), rng.choice(q4)))
-
-        # Secondary: Q1→Q3, Q2→Q4
-        n_secondary = (n_pairs - n_primary) // 2
-        for _ in range(n_secondary):
-            pairs.append((rng.choice(q1), rng.choice(q3)))
-        for _ in range(n_pairs - n_primary - n_secondary):
-            pairs.append((rng.choice(q2), rng.choice(q4)))
+        if direction == "high_to_low":
+            n_primary = n_pairs // 2
+            for _ in range(n_primary):
+                pairs.append((rng.choice(q1), rng.choice(q4)))
+            n_secondary = (n_pairs - n_primary) // 2
+            for _ in range(n_secondary):
+                pairs.append((rng.choice(q1), rng.choice(q3)))
+            for _ in range(n_pairs - n_primary - n_secondary):
+                pairs.append((rng.choice(q2), rng.choice(q4)))
+        else:
+            n_primary = n_pairs // 2
+            for _ in range(n_primary):
+                pairs.append((rng.choice(q4), rng.choice(q1)))
+            n_secondary = (n_pairs - n_primary) // 2
+            for _ in range(n_secondary):
+                pairs.append((rng.choice(q4), rng.choice(q2)))
+            for _ in range(n_pairs - n_primary - n_secondary):
+                pairs.append((rng.choice(q3), rng.choice(q1)))
 
     else:
         raise ValueError(f"Unknown pairing method: {method}")
@@ -244,6 +269,26 @@ def compute_confidence_from_logits(
     return response_to_confidence(response, probs, mapping, task_type=META_TASK)
 
 
+def format_other_meta_prompt(
+    question: Dict,
+    tokenizer,
+    use_chat_template: bool
+) -> str:
+    """Format other-confidence prompt (human difficulty estimation)."""
+    prompt, _ = format_other_confidence_prompt(question, tokenizer, use_chat_template)
+    return prompt
+
+
+def compute_other_confidence_from_logits(
+    logits: torch.Tensor,
+    option_token_ids: List[int]
+) -> float:
+    """Compute other-confidence signal from logits over option tokens."""
+    option_logits = logits[option_token_ids]
+    probs = torch.softmax(option_logits, dim=-1).cpu().numpy()
+    return get_other_confidence_signal(probs)
+
+
 def run_patching_experiment(
     model,
     tokenizer,
@@ -294,7 +339,7 @@ def run_patching_experiment(
     results = {
         "layers": layers,
         "n_pairs": len(patch_pairs),
-        "pairs": patch_pairs,
+        "pairs": [[s, t] for s, t in patch_pairs],  # Convert tuples to lists for JSON
         "metric": METRIC,
         "layer_results": {},
     }
@@ -408,7 +453,7 @@ def run_patching_experiment(
         shifts = [r["confidence_shift"] for r in pair_results]
         norm_shifts = [r["normalized_shift"] for r in pair_results]
 
-        results["layer_results"][layer_idx] = {
+        results["layer_results"][str(layer_idx)] = {
             "pairs": pair_results,
             "mean_shift": float(np.mean(shifts)),
             "std_shift": float(np.std(shifts)),
@@ -428,6 +473,219 @@ def run_patching_experiment(
     return results
 
 
+def run_other_confidence_patching(
+    model,
+    tokenizer,
+    questions: List[Dict],
+    cached_activations: Dict[int, np.ndarray],
+    layers: List[int],
+    patch_pairs: List[Tuple[int, int]],
+    use_chat_template: bool,
+    batch_size: int = BATCH_SIZE
+) -> Dict:
+    """
+    Run activation patching on other-confidence task (control).
+
+    Same patching logic but using other-confidence prompts.
+    This tests whether patching affects human difficulty estimation
+    the same way it affects self-confidence.
+
+    Returns:
+        Dict with baseline and patched other-confidence values per layer and pair.
+    """
+    # Only run for confidence task (not delegate)
+    if META_TASK != "confidence":
+        return None
+
+    model.eval()
+    option_token_ids = _CACHED_TOKEN_IDS["meta_options"]  # Same S-Z scale
+
+    # Get access to model layers
+    if hasattr(model, 'get_base_model'):
+        model_layers = model.get_base_model().model.layers
+    else:
+        model_layers = model.model.layers
+
+    results = {
+        "layers": layers,
+        "n_pairs": len(patch_pairs),
+        "layer_results": {},
+    }
+
+    # Pre-compute all other-confidence prompts
+    print("Formatting other-confidence prompts...")
+    all_prompts = []
+    for q in questions:
+        prompt = format_other_meta_prompt(q, tokenizer, use_chat_template)
+        all_prompts.append(prompt)
+
+    # Batch compute baselines (no patching)
+    print("Computing other-confidence baselines...")
+    all_baseline_signals = []
+    for batch_start in tqdm(range(0, len(questions), batch_size), desc="Other baselines"):
+        batch_end = min(batch_start + batch_size, len(questions))
+        batch_prompts = all_prompts[batch_start:batch_end]
+
+        inputs = tokenizer(batch_prompts, return_tensors="pt", padding=True).to(DEVICE)
+
+        with torch.no_grad():
+            outputs = model(**inputs, use_cache=False)
+
+        for i in range(len(batch_prompts)):
+            final_logits = outputs.logits[i, -1, :]
+            signal = compute_other_confidence_from_logits(final_logits, option_token_ids)
+            all_baseline_signals.append(signal)
+
+        del inputs, outputs
+        torch.cuda.empty_cache()
+
+    all_baseline_signals = np.array(all_baseline_signals)
+    print(f"Other-confidence baseline: mean={all_baseline_signals.mean():.3f}, std={all_baseline_signals.std():.3f}")
+
+    # Run patching for each layer
+    for layer_idx in tqdm(layers, desc="Other-conf layers"):
+        layer_activations = cached_activations[layer_idx]
+        pair_results = []
+
+        for batch_start in tqdm(range(0, len(patch_pairs), batch_size),
+                                desc=f"Layer {layer_idx}", leave=False):
+            batch_end = min(batch_start + batch_size, len(patch_pairs))
+            batch_pairs = patch_pairs[batch_start:batch_end]
+
+            batch_prompts = []
+            batch_target_acts = []
+            batch_pair_info = []
+
+            for source_idx, target_idx in batch_pairs:
+                batch_prompts.append(all_prompts[source_idx])
+                batch_target_acts.append(layer_activations[target_idx])
+                batch_pair_info.append({
+                    "source_idx": source_idx,
+                    "target_idx": target_idx,
+                    "source_baseline": float(all_baseline_signals[source_idx]),
+                    "target_baseline": float(all_baseline_signals[target_idx]),
+                })
+
+            batch_target_acts = torch.tensor(np.array(batch_target_acts), dtype=torch.float32)
+            inputs = tokenizer(batch_prompts, return_tensors="pt", padding=True).to(DEVICE)
+
+            hook = BatchPatchingHook(batch_target_acts, position="last")
+            handle = model_layers[layer_idx].register_forward_hook(hook)
+
+            try:
+                with torch.no_grad():
+                    outputs = model(**inputs, use_cache=False)
+
+                for i in range(len(batch_prompts)):
+                    final_logits = outputs.logits[i, -1, :]
+                    patched_signal = compute_other_confidence_from_logits(
+                        final_logits, option_token_ids
+                    )
+
+                    info = batch_pair_info[i]
+                    info["patched_signal"] = float(patched_signal)
+
+                    source_base = info["source_baseline"]
+                    target_base = info["target_baseline"]
+                    gap = target_base - source_base
+
+                    info["signal_shift"] = float(patched_signal - source_base)
+                    if abs(gap) > 0.01:
+                        info["normalized_shift"] = float((patched_signal - source_base) / gap)
+                    else:
+                        info["normalized_shift"] = 0.0
+
+                    pair_results.append(info)
+
+            finally:
+                handle.remove()
+
+            del inputs, outputs
+            torch.cuda.empty_cache()
+
+        # Aggregate layer results
+        shifts = [r["signal_shift"] for r in pair_results]
+        norm_shifts = [r["normalized_shift"] for r in pair_results]
+
+        results["layer_results"][str(layer_idx)] = {
+            "pairs": pair_results,
+            "mean_shift": float(np.mean(shifts)),
+            "std_shift": float(np.std(shifts)),
+            "mean_normalized_shift": float(np.mean(norm_shifts)),
+            "std_normalized_shift": float(np.std(norm_shifts)),
+            "n_pairs": len(pair_results),
+        }
+
+    results["baselines"] = {
+        "mean": float(all_baseline_signals.mean()),
+        "std": float(all_baseline_signals.std()),
+        "all": all_baseline_signals.tolist(),
+    }
+
+    return results
+
+
+def analyze_other_confidence_patching_effect(
+    self_results: Dict,
+    other_results: Dict,
+    layers: List[int]
+) -> Dict:
+    """
+    Compare patching effect on self-confidence vs other-confidence.
+
+    Returns dict with per-layer comparison and overall assessment.
+    """
+    if other_results is None:
+        return None
+
+    analysis = {
+        "layers": layers,
+        "layer_effects": {},
+    }
+
+    for layer_idx in layers:
+        layer_str = str(layer_idx)
+        self_lr = self_results["layer_results"].get(layer_str, {})
+        other_lr = other_results["layer_results"].get(layer_str, {})
+
+        if not self_lr or not other_lr:
+            continue
+
+        self_shifts = [p["confidence_shift"] for p in self_lr.get("pairs", [])]
+        other_shifts = [p["signal_shift"] for p in other_lr.get("pairs", [])]
+
+        if len(self_shifts) != len(other_shifts):
+            continue
+
+        self_shifts = np.array(self_shifts)
+        other_shifts = np.array(other_shifts)
+
+        self_effect = float(np.mean(np.abs(self_shifts)))
+        other_effect = float(np.mean(np.abs(other_shifts)))
+
+        if other_effect > 1e-6:
+            ratio = self_effect / other_effect
+        else:
+            ratio = float('inf') if self_effect > 1e-6 else 1.0
+
+        analysis["layer_effects"][layer_str] = {
+            "self_effect_mean_abs": self_effect,
+            "other_effect_mean_abs": other_effect,
+            "self_vs_other_ratio": ratio,
+            "self_other_correlation": float(np.corrcoef(self_shifts, other_shifts)[0, 1]) if len(self_shifts) > 1 else np.nan,
+        }
+
+    # Overall summary
+    if analysis["layer_effects"]:
+        ratios = [e["self_vs_other_ratio"] for e in analysis["layer_effects"].values() if not np.isinf(e["self_vs_other_ratio"])]
+        if ratios:
+            analysis["mean_ratio"] = float(np.mean(ratios))
+        else:
+            analysis["mean_ratio"] = float('inf')
+
+    return analysis
+
+
 # =============================================================================
 # ANALYSIS AND VISUALIZATION
 # =============================================================================
@@ -436,14 +694,14 @@ def run_patching_experiment(
 def analyze_patching_results(results: Dict) -> Dict:
     """Compute summary statistics for patching experiment."""
     analysis = {
-        "layers": results["layers"],
+        "layers": list(results["layers"]),  # Copy to avoid shared reference
         "n_pairs": results["n_pairs"],
         "metric": results.get("metric", "unknown"),
         "layer_effects": {},
     }
 
     for layer_idx in results["layers"]:
-        lr = results["layer_results"][layer_idx]
+        lr = results["layer_results"][str(layer_idx)]
 
         # Effect size: how much did patching shift confidence toward target?
         # normalized_shift of 1.0 = patching made source identical to target
@@ -456,23 +714,23 @@ def analyze_patching_results(results: Dict) -> Dict:
         norm_shifts = [p["normalized_shift"] for p in lr["pairs"]]
         t_stat, p_value = stats.ttest_1samp(norm_shifts, 0)
 
-        analysis["layer_effects"][layer_idx] = {
-            "mean_shift": lr["mean_shift"],
-            "mean_normalized_shift": mean_norm,
-            "std_normalized_shift": std_norm,
+        analysis["layer_effects"][str(layer_idx)] = {
+            "mean_shift": float(lr["mean_shift"]),
+            "mean_normalized_shift": float(mean_norm),
+            "std_normalized_shift": float(std_norm),
             "t_statistic": float(t_stat),
             "p_value": float(p_value),
-            "significant_p05": p_value < 0.05,
-            "effect_size": mean_norm,  # Normalized shift is already effect size
+            "significant_p05": bool(p_value < 0.05),
+            "effect_size": float(mean_norm),  # Normalized shift is already effect size
         }
 
     # Find best layer
     best_layer = max(
         results["layers"],
-        key=lambda l: analysis["layer_effects"][l]["mean_normalized_shift"]
+        key=lambda l: analysis["layer_effects"][str(l)]["mean_normalized_shift"]
     )
-    analysis["best_layer"] = best_layer
-    analysis["best_effect"] = analysis["layer_effects"][best_layer]["mean_normalized_shift"]
+    analysis["best_layer"] = int(best_layer) if hasattr(best_layer, 'item') else best_layer
+    analysis["best_effect"] = float(analysis["layer_effects"][str(best_layer)]["mean_normalized_shift"])
 
     return analysis
 
@@ -492,14 +750,14 @@ def print_summary(analysis: Dict):
     print("-" * 50)
 
     for layer_idx in analysis["layers"]:
-        e = analysis["layer_effects"][layer_idx]
+        e = analysis["layer_effects"][str(layer_idx)]
         sig = "✓" if e["significant_p05"] else ""
         print(f"{layer_idx:<8} {e['mean_normalized_shift']:<10.3f} "
               f"{e['std_normalized_shift']:<10.3f} {e['p_value']:<10.4f} {sig:<6}")
 
     best = analysis["best_layer"]
     best_effect = analysis["best_effect"]
-    best_p = analysis["layer_effects"][best]["p_value"]
+    best_p = analysis["layer_effects"][str(best)]["p_value"]
 
     print(f"\nBest layer: {best} (normalized shift = {best_effect:.3f}, p = {best_p:.4f})")
 
@@ -520,78 +778,358 @@ def plot_results(analysis: Dict, results: Dict, output_path: str):
     fig, axes = plt.subplots(1, 3, figsize=(15, 4))
 
     layers = analysis["layers"]
+    n_pairs = analysis["n_pairs"]
 
-    # Plot 1: Normalized shift by layer
+    # Plot 1: Normalized shift by layer with 95% CI (SEM-based)
     ax1 = axes[0]
-    shifts = [analysis["layer_effects"][l]["mean_normalized_shift"] for l in layers]
-    stds = [analysis["layer_effects"][l]["std_normalized_shift"] for l in layers]
-    ax1.bar(range(len(layers)), shifts, yerr=stds, alpha=0.7)
+    shifts = [analysis["layer_effects"][str(l)]["mean_normalized_shift"] for l in layers]
+    stds = [analysis["layer_effects"][str(l)]["std_normalized_shift"] for l in layers]
+    # Use SEM for error bars (std / sqrt(n)), then multiply by 1.96 for 95% CI
+    sems = [s / np.sqrt(n_pairs) * 1.96 for s in stds]
+
+    # Color bars by significance
+    colors = ['#2ecc71' if analysis["layer_effects"][str(l)]["significant_p05"] and
+              analysis["layer_effects"][str(l)]["mean_normalized_shift"] > 0
+              else '#e74c3c' if analysis["layer_effects"][str(l)]["significant_p05"]
+              else '#95a5a6' for l in layers]
+
+    ax1.bar(range(len(layers)), shifts, yerr=sems, alpha=0.8, color=colors,
+            capsize=3, error_kw={'linewidth': 1.5})
     ax1.set_xticks(range(len(layers)))
     ax1.set_xticklabels(layers)
     ax1.set_xlabel("Layer")
-    ax1.set_ylabel("Normalized Shift")
+    ax1.set_ylabel("Normalized Shift (95% CI)")
     ax1.set_title("Patching Effect by Layer")
-    ax1.axhline(y=0, color='k', linestyle='-', alpha=0.3)
-    ax1.grid(True, alpha=0.3)
+    ax1.axhline(y=0, color='k', linestyle='-', alpha=0.5, linewidth=1.5)
+    ax1.axhline(y=0.3, color='green', linestyle='--', alpha=0.4, label='Strong effect')
+    ax1.grid(True, alpha=0.3, axis='y')
 
-    # Plot 2: Scatter of individual pair effects for best layer
+    # Plot 2: Distribution of normalized shifts for best layer
     ax2 = axes[1]
     best_layer = analysis["best_layer"]
-    pairs = results["layer_results"][best_layer]["pairs"]
-    metric_gaps = [p["target_metric"] - p["source_metric"] for p in pairs]
-    conf_shifts = [p["confidence_shift"] for p in pairs]
-    ax2.scatter(metric_gaps, conf_shifts, alpha=0.5)
-    ax2.set_xlabel(f"Metric Gap (target - source)")
-    ax2.set_ylabel("Confidence Shift")
-    ax2.set_title(f"Layer {best_layer}: Metric Gap vs Confidence Shift")
+    pairs = results["layer_results"][str(best_layer)]["pairs"]
+    norm_shifts = [p["normalized_shift"] for p in pairs]
+
+    # Histogram with KDE
+    ax2.hist(norm_shifts, bins=20, alpha=0.6, color='steelblue', edgecolor='white', density=True)
+
+    # Add vertical lines for mean and 0
+    mean_shift = np.mean(norm_shifts)
+    ax2.axvline(x=0, color='black', linestyle='-', linewidth=2, label='No effect')
+    ax2.axvline(x=mean_shift, color='red', linestyle='--', linewidth=2,
+                label=f'Mean = {mean_shift:.2f}')
+    ax2.axvline(x=1.0, color='green', linestyle=':', linewidth=2, alpha=0.7,
+                label='Full transfer')
+
+    ax2.set_xlabel("Normalized Shift")
+    ax2.set_ylabel("Density")
+    ax2.set_title(f"Layer {best_layer}: Distribution of Effects")
+    ax2.legend(loc='upper right', fontsize=8)
     ax2.grid(True, alpha=0.3)
 
-    # Fit and plot regression line
-    if len(metric_gaps) > 2:
-        from scipy import stats
-        slope, intercept, r_value, _, _ = stats.linregress(metric_gaps, conf_shifts)
-        x_line = np.array([min(metric_gaps), max(metric_gaps)])
-        ax2.plot(x_line, slope * x_line + intercept, 'r-', alpha=0.8,
-                 label=f'r={r_value:.2f}')
-        ax2.legend()
+    # Add text showing fraction positive
+    frac_positive = sum(1 for s in norm_shifts if s > 0) / len(norm_shifts)
+    ax2.text(0.02, 0.98, f'{frac_positive:.0%} positive', transform=ax2.transAxes,
+             fontsize=10, verticalalignment='top', fontweight='bold')
 
     # Plot 3: Summary text
     ax3 = axes[2]
     ax3.axis('off')
 
-    best_effect = analysis["layer_effects"][best_layer]
-    summary = f"""
-ACTIVATION PATCHING SUMMARY
+    best_effect = analysis["layer_effects"][str(best_layer)]
+    sem = best_effect['std_normalized_shift'] / np.sqrt(n_pairs)
+
+    summary = f"""ACTIVATION PATCHING SUMMARY
 
 Metric: {analysis['metric']}
-Pairs per layer: {analysis['n_pairs']}
+Pairs per layer: {n_pairs}
 
 Best Layer: {best_layer}
-  Normalized shift: {best_effect['mean_normalized_shift']:.3f} ± {best_effect['std_normalized_shift']:.3f}
-  p-value: {best_effect['p_value']:.4f}
+  Mean shift: {best_effect['mean_normalized_shift']:.3f}
+  95% CI: [{best_effect['mean_normalized_shift'] - 1.96*sem:.3f}, {best_effect['mean_normalized_shift'] + 1.96*sem:.3f}]
+  p-value: {best_effect['p_value']:.2e}
   Significant: {'Yes' if best_effect['significant_p05'] else 'No'}
+
+Legend:
+  Green = significant positive shift
+  Red = significant negative shift
+  Gray = not significant
 
 Interpretation:
 """
-    if best_effect['mean_normalized_shift'] > 0.3:
-        summary += """  ✓ Strong causal effect
-  Full activation pattern matters
-  for confidence judgments."""
-    elif best_effect['mean_normalized_shift'] > 0.1:
-        summary += """  ✓ Moderate causal effect
+    if best_effect['mean_normalized_shift'] > 0.3 and best_effect['significant_p05']:
+        summary += """✓ STRONG causal effect
+  Patching high-uncertainty activations
+  into low-uncertainty questions shifts
+  confidence toward uncertainty."""
+    elif best_effect['mean_normalized_shift'] > 0.1 and best_effect['significant_p05']:
+        summary += """✓ Moderate causal effect
   Activation pattern partially
   determines confidence."""
+    elif best_effect['significant_p05']:
+        summary += """⚠ Significant but weak effect
+  Effect detected but small
+  magnitude."""
     else:
-        summary += """  ⚠ Weak/no effect
+        summary += """✗ No significant effect
   Activation pattern may not be
   primary determinant."""
 
-    ax3.text(0.1, 0.9, summary, transform=ax3.transAxes, fontsize=10,
+    ax3.text(0.05, 0.95, summary, transform=ax3.transAxes, fontsize=9,
              verticalalignment='top', fontfamily='monospace')
 
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     print(f"\nPlot saved to {output_path}")
+
+
+def print_bidirectional_summary(all_analyses: Dict[str, Dict]):
+    """Print combined summary for bidirectional patching.
+
+    Key insight: normalized_shift should be POSITIVE in BOTH directions when
+    patching works. This is because normalized_shift measures movement toward
+    the target baseline, regardless of direction.
+
+    - h→l positive: patching high-entropy acts into low-entropy prompts moves
+      the output TOWARD high-entropy (the target behavior)
+    - l→h positive: patching low-entropy acts into high-entropy prompts moves
+      the output TOWARD low-entropy (the target behavior)
+    """
+    print("\n" + "=" * 70)
+    print("BIDIRECTIONAL ACTIVATION PATCHING RESULTS")
+    print("=" * 70)
+
+    h2l = all_analyses["high_to_low"]
+    l2h = all_analyses["low_to_high"]
+
+    print(f"\nMetric: {h2l['metric']}")
+    print(f"Pairs tested per direction: {h2l['n_pairs']}")
+
+    print("\n--- Layer-by-Layer Comparison ---")
+    print(f"{'Layer':<8} {'high→low':<12} {'low→high':<12} {'Bidirectional?':<15} {'Interpretation'}")
+    print("-" * 75)
+
+    # Threshold for considering an effect "meaningful"
+    EFFECT_THRESHOLD = 0.1
+
+    for layer_idx in h2l["layers"]:
+        h2l_effect = h2l["layer_effects"][str(layer_idx)]
+        l2h_effect = l2h["layer_effects"][str(layer_idx)]
+
+        h2l_shift = h2l_effect["mean_normalized_shift"]
+        l2h_shift = l2h_effect["mean_normalized_shift"]
+
+        h2l_sig = "✓" if h2l_effect["significant_p05"] else ""
+        l2h_sig = "✓" if l2h_effect["significant_p05"] else ""
+
+        # Interpretation: BOTH should be positive for bidirectional causal effect
+        h2l_works = h2l_shift > EFFECT_THRESHOLD
+        l2h_works = l2h_shift > EFFECT_THRESHOLD
+        h2l_fails = h2l_shift < -EFFECT_THRESHOLD
+        l2h_fails = l2h_shift < -EFFECT_THRESHOLD
+
+        if h2l_works and l2h_works:
+            bidirectional = "Yes"
+            interp = "✓ Bidirectional causal"
+        elif h2l_works and not l2h_works and not l2h_fails:
+            bidirectional = "Partial"
+            interp = "→ h→l only (asymmetric)"
+        elif l2h_works and not h2l_works and not h2l_fails:
+            bidirectional = "Partial"
+            interp = "← l→h only (asymmetric)"
+        elif h2l_works and l2h_fails:
+            bidirectional = "No"
+            interp = "⚠ h→l+, l→h- (conflicting)"
+        elif h2l_fails and l2h_works:
+            bidirectional = "No"
+            interp = "⚠ h→l-, l→h+ (conflicting)"
+        elif h2l_fails and l2h_fails:
+            bidirectional = "No"
+            interp = "✗ Both negative (reversal)"
+        else:
+            bidirectional = "No"
+            interp = "— Weak/no effect"
+
+        print(f"{layer_idx:<8} {h2l_shift:>+.3f}{h2l_sig:<2}     {l2h_shift:>+.3f}{l2h_sig:<2}     {bidirectional:<15} {interp}")
+
+    # Summary statistics
+    print("\n--- Summary ---")
+
+    # Count layers by pattern
+    n_bidirectional = 0
+    n_h2l_only = 0
+    n_l2h_only = 0
+    n_conflicting = 0
+
+    for layer_idx in h2l["layers"]:
+        h2l_shift = h2l["layer_effects"][str(layer_idx)]["mean_normalized_shift"]
+        l2h_shift = l2h["layer_effects"][str(layer_idx)]["mean_normalized_shift"]
+
+        h2l_works = h2l_shift > EFFECT_THRESHOLD
+        l2h_works = l2h_shift > EFFECT_THRESHOLD
+        h2l_fails = h2l_shift < -EFFECT_THRESHOLD
+        l2h_fails = l2h_shift < -EFFECT_THRESHOLD
+
+        if h2l_works and l2h_works:
+            n_bidirectional += 1
+        elif h2l_works and not l2h_works and not l2h_fails:
+            n_h2l_only += 1
+        elif l2h_works and not h2l_works and not h2l_fails:
+            n_l2h_only += 1
+        elif (h2l_works and l2h_fails) or (h2l_fails and l2h_works):
+            n_conflicting += 1
+
+    total = len(h2l['layers'])
+    print(f"Bidirectional causal (both +): {n_bidirectional}/{total}")
+    print(f"Asymmetric h→l only:           {n_h2l_only}/{total}")
+    print(f"Asymmetric l→h only:           {n_l2h_only}/{total}")
+    print(f"Conflicting (one +, one -):    {n_conflicting}/{total}")
+
+    if n_bidirectional > total // 3:
+        print("\n✓ Strong bidirectional causal evidence!")
+        print("  Patching works in both directions at multiple layers.")
+        print("  These activations causally encode the metric.")
+    elif n_h2l_only + n_l2h_only > total // 3:
+        print("\n~ Asymmetric effects detected.")
+        print("  Patching works in one direction but not the other.")
+        print("  This suggests directional information flow.")
+    elif n_conflicting > total // 3:
+        print("\n⚠ Conflicting patterns detected!")
+        print("  Opposite signs in different directions suggest")
+        print("  complex or confounded encoding.")
+    else:
+        print("\n— Mixed or weak effects across layers.")
+
+
+def plot_bidirectional_results(all_analyses: Dict[str, Dict], all_results: Dict[str, Dict], output_path: str):
+    """Create visualization comparing both directions.
+
+    Key insight: BOTH directions should show POSITIVE normalized_shift when
+    patching works. Positive shift means the patched output moved toward
+    the target baseline (the behavior of the source of the patched activations).
+    """
+    fig, axes = plt.subplots(1, 3, figsize=(16, 5))
+
+    h2l = all_analyses["high_to_low"]
+    l2h = all_analyses["low_to_high"]
+    layers = h2l["layers"]
+    n_pairs = h2l["n_pairs"]
+
+    EFFECT_THRESHOLD = 0.1
+
+    # Plot 1: Side-by-side bar chart of effects
+    ax1 = axes[0]
+    x = np.arange(len(layers))
+    width = 0.35
+
+    h2l_shifts = [h2l["layer_effects"][str(l)]["mean_normalized_shift"] for l in layers]
+    l2h_shifts = [l2h["layer_effects"][str(l)]["mean_normalized_shift"] for l in layers]
+    h2l_sems = [h2l["layer_effects"][str(l)]["std_normalized_shift"] / np.sqrt(n_pairs) * 1.96 for l in layers]
+    l2h_sems = [l2h["layer_effects"][str(l)]["std_normalized_shift"] / np.sqrt(n_pairs) * 1.96 for l in layers]
+
+    bars1 = ax1.bar(x - width/2, h2l_shifts, width, yerr=h2l_sems, label='high→low',
+                    color='#e74c3c', alpha=0.8, capsize=2)
+    bars2 = ax1.bar(x + width/2, l2h_shifts, width, yerr=l2h_sems, label='low→high',
+                    color='#3498db', alpha=0.8, capsize=2)
+
+    ax1.set_xlabel("Layer")
+    ax1.set_ylabel("Normalized Shift (95% CI)")
+    ax1.set_title("Bidirectional Patching Effects\n(Both positive = bidirectional causal)")
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(layers)
+    ax1.axhline(y=0, color='k', linestyle='-', alpha=0.5)
+    ax1.axhline(y=EFFECT_THRESHOLD, color='green', linestyle='--', alpha=0.3)
+    ax1.legend()
+    ax1.grid(True, alpha=0.3, axis='y')
+
+    # Plot 2: Bidirectional score by layer (minimum of the two effects)
+    ax2 = axes[1]
+
+    # Bidirectional score: min(h2l, l2h) - captures layers where BOTH work
+    # Higher = stronger bidirectional effect
+    bidir_scores = [min(h, l) for h, l in zip(h2l_shifts, l2h_shifts)]
+
+    colors = ['#2ecc71' if s > EFFECT_THRESHOLD else '#e74c3c' if s < -EFFECT_THRESHOLD else '#95a5a6'
+              for s in bidir_scores]
+    ax2.bar(x, bidir_scores, color=colors, alpha=0.8)
+    ax2.set_xlabel("Layer")
+    ax2.set_ylabel("Bidirectional Score (min of both)")
+    ax2.set_title("Bidirectional Causal Strength")
+    ax2.set_xticks(x)
+    ax2.set_xticklabels(layers)
+    ax2.axhline(y=0, color='k', linestyle='-', alpha=0.5)
+    ax2.axhline(y=EFFECT_THRESHOLD, color='green', linestyle='--', alpha=0.4, label='Threshold')
+    ax2.grid(True, alpha=0.3, axis='y')
+
+    # Add text explanation
+    ax2.text(0.02, 0.98, "Green = both directions\nshow positive shift",
+             transform=ax2.transAxes, fontsize=8, verticalalignment='top')
+
+    # Plot 3: Summary text
+    ax3 = axes[2]
+    ax3.axis('off')
+
+    # Find best layers for each direction (highest positive shift)
+    best_h2l_layer = max(layers, key=lambda l: h2l["layer_effects"][str(l)]["mean_normalized_shift"])
+    best_l2h_layer = max(layers, key=lambda l: l2h["layer_effects"][str(l)]["mean_normalized_shift"])
+
+    # Count layers by pattern
+    n_bidirectional = sum(1 for h, l in zip(h2l_shifts, l2h_shifts)
+                          if h > EFFECT_THRESHOLD and l > EFFECT_THRESHOLD)
+    n_h2l_only = sum(1 for h, l in zip(h2l_shifts, l2h_shifts)
+                     if h > EFFECT_THRESHOLD and abs(l) <= EFFECT_THRESHOLD)
+    n_l2h_only = sum(1 for h, l in zip(h2l_shifts, l2h_shifts)
+                     if l > EFFECT_THRESHOLD and abs(h) <= EFFECT_THRESHOLD)
+    n_conflicting = sum(1 for h, l in zip(h2l_shifts, l2h_shifts)
+                        if (h > EFFECT_THRESHOLD and l < -EFFECT_THRESHOLD) or
+                           (h < -EFFECT_THRESHOLD and l > EFFECT_THRESHOLD))
+
+    summary = f"""BIDIRECTIONAL PATCHING SUMMARY
+
+Metric: {h2l['metric']}
+Pairs per direction: {n_pairs}
+
+High→Low (high-entropy acts → low-entropy prompts):
+  Best layer: {best_h2l_layer}
+  Effect: {h2l["layer_effects"][str(best_h2l_layer)]["mean_normalized_shift"]:.3f}
+
+Low→High (low-entropy acts → high-entropy prompts):
+  Best layer: {best_l2h_layer}
+  Effect: {l2h["layer_effects"][str(best_l2h_layer)]["mean_normalized_shift"]:.3f}
+
+Pattern Analysis:
+  Bidirectional (both +):  {n_bidirectional}/{len(layers)}
+  h→l only (asymmetric):   {n_h2l_only}/{len(layers)}
+  l→h only (asymmetric):   {n_l2h_only}/{len(layers)}
+  Conflicting (+/-):       {n_conflicting}/{len(layers)}
+
+"""
+    if n_bidirectional > len(layers) // 3:
+        summary += """Interpretation:
+✓ BIDIRECTIONAL causal evidence!
+  Patching works in both directions.
+  Activations causally encode {metric}.""".format(metric=h2l['metric'])
+    elif n_h2l_only + n_l2h_only > len(layers) // 3:
+        summary += """Interpretation:
+~ Asymmetric effects.
+  One direction works, the other doesn't.
+  Directional information flow."""
+    elif n_conflicting > len(layers) // 3:
+        summary += """Interpretation:
+⚠ Conflicting patterns!
+  Opposite signs suggest complex or
+  confounded encoding."""
+    else:
+        summary += """Interpretation:
+— Mixed results across layers.
+  Causal role unclear."""
+
+    ax3.text(0.05, 0.95, summary, transform=ax3.transAxes, fontsize=9,
+             verticalalignment='top', fontfamily='monospace')
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    print(f"\nBidirectional plot saved to {output_path}")
 
 
 # =============================================================================
@@ -693,48 +1231,160 @@ def main():
         BASE_MODEL_NAME,
         MODEL_NAME if MODEL_NAME != BASE_MODEL_NAME else None,
     )
-    use_chat_template = should_use_chat_template(tokenizer)
+    use_chat_template = should_use_chat_template(BASE_MODEL_NAME, tokenizer)
     initialize_token_cache(tokenizer)
 
-    # Create patch pairs
-    print(f"\nCreating {n_pairs} patch pairs using '{pairing_method}' method...")
-    patch_pairs = create_patch_pairs(metric_values, n_pairs, method=pairing_method, seed=SEED)
+    def json_serializer(obj):
+        """Convert numpy types to Python native types for JSON serialization."""
+        if isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, (np.bool_, bool)):
+            return bool(obj)
+        raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
-    # Print pair statistics
-    source_metrics = [metric_values[s] for s, t in patch_pairs]
-    target_metrics = [metric_values[t] for s, t in patch_pairs]
-    print(f"Source metric: mean={np.mean(source_metrics):.3f}, std={np.std(source_metrics):.3f}")
-    print(f"Target metric: mean={np.mean(target_metrics):.3f}, std={np.std(target_metrics):.3f}")
+    # Run bidirectional patching
+    all_results = {}
+    all_analyses = {}
 
-    # Run patching experiment
-    print("\nRunning patching experiment...")
-    results = run_patching_experiment(
-        model, tokenizer, questions, cached_activations, metric_values,
-        layers, patch_pairs, use_chat_template, BATCH_SIZE
-    )
+    for direction in ["high_to_low", "low_to_high"]:
+        dir_label = "high→low" if direction == "high_to_low" else "low→high"
+        print(f"\n{'='*60}")
+        print(f"DIRECTION: {dir_label}")
+        print(f"{'='*60}")
 
-    # Save results
-    results_path = f"{output_prefix}_{METRIC}_patching_results.json"
-    with open(results_path, "w") as f:
-        json.dump(results, f, indent=2, default=lambda x: float(x) if isinstance(x, np.floating) else x)
-    print(f"\nSaved results to {results_path}")
+        # Create patch pairs for this direction
+        print(f"\nCreating {n_pairs} patch pairs using '{pairing_method}' method ({direction})...")
+        patch_pairs = create_patch_pairs(
+            metric_values, n_pairs, method=pairing_method,
+            direction=direction, seed=SEED
+        )
 
-    # Analyze
-    analysis = analyze_patching_results(results)
+        # Print pair statistics
+        source_metrics = [metric_values[s] for s, t in patch_pairs]
+        target_metrics = [metric_values[t] for s, t in patch_pairs]
+        print(f"Source metric: mean={np.mean(source_metrics):.3f}, std={np.std(source_metrics):.3f}")
+        print(f"Target metric: mean={np.mean(target_metrics):.3f}, std={np.std(target_metrics):.3f}")
 
-    analysis_path = f"{output_prefix}_{METRIC}_patching_analysis.json"
-    with open(analysis_path, "w") as f:
-        json.dump(analysis, f, indent=2)
-    print(f"Saved analysis to {analysis_path}")
+        # Run patching experiment
+        print(f"\nRunning patching experiment ({dir_label})...")
+        results = run_patching_experiment(
+            model, tokenizer, questions, cached_activations, metric_values,
+            layers, patch_pairs, use_chat_template, BATCH_SIZE
+        )
+        results["direction"] = direction
 
-    # Print summary
-    print_summary(analysis)
+        all_results[direction] = results
 
-    # Plot
-    plot_path = f"{output_prefix}_{METRIC}_patching_results.png"
-    plot_results(analysis, results, plot_path)
+        # Save individual results
+        results_path = f"{output_prefix}_{METRIC}_patching_{direction}_results.json"
+        with open(results_path, "w") as f:
+            json.dump(results, f, indent=2, default=json_serializer)
+        print(f"\nSaved results to {results_path}")
+
+        # Analyze
+        analysis = analyze_patching_results(results)
+        analysis["direction"] = direction
+        all_analyses[direction] = analysis
+
+        analysis_path = f"{output_prefix}_{METRIC}_patching_{direction}_analysis.json"
+        with open(analysis_path, "w") as f:
+            json.dump(analysis, f, indent=2)
+        print(f"Saved analysis to {analysis_path}")
+
+    # Print combined summary
+    print_bidirectional_summary(all_analyses)
+
+    # Plot combined results
+    plot_path = f"{output_prefix}_{METRIC}_patching_bidirectional.png"
+    plot_bidirectional_results(all_analyses, all_results, plot_path)
 
     print("\n✓ Activation patching experiment complete!")
+
+    # ==========================================================================
+    # OTHER-CONFIDENCE CONTROL (for confidence task only)
+    # ==========================================================================
+    if META_TASK == "confidence":
+        print("\n" + "=" * 60)
+        print("OTHER-CONFIDENCE CONTROL EXPERIMENT")
+        print("=" * 60)
+        print("Testing whether patching affects self-confidence specifically,")
+        print("or also affects general confidence-like judgments (human difficulty estimation).")
+
+        other_confidence_results = {}
+        other_confidence_analyses = {}
+
+        for direction in ["high_to_low", "low_to_high"]:
+            dir_label = "high→low" if direction == "high_to_low" else "low→high"
+            print(f"\n--- Other-confidence: {dir_label} ---")
+
+            # Recreate the same patch pairs used in the main experiment
+            patch_pairs = create_patch_pairs(
+                metric_values, n_pairs, method=pairing_method,
+                direction=direction, seed=SEED
+            )
+
+            # Run other-confidence patching
+            other_results = run_other_confidence_patching(
+                model, tokenizer, questions, cached_activations,
+                layers, patch_pairs, use_chat_template, BATCH_SIZE
+            )
+
+            if other_results is not None:
+                other_confidence_results[direction] = other_results
+
+                # Analyze self vs other effect
+                self_results = all_results[direction]
+                analysis = analyze_other_confidence_patching_effect(
+                    self_results, other_results, layers
+                )
+                other_confidence_analyses[direction] = analysis
+
+                # Print summary
+                print(f"\n{dir_label} self vs other comparison:")
+                if analysis and analysis.get("layer_effects"):
+                    for layer_str, effect in analysis["layer_effects"].items():
+                        self_eff = effect["self_effect_mean_abs"]
+                        other_eff = effect["other_effect_mean_abs"]
+                        ratio = effect["self_vs_other_ratio"]
+                        print(f"  Layer {layer_str}: |Δself|={self_eff:.3f}, |Δother|={other_eff:.3f}, ratio={ratio:.2f}x")
+
+                    if "mean_ratio" in analysis:
+                        print(f"  Mean ratio: {analysis['mean_ratio']:.2f}x")
+
+        # Overall assessment
+        if other_confidence_analyses:
+            all_ratios = []
+            for dir_analysis in other_confidence_analyses.values():
+                if dir_analysis and dir_analysis.get("layer_effects"):
+                    for e in dir_analysis["layer_effects"].values():
+                        if not np.isinf(e["self_vs_other_ratio"]):
+                            all_ratios.append(e["self_vs_other_ratio"])
+
+            if all_ratios:
+                overall_ratio = np.mean(all_ratios)
+                print(f"\n--- Overall Other-Confidence Control Summary ---")
+                print(f"Mean self/other ratio across all layers and directions: {overall_ratio:.2f}x")
+                if overall_ratio > 2.0:
+                    print("→ Patching primarily affects SELF-confidence (introspection-specific)")
+                elif overall_ratio > 1.2:
+                    print("→ Patching affects self-confidence more than other-confidence")
+                elif overall_ratio > 0.8:
+                    print("→ Patching affects self and other confidence similarly (general effect)")
+                else:
+                    print("→ Patching affects other-confidence more than self (unexpected)")
+
+        # Save other-confidence results
+        other_conf_path = f"{output_prefix}_{METRIC}_patching_other_confidence.json"
+        with open(other_conf_path, "w") as f:
+            json.dump({
+                "results": other_confidence_results,
+                "analyses": other_confidence_analyses,
+            }, f, indent=2, default=json_serializer)
+        print(f"\nSaved other-confidence results to {other_conf_path}")
 
 
 if __name__ == "__main__":

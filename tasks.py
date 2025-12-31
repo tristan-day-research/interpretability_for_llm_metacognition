@@ -64,21 +64,21 @@ def format_direct_prompt(
         if len(options) == 2
         else ", ".join(options[:-1]) + f", or {options[-1]}"
     )
-    llm_prompt = formatted + f"\nYour choice ({options_str}): "
+    # Setup prompt goes in user message, followed by two newlines, then the question
+    llm_prompt = setup_prompt + "\n\n" + formatted + f"\nYour choice ({options_str}): "
 
     if use_chat_template:
         try:
             messages = [
-                {"role": "system", "content": setup_prompt},
                 {"role": "user", "content": llm_prompt}
             ]
             full_prompt = tokenizer.apply_chat_template(
                 messages, tokenize=False, add_generation_prompt=True
             )
         except:
-            full_prompt = f"{setup_prompt}\n\n{llm_prompt}"
+            full_prompt = llm_prompt
     else:
-        full_prompt = f"{setup_prompt}\n\n{llm_prompt}"
+        full_prompt = llm_prompt
 
     return full_prompt, options
 
@@ -141,21 +141,21 @@ def format_stated_confidence_prompt(
     )
     options = list(STATED_CONFIDENCE_OPTIONS.keys())
     options_str = ", ".join(options[:-1]) + f", or {options[-1]}"
-    llm_prompt = q_text + f"\nYour choice ({options_str}): "
+    # Setup prompt goes in user message, followed by two newlines, then the question
+    llm_prompt = STATED_CONFIDENCE_SETUP + "\n\n" + q_text + f"\nYour choice ({options_str}): "
 
     if use_chat_template:
         try:
             messages = [
-                {"role": "system", "content": STATED_CONFIDENCE_SETUP},
                 {"role": "user", "content": llm_prompt}
             ]
             full_prompt = tokenizer.apply_chat_template(
                 messages, tokenize=False, add_generation_prompt=True
             )
         except:
-            full_prompt = f"{STATED_CONFIDENCE_SETUP}\n\n{llm_prompt}"
+            full_prompt = llm_prompt
     else:
-        full_prompt = f"{STATED_CONFIDENCE_SETUP}\n\n{llm_prompt}"
+        full_prompt = llm_prompt
 
     return full_prompt, options
 
@@ -175,6 +175,78 @@ def get_stated_confidence_signal(probs: np.ndarray) -> float:
 def get_stated_confidence_response(probs: np.ndarray) -> str:
     """Get the argmax response letter."""
     options = list(STATED_CONFIDENCE_OPTIONS.keys())
+    return options[np.argmax(probs)]
+
+
+# ============================================================================
+# OTHER-CONFIDENCE TASK (Control: estimate human difficulty)
+# ============================================================================
+
+# This is a control task that uses the same S-Z scale but asks about
+# estimated human performance rather than self-confidence.
+# If the model is truly introspecting, self-confidence should correlate
+# more with its own uncertainty than this "other-confidence" measure.
+
+OTHER_CONFIDENCE_SETUP = """I want your help calibrating question difficulty. I'm going to show you a question, and I want you to tell me approximately what percentage of college-educated people you think know the correct answer to this question. Respond only with the letter corresponding to the percentage range you choose; do NOT output any other text."""
+
+OTHER_CONFIDENCE_QUESTION = "What percentage of college-educated people know the correct answer to this question?"
+
+# Uses same options and midpoints as stated confidence
+OTHER_CONFIDENCE_OPTIONS = STATED_CONFIDENCE_OPTIONS
+OTHER_CONFIDENCE_MIDPOINTS = STATED_CONFIDENCE_MIDPOINTS
+
+
+def format_other_confidence_prompt(
+    question: Dict,
+    tokenizer,
+    use_chat_template: bool = True
+) -> Tuple[str, List[str]]:
+    """
+    Format an other-confidence (human difficulty estimation) meta-question.
+
+    Returns:
+        Tuple of (full_prompt, option_keys)
+    """
+    q_text = _format_nested_question(
+        question,
+        OTHER_CONFIDENCE_QUESTION,
+        OTHER_CONFIDENCE_OPTIONS
+    )
+    options = list(OTHER_CONFIDENCE_OPTIONS.keys())
+    options_str = ", ".join(options[:-1]) + f", or {options[-1]}"
+    llm_prompt = OTHER_CONFIDENCE_SETUP + "\n\n" + q_text + f"\nYour choice ({options_str}): "
+
+    if use_chat_template:
+        try:
+            messages = [
+                {"role": "user", "content": llm_prompt}
+            ]
+            full_prompt = tokenizer.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True
+            )
+        except:
+            full_prompt = llm_prompt
+    else:
+        full_prompt = llm_prompt
+
+    return full_prompt, options
+
+
+def get_other_confidence_signal(probs: np.ndarray) -> float:
+    """
+    Convert other-confidence probabilities to a scalar signal.
+
+    Returns expected percentage = sum(prob * midpoint).
+    Higher values = model thinks more humans would know this.
+    """
+    options = list(OTHER_CONFIDENCE_OPTIONS.keys())
+    midpoints = [OTHER_CONFIDENCE_MIDPOINTS[opt] for opt in options]
+    return float(np.dot(probs, midpoints))
+
+
+def get_other_confidence_response(probs: np.ndarray) -> str:
+    """Get the argmax response letter."""
+    options = list(OTHER_CONFIDENCE_OPTIONS.keys())
     return options[np.argmax(probs)]
 
 
@@ -303,19 +375,23 @@ def format_answer_or_delegate_prompt(
 
     options = ANSWER_OR_DELEGATE_OPTIONS
 
+    # System prompt contains the response format instruction
+    # User message contains the game setup + question
+    user_content = ANSWER_OR_DELEGATE_SETUP + "\n\n" + formatted
+
     if use_chat_template:
         try:
             messages = [
-                {"role": "system", "content": ANSWER_OR_DELEGATE_SYSPROMPT + ANSWER_OR_DELEGATE_SETUP},
-                {"role": "user", "content": formatted}
+                {"role": "system", "content": ANSWER_OR_DELEGATE_SYSPROMPT},
+                {"role": "user", "content": user_content}
             ]
             full_prompt = tokenizer.apply_chat_template(
                 messages, tokenize=False, add_generation_prompt=True
             )
         except:
-            full_prompt = f"{ANSWER_OR_DELEGATE_SYSPROMPT}\n{ANSWER_OR_DELEGATE_SETUP}\n\n{formatted}"
+            full_prompt = ANSWER_OR_DELEGATE_SYSPROMPT + "\n\n" + user_content
     else:
-        full_prompt = f"{ANSWER_OR_DELEGATE_SYSPROMPT}\n{ANSWER_OR_DELEGATE_SETUP}\n\n{formatted}"
+        full_prompt = ANSWER_OR_DELEGATE_SYSPROMPT + "\n\n" + user_content
 
     return full_prompt, options, mapping
 
@@ -400,6 +476,17 @@ META_TASKS = {
         "get_response": get_stated_confidence_response,
         "signal_interpretation": "Expected confidence (0-1)",
     },
+    "other_confidence": {
+        "name": "Other Confidence (Human Difficulty)",
+        "description": "Estimate % of college-educated people who know answer",
+        "setup_prompt": OTHER_CONFIDENCE_SETUP,
+        "options": OTHER_CONFIDENCE_OPTIONS,
+        "option_midpoints": OTHER_CONFIDENCE_MIDPOINTS,
+        "format_prompt": format_other_confidence_prompt,
+        "get_signal": get_other_confidence_signal,
+        "get_response": get_other_confidence_response,
+        "signal_interpretation": "Expected % humans correct (0-1)",
+    },
     "answer_or_delegate": {
         "name": "Answer or Delegate",
         "description": "Binary choice to answer or delegate",
@@ -447,3 +534,7 @@ DELEGATE_OPTIONS = ANSWER_OR_DELEGATE_OPTIONS
 # Alias for the confidence task formatting (used as format_meta_prompt in scripts)
 format_meta_prompt = format_stated_confidence_prompt
 format_delegate_prompt = format_answer_or_delegate_prompt
+
+# Aliases for other-confidence task
+OTHER_CONFIDENCE_OPTION_DICT = OTHER_CONFIDENCE_OPTIONS
+format_other_confidence = format_other_confidence_prompt
