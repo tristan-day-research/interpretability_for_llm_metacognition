@@ -1436,10 +1436,24 @@ def analyze_behavioral_introspection(
     test_ci_lower = np.percentile(test_subsample_correlations, 2.5)
     test_ci_upper = np.percentile(test_subsample_correlations, 97.5)
 
-    # P-values using t-distribution
-    if abs(full_r) < 1 and n > 2:
-        t_stat = full_r * np.sqrt((n - 2) / (1 - full_r**2))
-        full_pvalue = 2 * (1 - stats.t.cdf(abs(t_stat), df=n-2))
+    # P-value consistent with subsample-to-m CI
+    # Compute from the subsample distribution: what fraction of shifted subsamples cross 0?
+    # Under the null, the true correlation is 0, so we ask: if we shift our distribution
+    # so full_r maps to 0, what fraction of subsamples would be on the opposite side?
+    # This is equivalent to asking: does the CI include 0?
+    if len(full_subsample_deviations) > 0:
+        # The subsample correlations are: fisher_z_inv(full_z + deviation)
+        # We want to know the probability that the true correlation is 0
+        # Using the percentile method: p-value = 2 * min(fraction below 0, fraction above 0)
+        subsample_correlations = [fisher_z_inv(full_z + d) for d in full_subsample_deviations]
+        n_below_zero = sum(1 for r in subsample_correlations if r < 0)
+        n_above_zero = sum(1 for r in subsample_correlations if r > 0)
+        n_total = len(subsample_correlations)
+        # Two-tailed p-value
+        tail_fraction = min(n_below_zero, n_above_zero) / n_total
+        full_pvalue = 2 * tail_fraction
+        # Ensure p-value is at least 1/n_subsamples (can't be exactly 0 with finite samples)
+        full_pvalue = max(full_pvalue, 1 / n_subsamples)
     else:
         full_pvalue = np.nan
 

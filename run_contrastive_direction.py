@@ -145,7 +145,7 @@ FDR_ALPHA = 0.05              # Target FDR significance level
 FDR_SAFETY_FACTOR = 25        # Multiplier: pooled_samples = FDR_SAFETY_FACTOR * num_layers
 MIN_CONTROLS_PER_LAYER = 10   # Minimum controls even for few layers
 MIN_PROJECTION_CORR = 0.5 # Minimum projection correlation for layer selection
-STEERING_BATCH_SIZE = 16  # Batch size for steering/ablation (increase for more GPU mem)
+STEERING_BATCH_SIZE = 8  # Batch size for steering/ablation (matches run_introspection_steering.py)
 
 # Quantization options for large models (70B+)
 LOAD_IN_4BIT = False  # Recommended for 70B models on consumer GPUs
@@ -2358,6 +2358,12 @@ def main():
         print("\n" + "=" * 70)
         print("STEERING/ABLATION EXPERIMENTS")
         print("=" * 70)
+
+        # Free up memory before loading model for steering
+        # meta_activations can be large (500 samples × 32 layers × 4096 dim = ~250MB+)
+        del meta_activations
+        import gc
+        gc.collect()
 
         # Load model for steering
         print(f"\nLoading model: {BASE_MODEL_NAME}")

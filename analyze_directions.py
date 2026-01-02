@@ -3,19 +3,29 @@ Analyze and compare probe directions across different experiments.
 
 This script:
 1. Loads direction files from various probe experiments:
-   - Next-token entropy probes
-   - MC entropy probes
-   - Introspection/confidence probes
+   - Next-token uncertainty probes (entropy, top_prob, margin, logit_gap, top_logit)
+   - MC uncertainty probes (entropy, top_prob, margin, logit_gap, top_logit)
+   - Introspection probes (trained on direct MC prompts, tested on meta prompts)
    - Contrastive directions
 2. Computes pairwise cosine similarities between directions
 3. Runs logit lens analysis (project directions through unembedding)
 4. Generates visualizations
+
+Direction types and their relationships:
+- mc_{metric}_{dataset}: Trained on MC questions to predict uncertainty metric
+- introspection_{metric}_{dataset}: Also trained on MC questions (direct prompts) to
+  predict the same uncertainty metric. These should be very similar to mc directions
+  for the same dataset/metric. The introspection experiment additionally tests whether
+  these directions transfer to meta-cognition prompts ("How confident are you...?").
+- nexttoken_{metric}: Trained on diverse next-token prediction to predict uncertainty
+- contrastive: Difference between high/low uncertainty activations (not a probe)
 
 Usage:
     python analyze_directions.py                    # Auto-detect directions in outputs/
     python analyze_directions.py --model-only       # Only load model, skip analysis (for debugging)
     python analyze_directions.py --layer 15         # Focus on specific layer
     python analyze_directions.py --skip-logit-lens  # Skip logit lens (faster, no model needed)
+    python analyze_directions.py --metric entropy   # Only analyze entropy directions
 """
 
 import argparse
@@ -47,6 +57,9 @@ OUTPUTS_DIR.mkdir(exist_ok=True)
 # Analysis config
 TOP_K_TOKENS = 12  # Number of top tokens to show in logit lens
 LAYERS_TO_ANALYZE = None  # None = all layers, or list like [10, 15, 20]
+
+# Available uncertainty metrics (same as in probe scripts)
+AVAILABLE_METRICS = ["entropy", "top_prob", "margin", "logit_gap", "top_logit"]
 
 
 def get_output_prefix() -> str:
@@ -107,20 +120,38 @@ def extract_dataset_from_filename(filename: str, suffix: str) -> Optional[str]:
     return None
 
 
-def find_direction_files(output_dir: Path, model_short: str) -> Dict[str, Path]:
+def extract_metric_from_npz(path: Path) -> Optional[str]:
+    """
+    Extract metric name from npz file metadata.
+
+    Returns metric name if stored in metadata, None otherwise.
+    """
+    try:
+        data = np.load(path)
+        if "_metadata_metric" in data.files:
+            return str(data["_metadata_metric"])
+    except Exception:
+        pass
+    return None
+
+
+def find_direction_files(output_dir: Path, model_short: str, metric_filter: Optional[str] = None) -> Dict[str, Path]:
     """
     Find all direction files for a given model.
 
+    Args:
+        output_dir: Directory to search
+        model_short: Short model name for pattern matching
+        metric_filter: If specified, only include files for this metric
+
     Returns dict mapping direction_type -> path.
-    For dataset-specific files (like mc_entropy), includes the dataset in the key.
+    For dataset-specific files (like mc), includes the dataset in the key.
+    For metric-specific files, includes the metric in the key.
     """
     direction_files = {}
 
-    # Patterns that are NOT dataset-specific (single file per model)
+    # Patterns that are NOT dataset-specific or metric-specific (single file per model)
     simple_patterns = [
-        ("nexttoken_entropy", f"{model_short}*_nexttoken_entropy_directions.npz"),
-        ("introspection_entropy", f"{model_short}*_introspection_entropy_directions.npz"),
-        ("introspection_probe", f"{model_short}*_introspection_probe_directions.npz"),
         ("contrastive", f"{model_short}*_contrastive_directions.npz"),
         ("introspection_direction", f"{model_short}*_direction_vectors.npz"),
     ]
@@ -131,36 +162,153 @@ def find_direction_files(output_dir: Path, model_short: str) -> Dict[str, Path]:
             # Take the most recent if multiple
             direction_files[direction_type] = max(matches, key=lambda p: p.stat().st_mtime)
 
-    # Dataset-specific patterns - include ALL matches with dataset in key
-    # Pattern: {model}_[adapter-{adapter}_]{dataset}_mc_entropy_directions.npz
-    mc_pattern = f"{model_short}*_mc_entropy_directions.npz"
-    mc_matches = list(output_dir.glob(mc_pattern))
-    for path in mc_matches:
-        # Try to get dataset from metadata first (works for datasets with underscores)
-        # Fall back to filename parsing for old files
-        dataset = extract_dataset_from_npz(path)
-        if dataset is None:
-            dataset = extract_dataset_from_filename(path.name, "_mc_entropy_directions")
+    # Introspection direction files from two sources:
+    # 1. run_introspection_experiment.py: {model}_{dataset}_introspection[_{task}]_{metric}_directions.npz
+    # 2. run_introspection_probe.py: {model}_{dataset}_introspection[_{task}]_{metric}_probe_directions.npz
+    for metric in AVAILABLE_METRICS:
+        if metric_filter and metric != metric_filter:
+            continue
 
-        if dataset:
-            key = f"mc_entropy_{dataset}"
-        else:
-            key = "mc_entropy"
+        # Helper to extract task from filename
+        def extract_task(filename: str, metric: str, has_probe: bool) -> Optional[str]:
+            suffix = f"_{metric}_probe_directions\\.npz$" if has_probe else f"_{metric}_directions\\.npz$"
+            task_match = re.search(rf"_introspection(?:_([^_]+))?{suffix}", filename)
+            return task_match.group(1) if task_match and task_match.group(1) else None
 
-        # If we already have this key, keep the most recent
-        if key not in direction_files or path.stat().st_mtime > direction_files[key].stat().st_mtime:
-            direction_files[key] = path
+        # 1. Match files from run_introspection_experiment.py (no _probe suffix)
+        # Use negative lookahead to exclude _probe_directions files
+        experiment_pattern = f"{model_short}*_introspection*_{metric}_directions.npz"
+        for path in output_dir.glob(experiment_pattern):
+            # Skip if this is actually a _probe_directions file
+            if "_probe_directions.npz" in path.name:
+                continue
+
+            dataset = extract_dataset_from_npz(path)
+            task = extract_task(path.name, metric, has_probe=False)
+
+            if dataset and task:
+                key = f"introspection_{task}_{metric}_{dataset}"
+            elif dataset:
+                key = f"introspection_{metric}_{dataset}"
+            elif task:
+                key = f"introspection_{task}_{metric}"
+            else:
+                key = f"introspection_{metric}"
+
+            if key not in direction_files or path.stat().st_mtime > direction_files[key].stat().st_mtime:
+                direction_files[key] = path
+
+        # 2. Match files from run_introspection_probe.py (_probe suffix)
+        probe_pattern = f"{model_short}*_introspection*_{metric}_probe_directions.npz"
+        for path in output_dir.glob(probe_pattern):
+            dataset = extract_dataset_from_npz(path)
+            task = extract_task(path.name, metric, has_probe=True)
+
+            if dataset and task:
+                key = f"introspection_probe_{task}_{metric}_{dataset}"
+            elif dataset:
+                key = f"introspection_probe_{metric}_{dataset}"
+            elif task:
+                key = f"introspection_probe_{task}_{metric}"
+            else:
+                key = f"introspection_probe_{metric}"
+
+            if key not in direction_files or path.stat().st_mtime > direction_files[key].stat().st_mtime:
+                direction_files[key] = path
+
+    # Backward compatibility: old introspection_entropy/probe patterns without dataset
+    # These are ONLY for files with the exact pattern {model}_introspection_entropy_directions.npz
+    # (no dataset in the name). Skip if we already found dataset-specific introspection files.
+    if not metric_filter or metric_filter == "entropy":
+        # Only add these if we found NO dataset-specific introspection files
+        has_dataset_specific = any(k.startswith("introspection_") and k.count("_") >= 2
+                                   for k in direction_files)
+        if not has_dataset_specific:
+            old_intro_patterns = [
+                ("introspection_entropy", f"{model_short}_introspection_entropy_directions.npz"),
+                ("introspection_probe", f"{model_short}_introspection_probe_directions.npz"),
+            ]
+            for key, pattern in old_intro_patterns:
+                if key not in direction_files:
+                    matches = list(output_dir.glob(pattern))
+                    if matches:
+                        direction_files[key] = max(matches, key=lambda p: p.stat().st_mtime)
+
+    # Metric-specific nexttoken patterns
+    # Pattern: {model}_nexttoken_{metric}_directions.npz
+    for metric in AVAILABLE_METRICS:
+        if metric_filter and metric != metric_filter:
+            continue
+
+        nexttoken_pattern = f"{model_short}*_nexttoken_{metric}_directions.npz"
+        matches = list(output_dir.glob(nexttoken_pattern))
+        if matches:
+            path = max(matches, key=lambda p: p.stat().st_mtime)
+            direction_files[f"nexttoken_{metric}"] = path
+
+    # Backward compatibility: old nexttoken_entropy_directions.npz format
+    if not metric_filter or metric_filter == "entropy":
+        old_pattern = f"{model_short}*_nexttoken_entropy_directions.npz"
+        old_matches = list(output_dir.glob(old_pattern))
+        for path in old_matches:
+            # Check if this is NOT a metric-specific file (old format)
+            # Old format: model_nexttoken_entropy_directions.npz
+            # New format: model_nexttoken_entropy_directions.npz (same name for entropy)
+            # We need to check if we already found it via the new pattern
+            if "nexttoken_entropy" not in direction_files:
+                direction_files["nexttoken_entropy"] = path
+
+    # Dataset-specific and metric-specific MC patterns
+    # New pattern: {model}_{dataset}_mc_{metric}_directions.npz
+    # Old pattern: {model}_{dataset}_mc_entropy_directions.npz
+    for metric in AVAILABLE_METRICS:
+        if metric_filter and metric != metric_filter:
+            continue
+
+        mc_pattern = f"{model_short}*_mc_{metric}_directions.npz"
+        mc_matches = list(output_dir.glob(mc_pattern))
+        for path in mc_matches:
+            # Try to get dataset from metadata first
+            dataset = extract_dataset_from_npz(path)
+            if dataset is None:
+                dataset = extract_dataset_from_filename(path.name, f"_mc_{metric}_directions")
+
+            if dataset:
+                key = f"mc_{metric}_{dataset}"
+            else:
+                key = f"mc_{metric}"
+
+            # If we already have this key, keep the most recent
+            if key not in direction_files or path.stat().st_mtime > direction_files[key].stat().st_mtime:
+                direction_files[key] = path
+
+    # Backward compatibility: old mc_entropy_directions.npz format
+    if not metric_filter or metric_filter == "entropy":
+        old_mc_pattern = f"{model_short}*_mc_entropy_directions.npz"
+        old_mc_matches = list(output_dir.glob(old_mc_pattern))
+        for path in old_mc_matches:
+            dataset = extract_dataset_from_npz(path)
+            if dataset is None:
+                dataset = extract_dataset_from_filename(path.name, "_mc_entropy_directions")
+
+            if dataset:
+                key = f"mc_entropy_{dataset}"
+            else:
+                key = "mc_entropy"
+
+            # Only add if we don't already have this from the new pattern search
+            if key not in direction_files:
+                direction_files[key] = path
 
     return direction_files
 
 
-def load_directions(path: Path, source_name: str = "direction") -> Dict[int, Dict[str, np.ndarray]]:
+def load_directions(path: Path) -> Dict[int, Dict[str, np.ndarray]]:
     """
     Load directions from a .npz file.
 
     Args:
         path: Path to .npz file
-        source_name: Name to use if direction has no explicit name in key
 
     Returns dict mapping layer_idx -> {direction_name: direction_vector}
     """
@@ -176,8 +324,10 @@ def load_directions(path: Path, source_name: str = "direction") -> Dict[int, Dic
             if len(parts) > 2:
                 direction_name = "_".join(parts[2:])
             else:
-                # Use a shortened version of source name for cleaner output
-                direction_name = source_name.replace("_entropy", "").replace("_direction", "")
+                # For files with just "layer_N" keys, use "probe" as direction name
+                # The source_name (like "introspection_logit_gap_TriviaMC") already
+                # encodes the full context, so we just need a short direction name
+                direction_name = "probe"
             directions[layer_idx][direction_name] = data[key]
 
     return dict(directions)
@@ -351,54 +501,6 @@ def analyze_layer(
     return results
 
 
-def plot_similarity_matrix(
-    all_directions: Dict[str, Dict[int, Dict[str, np.ndarray]]],
-    layer_idx: int,
-    output_path: Path
-):
-    """Plot similarity matrix as heatmap."""
-    # Get all direction names for this layer
-    names = []
-    directions = []
-    for source, layers in all_directions.items():
-        if layer_idx in layers:
-            for name, direction in layers[layer_idx].items():
-                names.append(f"{source}\n{name}")
-                directions.append(direction)
-
-    if len(names) < 2:
-        # Skip silently - only one direction type
-        return
-
-    # Compute similarity matrix
-    n = len(names)
-    sim_matrix = np.zeros((n, n))
-    for i in range(n):
-        for j in range(n):
-            sim_matrix[i, j] = compute_cosine_similarity(directions[i], directions[j])
-
-    # Plot
-    plt.rcParams['font.family'] = 'DejaVu Sans'
-    fig, ax = plt.subplots(figsize=(10, 8))
-    sns.heatmap(
-        sim_matrix,
-        xticklabels=names,
-        yticklabels=names,
-        annot=True,
-        fmt=".2f",
-        cmap="RdBu_r",
-        center=0,
-        vmin=-1,
-        vmax=1,
-        ax=ax
-    )
-    ax.set_title(f"Direction Cosine Similarity (Layer {layer_idx})")
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=300, bbox_inches='tight')
-    print(f"Saved similarity matrix to {output_path}")
-    plt.close()
-
-
 def plot_logit_lens_heatmap(
     all_directions: Dict[str, Dict[int, Dict[str, np.ndarray]]],
     layers: List[int],
@@ -534,6 +636,8 @@ def main():
                         help="Only load model, skip analysis")
     parser.add_argument("--layer", type=int, default=None,
                         help="Focus on specific layer")
+    parser.add_argument("--metric", type=str, default=None, choices=AVAILABLE_METRICS,
+                        help="Only analyze directions for this metric")
     parser.add_argument("--no-plots", action="store_true",
                         help="Skip generating plots")
     parser.add_argument("--skip-logit-lens", action="store_true",
@@ -541,13 +645,17 @@ def main():
     args = parser.parse_args()
 
     print(f"Device: {DEVICE}")
+    if args.metric:
+        print(f"Metric filter: {args.metric}")
 
     # Find direction files
     model_short = get_model_short_name(BASE_MODEL_NAME)
-    direction_files = find_direction_files(OUTPUTS_DIR, model_short)
+    direction_files = find_direction_files(OUTPUTS_DIR, model_short, metric_filter=args.metric)
 
     if not direction_files:
         print(f"No direction files found in {OUTPUTS_DIR} for model {model_short}")
+        if args.metric:
+            print(f"  (filtered by metric: {args.metric})")
         print("Run one of the probe scripts first:")
         print("  - nexttoken_entropy_probe.py")
         print("  - mc_entropy_probe.py")
@@ -562,7 +670,7 @@ def main():
     # Load all directions
     all_directions = {}
     for source, path in direction_files.items():
-        all_directions[source] = load_directions(path, source_name=source)
+        all_directions[source] = load_directions(path)
         print(f"  Loaded {source}: {len(all_directions[source])} layers")
 
     # Determine layers to analyze
@@ -648,20 +756,13 @@ def main():
         ) // len(all_layers) if all_layers else 0
 
         if num_direction_types >= 2:
-            # Similarity matrix for a representative layer (middle of analyzed layers)
-            mid_layer = layers_to_analyze[len(layers_to_analyze) // 2]
-            plot_similarity_matrix(
-                all_directions, mid_layer,
-                Path(f"{output_prefix}_direction_similarity_layer{mid_layer}.png")
-            )
-
             # Similarity across layers
             plot_similarity_across_layers(
                 all_directions, all_layers,
                 Path(f"{output_prefix}_direction_similarity_across_layers.png")
             )
         else:
-            print("\nOnly one direction type found - skipping similarity plots")
+            print("\nOnly one direction type found - skipping similarity plot")
 
         # Logit lens heatmaps for each direction type (if we have weights)
         if lm_head_weight is not None:
@@ -670,7 +771,8 @@ def main():
                 first_layer = next(iter(layers_dict.keys()))
                 for direction_name in layers_dict[first_layer].keys():
                     # Avoid redundant suffixes (e.g., nexttoken_entropy_entropy)
-                    if direction_name in source or source.endswith(f"_{direction_name}"):
+                    # Also skip generic "probe" suffix - source already identifies it
+                    if direction_name in source or source.endswith(f"_{direction_name}") or direction_name == "probe":
                         filename = f"{output_prefix}_logit_lens_{source}.png"
                     else:
                         filename = f"{output_prefix}_logit_lens_{source}_{direction_name}.png"
