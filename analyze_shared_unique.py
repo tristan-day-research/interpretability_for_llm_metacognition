@@ -111,12 +111,17 @@ def extract_dataset_from_filename(filename: str, suffix: str) -> Optional[str]:
 
 def find_mc_direction_files(output_dir: Path, model_short: str) -> Dict[str, Path]:
     """
-    Find all MC entropy direction files for a given model.
+    Find all MC/introspection direction files for a given model.
+
+    Searches for:
+    - mc_entropy_probe.py: {model}_{dataset}_mc_entropy_directions.npz
+    - run_introspection_experiment.py: {model}_{dataset}_introspection_{metric}_directions.npz
 
     Returns dict mapping dataset_name -> path.
     """
     mc_files = {}
 
+    # Pattern 1: mc_entropy_probe.py output
     mc_pattern = f"{model_short}*_mc_entropy_directions.npz"
     mc_matches = list(output_dir.glob(mc_pattern))
 
@@ -129,20 +134,54 @@ def find_mc_direction_files(output_dir: Path, model_short: str) -> Dict[str, Pat
             if dataset not in mc_files or path.stat().st_mtime > mc_files[dataset].stat().st_mtime:
                 mc_files[dataset] = path
 
+    # Pattern 2: run_introspection_experiment.py output
+    # Matches: {model}_{dataset}_introspection_{metric}_directions.npz
+    introspection_pattern = f"{model_short}*_introspection_*_directions.npz"
+    introspection_matches = list(output_dir.glob(introspection_pattern))
+
+    for path in introspection_matches:
+        dataset = extract_dataset_from_npz(path)
+        if dataset is None:
+            # Extract dataset from filename: {model}_{dataset}_introspection_{metric}_directions.npz
+            # Try to extract by finding _introspection_ and taking what's before it
+            filename = path.stem  # Remove .npz
+            if "_introspection_" in filename:
+                prefix = filename.split("_introspection_")[0]
+                # Dataset is the last component before _introspection
+                parts = prefix.rsplit("_", 1)
+                if len(parts) == 2:
+                    dataset = parts[1]
+
+        if dataset:
+            # Only add if we don't already have this dataset, or if this file is newer
+            if dataset not in mc_files or path.stat().st_mtime > mc_files[dataset].stat().st_mtime:
+                mc_files[dataset] = path
+
     return mc_files
 
 
 def find_mc_activations_file(output_dir: Path, model_short: str, dataset: str) -> Optional[Path]:
     """
-    Find MC activations file from mc_entropy_probe.py for a specific dataset.
+    Find direct activations file for a specific dataset.
 
-    These contain the direct activations and entropies.
-    Pattern: {model_short}*_{dataset}_mc_activations.npz
+    Searches for:
+    - mc_entropy_probe.py: {model}_{dataset}_mc_activations.npz
+    - run_introspection_experiment.py: {model}_{dataset}_introspection_direct_activations.npz
+
+    Returns most recently modified match.
     """
-    pattern = f"{model_short}*_{dataset}_mc_activations.npz"
-    matches = list(output_dir.glob(pattern))
-    if matches:
-        return max(matches, key=lambda p: p.stat().st_mtime)
+    candidates = []
+
+    # Pattern 1: mc_entropy_probe.py output
+    mc_pattern = f"{model_short}*_{dataset}_mc_activations.npz"
+    candidates.extend(output_dir.glob(mc_pattern))
+
+    # Pattern 2: run_introspection_experiment.py output
+    introspection_pattern = f"{model_short}*_{dataset}_introspection_direct_activations.npz"
+    candidates.extend(output_dir.glob(introspection_pattern))
+
+    if candidates:
+        return max(candidates, key=lambda p: p.stat().st_mtime)
     return None
 
 

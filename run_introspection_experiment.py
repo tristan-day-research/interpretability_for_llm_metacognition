@@ -72,16 +72,30 @@ load_dotenv()
 
 # Configuration
 BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
-MODEL_NAME = "Tristan-Day/ect_20251222_215412_v0uei7y1_2000"###BASE_MODEL_NAME  # 
-DATASET_NAME = "TriviaMC"
-NUM_QUESTIONS = 447 if DATASET_NAME.startswith("GP") else 500
+MODEL_NAME = BASE_MODEL_NAME  # Set to adapter path if using fine-tuned model
+
+# Lists of datasets and meta_tasks to process (will iterate through all combinations)
+# Set to a single-item list for single runs, or multiple items to batch process
+DATASETS = ["SimpleMC", "TriviaMC"]  # Options: "SimpleMC", "TriviaMC", "GPQA", etc.
+META_TASKS = ["confidence", "delegate"]  # Options: "confidence", "delegate"
+
+# Legacy single-value variables (used by functions that reference them)
+DATASET_NAME = DATASETS[0]  # Will be updated during iteration
+META_TASK = META_TASKS[0]  # Will be updated during iteration
+
+# Number of questions per dataset (can be overridden per-dataset below)
+NUM_QUESTIONS_DEFAULT = 500
+NUM_QUESTIONS_BY_DATASET = {
+    "GPQA": 447,  # GPQA has fewer questions
+}
+NUM_QUESTIONS = NUM_QUESTIONS_BY_DATASET.get(DATASET_NAME, NUM_QUESTIONS_DEFAULT)
+
 # DEVICE imported from core.model_utils
 SEED = 42
 
-# Meta-judgment task type:
-#   "confidence" - Explicit confidence rating on S-Z scale (default)
-#   "delegate"   - Answer vs Delegate choice; confidence = P(Answer)
-META_TASK = "confidence"
+# Quantization settings (auto-detect for large models, can override via CLI)
+LOAD_IN_4BIT = True if "70B" in BASE_MODEL_NAME else False
+LOAD_IN_8BIT = False
 
 # Output directory
 OUTPUTS_DIR = Path("outputs")
@@ -2021,27 +2035,30 @@ def try_load_mc_data() -> Optional[Dict]:
 # MAIN
 # ============================================================================
 
-def main():
-    global METRIC
+def run_single_experiment(
+    dataset_name: str,
+    meta_task: str,
+    model,
+    tokenizer,
+    num_layers: int,
+    metric: str,
+    batch_size: int
+):
+    """Run a single introspection experiment for one dataset/task combination."""
+    global DATASET_NAME, META_TASK, NUM_QUESTIONS, METRIC
 
-    parser = argparse.ArgumentParser(description="Run introspection experiment")
-    parser.add_argument("--metric", type=str, default=METRIC, choices=AVAILABLE_METRICS,
-                        help=f"Uncertainty metric to probe (default: {METRIC})")
-    parser.add_argument("--batch-size", type=int, default=BATCH_SIZE,
-                        help=f"Batch size for forward passes (default {BATCH_SIZE})")
-    parser.add_argument("--load-in-4bit", action="store_true",
-                        help="Load model in 4-bit quantization (recommended for 70B+ models)")
-    parser.add_argument("--load-in-8bit", action="store_true",
-                        help="Load model in 8-bit quantization")
-    args = parser.parse_args()
+    # Update global variables for this run
+    DATASET_NAME = dataset_name
+    META_TASK = meta_task
+    METRIC = metric
+    NUM_QUESTIONS = NUM_QUESTIONS_BY_DATASET.get(dataset_name, NUM_QUESTIONS_DEFAULT)
 
-    METRIC = args.metric
-    print(f"Device: {DEVICE}")
-    print(f"Metric: {METRIC}")
-    print(f"Meta-judgment task: {META_TASK}")
+    print("\n" + "=" * 80)
+    print(f"Running: {dataset_name} / {meta_task} / {metric}")
+    print("=" * 80)
 
     # Print delegate parameters if using delegate task
-    if META_TASK == "delegate":
+    if meta_task == "delegate":
         print("\n--- Delegate Task Parameters ---")
         print("  (Matching delegate_game_from_capabilities.py)")
         print("  decision_only: True")
@@ -2056,17 +2073,9 @@ def main():
     # Check for existing MC data first
     mc_data = try_load_mc_data()
 
-    # Load model and tokenizer using shared utility
-    model, tokenizer, num_layers = load_model_and_tokenizer(
-        BASE_MODEL_NAME,
-        adapter_path=MODEL_NAME if MODEL_NAME != BASE_MODEL_NAME else None,
-        load_in_4bit=args.load_in_4bit,
-        load_in_8bit=args.load_in_8bit
-    )
-
     # Load questions
-    print(f"\nLoading {NUM_QUESTIONS} questions from {DATASET_NAME}...")
-    questions = load_questions(DATASET_NAME, NUM_QUESTIONS)
+    print(f"\nLoading {NUM_QUESTIONS} questions from {dataset_name}...")
+    questions = load_questions(dataset_name, NUM_QUESTIONS)
     # Re-seed immediately before shuffle to match capabilities_test.py exactly
     random.seed(SEED)
     random.shuffle(questions)
@@ -2079,17 +2088,17 @@ def main():
     # Collect paired data (direct and meta for each question)
     # If we have existing MC data, only run meta prompts
     if mc_data is not None:
-        data = collect_meta_only(questions, model, tokenizer, num_layers, use_chat_template, mc_data, batch_size=args.batch_size)
+        data = collect_meta_only(questions, model, tokenizer, num_layers, use_chat_template, mc_data, batch_size=batch_size)
     else:
-        data = collect_paired_data(questions, model, tokenizer, num_layers, use_chat_template, batch_size=args.batch_size)
+        data = collect_paired_data(questions, model, tokenizer, num_layers, use_chat_template, batch_size=batch_size)
 
     # Generate output prefixes
     # Base prefix for shared files (activations, paired data)
     base_prefix = get_output_prefix()
     # Metric-specific prefix for probe results (task-dependent)
-    metric_prefix = get_output_prefix(METRIC)
+    metric_prefix = get_output_prefix(metric)
     # Directions prefix (task-independent - directions are the same for confidence/delegate)
-    directions_prefix = get_directions_prefix(METRIC)
+    directions_prefix = get_directions_prefix(metric)
     print(f"Base output prefix: {base_prefix}")
     print(f"Metric output prefix: {metric_prefix}")
     print(f"Directions prefix: {directions_prefix}")
@@ -2141,7 +2150,7 @@ def main():
         print("=" * 60)
 
         other_data = collect_other_confidence(
-            questions, model, tokenizer, num_layers, use_chat_template, batch_size=args.batch_size
+            questions, model, tokenizer, num_layers, use_chat_template, batch_size=batch_size
         )
 
         # Add example prompts for other-confidence
@@ -2303,7 +2312,52 @@ def main():
         output_path=f"{metric_prefix}_results.png"
     )
 
-    print(f"\n✓ Introspection experiment complete! (metric: {METRIC})")
+    print(f"\n✓ Introspection experiment complete! ({dataset_name} / {meta_task} / {metric})")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Run introspection experiment")
+    parser.add_argument("--metric", type=str, default=METRIC, choices=AVAILABLE_METRICS,
+                        help=f"Uncertainty metric to probe (default: {METRIC})")
+    parser.add_argument("--batch-size", type=int, default=BATCH_SIZE,
+                        help=f"Batch size for forward passes (default {BATCH_SIZE})")
+    parser.add_argument("--load-in-4bit", action="store_true", default=LOAD_IN_4BIT,
+                        help=f"Load model in 4-bit quantization (default: {LOAD_IN_4BIT})")
+    parser.add_argument("--load-in-8bit", action="store_true", default=LOAD_IN_8BIT,
+                        help=f"Load model in 8-bit quantization (default: {LOAD_IN_8BIT})")
+    args = parser.parse_args()
+
+    print(f"Device: {DEVICE}")
+    print(f"Metric: {args.metric}")
+    print(f"Datasets to process: {DATASETS}")
+    print(f"Meta-tasks to process: {META_TASKS}")
+    print(f"Total combinations: {len(DATASETS) * len(META_TASKS)}")
+
+    # Load model and tokenizer ONCE using shared utility
+    print("\nLoading model (this will be shared across all experiments)...")
+    model, tokenizer, num_layers = load_model_and_tokenizer(
+        BASE_MODEL_NAME,
+        adapter_path=MODEL_NAME if MODEL_NAME != BASE_MODEL_NAME else None,
+        load_in_4bit=args.load_in_4bit,
+        load_in_8bit=args.load_in_8bit
+    )
+
+    # Run all dataset/task combinations
+    for dataset_name in DATASETS:
+        for meta_task in META_TASKS:
+            run_single_experiment(
+                dataset_name=dataset_name,
+                meta_task=meta_task,
+                model=model,
+                tokenizer=tokenizer,
+                num_layers=num_layers,
+                metric=args.metric,
+                batch_size=args.batch_size
+            )
+
+    print("\n" + "=" * 80)
+    print("✓ All experiments complete!")
+    print("=" * 80)
 
 
 if __name__ == "__main__":

@@ -55,7 +55,15 @@ load_dotenv()
 # =============================================================================
 BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
 MODEL_NAME = BASE_MODEL_NAME  # Set to adapter path for fine-tuned model
-DATASET_NAME = "SimpleMC"
+
+# Lists of datasets and meta_tasks to process (will iterate through all combinations)
+# Set to a single-item list for single runs, or multiple items to batch process
+DATASETS = ["SimpleMC", "TriviaMC"]  # Options: "SimpleMC", "TriviaMC", "GPQA", etc.
+META_TASKS = ["confidence", "delegate"]  # Options: "confidence", "delegate"
+
+# Legacy single-value variables (used by functions that reference them)
+DATASET_NAME = DATASETS[0]  # Will be updated during iteration
+META_TASK = META_TASKS[0]  # Will be updated during iteration
 
 DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 
@@ -95,19 +103,18 @@ def get_output_prefix() -> str:
 
 
 def get_directions_prefix() -> str:
-    """Generate output filename prefix for direction files (task-independent).
+    """Generate output filename prefix for direction files.
 
-    Direction files are task-independent because they're trained on meta task
-    activations predicting introspection_score - but the introspection_score
-    itself depends on the meta task responses. However, the probe directions
-    should be shared across tasks since they capture the same underlying signal.
+    Direction files ARE task-dependent because they're trained on introspection_score,
+    which is computed from stated_confidence values that differ between tasks
+    (confidence vs delegate produce different confidence distributions).
     """
     model_short = get_model_short_name(BASE_MODEL_NAME)
-    # NO task suffix - directions are task-independent
+    task_suffix = f"_{META_TASK}" if META_TASK != "confidence" else ""
     if MODEL_NAME != BASE_MODEL_NAME:
         adapter_short = get_model_short_name(MODEL_NAME)
-        return str(OUTPUTS_DIR / f"{model_short}_adapter-{adapter_short}_{DATASET_NAME}_introspection")
-    return str(OUTPUTS_DIR / f"{model_short}_{DATASET_NAME}_introspection")
+        return str(OUTPUTS_DIR / f"{model_short}_adapter-{adapter_short}_{DATASET_NAME}_introspection{task_suffix}")
+    return str(OUTPUTS_DIR / f"{model_short}_{DATASET_NAME}_introspection{task_suffix}")
 
 
 SEED = 42
@@ -124,11 +131,6 @@ NUM_PERMUTATIONS = 1000
 np.random.seed(SEED)
 torch.manual_seed(SEED)
 random.seed(SEED)
-
-# Meta-judgment task type:
-#   "confidence" - Explicit confidence rating on S-Z scale (default)
-#   "delegate"   - Answer vs Delegate choice; confidence = P(Answer)
-META_TASK = "confidence"
 
 # Backward compatibility alias (now imported from tasks.py)
 META_RANGE_MIDPOINTS = STATED_CONFIDENCE_MIDPOINTS
@@ -638,18 +640,18 @@ def print_results(results: Dict, score_stats: Dict):
 # MAIN
 # ============================================================================
 
-def main():
-    global METRIC
+def run_single_probe(dataset_name: str, meta_task: str, metric: str):
+    """Run introspection probe for a single dataset/task combination."""
+    global DATASET_NAME, META_TASK, METRIC
 
-    parser = argparse.ArgumentParser(description="Train introspection probe on meta activations")
-    parser.add_argument("--metric", type=str, default=METRIC, choices=AVAILABLE_METRICS,
-                        help=f"Uncertainty metric to use for introspection score (default: {METRIC})")
-    args = parser.parse_args()
+    # Update global variables for this run
+    DATASET_NAME = dataset_name
+    META_TASK = meta_task
+    METRIC = metric
 
-    METRIC = args.metric
-    print(f"Device: {DEVICE}")
-    print(f"Metric: {METRIC}")
-    print(f"Meta-judgment task: {META_TASK}")
+    print("\n" + "=" * 80)
+    print(f"Running: {dataset_name} / {meta_task} / {metric}")
+    print("=" * 80)
 
     # Generate output prefix (base prefix without metric for input files)
     output_prefix = get_output_prefix()
@@ -659,6 +661,14 @@ def main():
     paired_data_path = f"{output_prefix}_paired_data.json"
     meta_activations_path = f"{output_prefix}_meta_activations.npz"
 
+    # Check if input files exist
+    if not Path(paired_data_path).exists():
+        print(f"  Skipping: {paired_data_path} not found")
+        return
+    if not Path(meta_activations_path).exists():
+        print(f"  Skipping: {meta_activations_path} not found")
+        return
+
     # Load paired data
     print(f"\nLoading paired data from {paired_data_path}...")
     with open(paired_data_path, "r") as f:
@@ -667,21 +677,19 @@ def main():
     # Load the selected metric's values
     # New format has direct_metrics (dict of metric_name -> list of values)
     # Old format has direct_entropies (list of values)
-    if "direct_metrics" in paired_data and METRIC in paired_data["direct_metrics"]:
-        direct_metric_values = np.array(paired_data["direct_metrics"][METRIC])
-        print(f"Using metric '{METRIC}' from paired data")
+    if "direct_metrics" in paired_data and metric in paired_data["direct_metrics"]:
+        direct_metric_values = np.array(paired_data["direct_metrics"][metric])
+        print(f"Using metric '{metric}' from paired data")
     elif "direct_entropies" in paired_data:
         # Backward compatibility: fall back to direct_entropies (only works for entropy)
-        if METRIC != "entropy":
-            raise ValueError(
-                f"Metric '{METRIC}' not found in paired data. "
-                f"Old format only contains 'direct_entropies'. "
-                f"Re-run run_introspection_experiment.py to generate all metrics."
-            )
+        if metric != "entropy":
+            print(f"  Skipping: Metric '{metric}' not found in paired data (old format only has entropy)")
+            return
         direct_metric_values = np.array(paired_data["direct_entropies"])
         print(f"Using 'entropy' (backward compatible fallback)")
     else:
-        raise ValueError("Paired data missing both 'direct_metrics' and 'direct_entropies'")
+        print("  Skipping: Paired data missing both 'direct_metrics' and 'direct_entropies'")
+        return
 
     meta_responses = paired_data["meta_responses"]
     # Load meta_probs and meta_mappings for delegate task support
@@ -689,7 +697,7 @@ def main():
     meta_mappings = paired_data.get("meta_mappings")
 
     print(f"Loaded {len(direct_metric_values)} questions")
-    print(f"  {METRIC}: range=[{direct_metric_values.min():.3f}, {direct_metric_values.max():.3f}], "
+    print(f"  {metric}: range=[{direct_metric_values.min():.3f}, {direct_metric_values.max():.3f}], "
           f"mean={direct_metric_values.mean():.3f}, std={direct_metric_values.std():.3f}")
 
     # Compute introspection scores
@@ -702,10 +710,10 @@ def main():
             meta_responses,
             meta_probs,
             meta_mappings,
-            metric_name=METRIC
+            metric_name=metric
         )
 
-    print(f"  Correlation ({METRIC}, confidence): {score_stats['correlation_metric_confidence']:.4f}")
+    print(f"  Correlation ({metric}, confidence): {score_stats['correlation_metric_confidence']:.4f}")
     print(f"  Fraction aligned: {score_stats['fraction_aligned']:.1%}")
 
     # Load meta activations
@@ -728,10 +736,10 @@ def main():
     # Save results
     results_to_save = {
         "config": {
-            "metric": METRIC,
-            "meta_task": META_TASK,
+            "metric": metric,
+            "meta_task": meta_task,
             "model": BASE_MODEL_NAME,
-            "dataset": DATASET_NAME,
+            "dataset": dataset_name,
         },
         "score_stats": score_stats,
         "train_size": results["train_size"],
@@ -760,7 +768,7 @@ def main():
         raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
     # Include metric in output filenames
-    output_results = f"{output_prefix}_{METRIC}_probe_results.json"
+    output_results = f"{output_prefix}_{metric}_probe_results.json"
     with open(output_results, "w") as f:
         json.dump(results_to_save, f, indent=2, default=json_serializer)
     print(f"\nSaved {output_results}")
@@ -772,20 +780,42 @@ def main():
         directions[f"layer_{layer_idx}_introspection"] = np.array(layer_results["direction"])
 
     # Add metadata
-    directions["_metadata_metric"] = np.array(METRIC)
-    directions["_metadata_dataset"] = np.array(DATASET_NAME)
+    directions["_metadata_metric"] = np.array(metric)
+    directions["_metadata_dataset"] = np.array(dataset_name)
     directions["_metadata_model"] = np.array(BASE_MODEL_NAME)
 
     directions_prefix = get_directions_prefix()
-    output_directions = f"{directions_prefix}_{METRIC}_probe_directions.npz"
+    output_directions = f"{directions_prefix}_{metric}_probe_directions.npz"
     np.savez_compressed(output_directions, **directions)
     print(f"Saved {output_directions}")
 
     # Print and plot results
     print_results(results, score_stats)
-    plot_results(results, score_stats, f"{output_prefix}_{METRIC}")
+    plot_results(results, score_stats, f"{output_prefix}_{metric}")
 
-    print(f"\n✓ Introspection probe analysis complete! (metric: {METRIC})")
+    print(f"\n✓ Complete: {dataset_name} / {meta_task} / {metric}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Train introspection probe on meta activations")
+    parser.add_argument("--metric", type=str, default=METRIC, choices=AVAILABLE_METRICS,
+                        help=f"Uncertainty metric to use for introspection score (default: {METRIC})")
+    args = parser.parse_args()
+
+    print(f"Device: {DEVICE}")
+    print(f"Metric: {args.metric}")
+    print(f"Datasets to process: {DATASETS}")
+    print(f"Meta-tasks to process: {META_TASKS}")
+    print(f"Total combinations: {len(DATASETS) * len(META_TASKS)}")
+
+    # Run all dataset/task combinations
+    for dataset_name in DATASETS:
+        for meta_task in META_TASKS:
+            run_single_probe(dataset_name, meta_task, args.metric)
+
+    print("\n" + "=" * 80)
+    print("✓ All experiments complete!")
+    print("=" * 80)
 
 
 if __name__ == "__main__":

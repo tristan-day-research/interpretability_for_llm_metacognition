@@ -161,25 +161,55 @@ def find_direction_files(output_dir: Path, model_short: str, metric_filter: Opti
             # Take the most recent if multiple
             direction_files[direction_type] = max(matches, key=lambda p: p.stat().st_mtime)
 
-    # Contrastive directions: {model}_{dataset}_{metric}_contrastive_directions.npz
+    # Contrastive directions from compute_contrastive_directions.py:
+    # {model}_{dataset}_{metric}_contrastive_{dir_type}_directions.npz
+    # where dir_type is "confidence" or "calibration"
+    # Also supports old format: {model}_{dataset}_{metric}_contrastive_directions.npz
     for metric in AVAILABLE_METRICS:
         if metric_filter and metric != metric_filter:
             continue
 
+        # New format with direction type suffix
+        for dir_type in ["confidence", "calibration"]:
+            pattern = f"{model_short}*_{metric}_contrastive_{dir_type}_directions.npz"
+            for path in output_dir.glob(pattern):
+                dataset = extract_dataset_from_npz(path)
+                if dataset is None:
+                    # Try to extract from filename
+                    name = path.name
+                    prefix = f"{model_short}_"
+                    suffix = f"_{metric}_contrastive_{dir_type}_directions.npz"
+                    if name.startswith(prefix) and name.endswith(suffix):
+                        dataset = name[len(prefix):-len(suffix)]
+                        if "_adapter-" in dataset:
+                            parts = dataset.split("_", 1)
+                            if len(parts) > 1:
+                                dataset = parts[1]
+
+                if dataset:
+                    key = f"{dir_type}_{metric}_{dataset}"
+                else:
+                    key = f"{dir_type}_{metric}"
+
+                if key not in direction_files or path.stat().st_mtime > direction_files[key].stat().st_mtime:
+                    direction_files[key] = path
+
+        # Old format without direction type (backward compatibility)
         contrastive_pattern = f"{model_short}*_{metric}_contrastive_directions.npz"
         for path in output_dir.glob(contrastive_pattern):
+            # Skip if this matches the new format (has _confidence_ or _calibration_)
+            if "_confidence_directions.npz" in path.name or "_calibration_directions.npz" in path.name:
+                continue
+
             dataset = extract_dataset_from_npz(path)
             if dataset is None:
                 # Try to extract from filename: {model}_{dataset}_{metric}_contrastive_directions.npz
-                # Remove prefix and suffix to get dataset
                 name = path.name
                 prefix = f"{model_short}_"
                 suffix = f"_{metric}_contrastive_directions.npz"
                 if name.startswith(prefix) and name.endswith(suffix):
                     dataset = name[len(prefix):-len(suffix)]
-                    # Handle adapter names in prefix
                     if "_adapter-" in dataset:
-                        # Format: adapter-{adapter}_{dataset}
                         parts = dataset.split("_", 1)
                         if len(parts) > 1:
                             dataset = parts[1]
@@ -846,12 +876,38 @@ def main():
                 # Get direction names from first available layer
                 first_layer = next(iter(layers_dict.keys()))
                 for direction_name in layers_dict[first_layer].keys():
-                    # Avoid redundant suffixes (e.g., nexttoken_entropy_entropy)
-                    # Also skip generic "probe" suffix - source already identifies it
-                    if direction_name in source or source.endswith(f"_{direction_name}") or direction_name == "probe":
-                        filename = f"{output_prefix}_logit_lens_{source}.png"
+                    # Parse source key to extract components
+                    # Source format: {dir_type}_{metric}_{dataset} or {dir_type}_{metric}
+                    # We want output: {model}{_adapter}_{dataset}_{metric}_logit_lens_{dir_type}[_{direction_name}].png
+                    source_parts = source.split("_")
+
+                    # Find metric in source (it's one of AVAILABLE_METRICS)
+                    metric_idx = None
+                    for i, part in enumerate(source_parts):
+                        if part in AVAILABLE_METRICS:
+                            metric_idx = i
+                            break
+
+                    if metric_idx is not None:
+                        dir_type = "_".join(source_parts[:metric_idx])
+                        metric = source_parts[metric_idx]
+                        dataset = "_".join(source_parts[metric_idx + 1:]) if metric_idx + 1 < len(source_parts) else ""
+
+                        # Build filename: {model}{_adapter}_{dataset}_{dir_type}_{metric}_logit_lens
+                        if dataset:
+                            base = f"{output_prefix}_{dataset}_{dir_type}_{metric}_logit_lens"
+                        else:
+                            base = f"{output_prefix}_{dir_type}_{metric}_logit_lens"
                     else:
-                        filename = f"{output_prefix}_logit_lens_{source}_{direction_name}.png"
+                        # Fallback if we can't parse
+                        base = f"{output_prefix}_logit_lens_{source}"
+
+                    # Add direction_name suffix if it adds info
+                    if direction_name in source or source.endswith(f"_{direction_name}") or direction_name == "probe":
+                        filename = f"{base}.png"
+                    else:
+                        filename = f"{base}_{direction_name}.png"
+
                     plot_logit_lens_heatmap(
                         all_directions, all_layers, source, direction_name,
                         lm_head_weight, tokenizer,

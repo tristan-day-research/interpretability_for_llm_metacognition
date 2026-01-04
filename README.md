@@ -47,9 +47,19 @@ python run_introspection_steering.py --metric logit_gap
 
 ---
 
-## The Analyses
+## Workflow Overview
 
-### 1. Is uncertainty predictable from activations? (General case)
+The experimental pipeline has three main phases:
+
+1. **Train Probes** — Extract activations and train linear probes to find direction vectors
+2. **Analyze Probes** — Interpret what the direction vectors represent
+3. **Test Causality** — Verify directions are causally involved via steering/ablation/patching
+
+---
+
+## Phase 1: Train Probes
+
+### 1.1 Next-Token Entropy Probe (General Case)
 
 **Scripts:** `build_nexttoken_dataset.py` → `nexttoken_entropy_probe.py`
 
@@ -61,6 +71,8 @@ python build_nexttoken_dataset.py
 
 # Step 2: Train entropy probes
 python nexttoken_entropy_probe.py
+python nexttoken_entropy_probe.py --metric logit_gap
+python nexttoken_entropy_probe.py --all-metrics
 ```
 
 **Outputs:** (prefixed with model name, e.g., `Llama-3.1-8B-Instruct_nexttoken_`)
@@ -72,7 +84,7 @@ python nexttoken_entropy_probe.py
 
 This is the most general test: can we decode entropy from activations on arbitrary text?
 
-### 2. Is uncertainty predictable from activations? (Factual MC case)
+### 1.2 MC Uncertainty Probe (Factual MC Case)
 
 **Script:** `mc_entropy_probe.py`
 
@@ -90,7 +102,7 @@ python mc_entropy_probe.py --metric entropy
 - `*_directions.npz` - Probe directions for steering
 - `*_results.png` - Visualization
 
-### 3. Does the uncertainty probe transfer to meta-judgments? (Direct→Meta transfer)
+### 1.3 Introspection Experiment (Direct→Meta Transfer)
 
 **Script:** `run_introspection_experiment.py`
 
@@ -125,7 +137,33 @@ The delegate task asks "Would you answer this yourself or delegate to a teammate
 - `direct_to_meta R²` - Does the probe transfer to meta activations? (introspection test)
 - `behavioral correlation` - Does stated confidence correlate with actual uncertainty?
 
-### 4. Introspection score probe (Meta→Calibration)
+### 1.4 Contrastive Direction Computation
+
+**Script:** `compute_contrastive_directions.py`
+
+Computes direction vectors using contrastive examples rather than regression:
+
+1. **Confidence direction:** `mean(high_confidence) - mean(low_confidence)` within well-calibrated examples
+2. **Calibration direction:** `mean(calibrated) - mean(miscalibrated)` across all examples
+
+```bash
+python compute_contrastive_directions.py
+```
+
+**Configuration:**
+```python
+DATASETS = ["SimpleMC", "TriviaMC"]  # Process multiple datasets
+META_TASKS = ["confidence", "delegate"]  # Process multiple task types
+DIRECTION_TYPES = ["confidence", "calibration"]  # Which directions to compute
+```
+
+**Outputs:**
+- `*_contrastive_confidence_directions.npz` - Confidence direction vectors
+- `*_contrastive_calibration_directions.npz` - Calibration direction vectors
+- `*_confidence_quality.png` - Direction quality visualization
+- `*_calibration_quality.png` - Direction quality visualization
+
+### 1.5 Introspection Score Probe (Meta→Calibration)
 
 **Script:** `run_introspection_probe.py`
 
@@ -149,7 +187,78 @@ python run_introspection_probe.py --metric entropy
 - `*_{metric}_probe_results.json` - Probe metrics with permutation tests
 - `*_{metric}_probe_directions.npz` - Introspection directions for steering
 
-### 5. Steering/ablation with probe directions
+---
+
+## Phase 2: Analyze Probes
+
+### 2.1 Direction Analysis and Comparison
+
+**Script:** `analyze_directions.py`
+
+Analyzes and compares probe directions across experiments:
+- Computes pairwise cosine similarities between direction types
+- Runs logit lens analysis (projects directions through unembedding)
+- Generates visualizations
+
+```bash
+python analyze_directions.py                    # Auto-detect directions
+python analyze_directions.py --layer 15         # Focus on specific layer
+```
+
+**Outputs:**
+- `*_direction_similarity.png` - Heatmap of direction similarities
+- `*_logit_lens.png` - Top tokens per direction/layer
+
+### 2.2 Activation Oracles (Direction Interpretation)
+
+**Script:** `act_oracles.py`
+
+Uses the AO (Activation Oracle) adapter to interpret what probe direction vectors represent in natural language. While logit lens shows what tokens a direction projects to, activation oracles ask the model directly what concept the direction encodes.
+
+**Two-phase workflow:**
+
+1. **Generation:** For each layer's probe direction, add the direction to the model's activations and ask interpretation questions. The model's responses reveal what concept the direction represents.
+
+2. **Analysis:** Parse responses, compute quality scores, detect themes, and generate summary outputs.
+
+**Interpretation questions:**
+- Q1: "What concept does this vector represent?"
+- Q2: "Is this vector related to confidence/doubt, certainty/uncertainty, introspection/self-reflection, or something else?" (multiple choice)
+- Q3: "What type of mental state does this vector encode?"
+
+```bash
+# Phase 1: Generate interpretations (requires GPU, slow)
+python act_oracles.py
+
+# Phase 2: Analyze existing interpretations (fast, CPU-only)
+python act_oracles.py --analyze outputs/Llama-3.1-8B-Instruct_SimpleMC_introspection_entropy_ao_interpretations.json
+```
+
+**Quality assessment:**
+- **Entropy consistency ratio:** `max_entropy / mean_entropy` across generated tokens. Low ratio = consistent generation (good). High ratio = one spike then repetitive (garbage).
+- **Quality score:** `1 / (1 + log(ratio/5))` converts ratio to 0-1 scale.
+- **Distinctiveness:** How much better than random baseline directions.
+
+**Theme detection:**
+- **Embedding similarity:** Compare responses to concept descriptions (confidence, uncertainty, introspection).
+- **Keyword matching:** Count domain-specific keywords in responses.
+- **MC choice:** Extract selection from Q2 multiple-choice response.
+
+**Outputs:**
+- `*_ao_interpretations.json` - Raw responses with entropy metrics
+- `*_ao_analysis.json` - Parsed analysis with layer summaries
+- `*_ao_summary.txt` - Human-readable summary table
+- `*_ao_visualization.png` - Concept heatmap and quality metrics
+
+**Relation to logit lens:** Logit lens and activation oracles are complementary approaches to direction interpretation:
+- Logit lens: Project direction through unembedding → top tokens (mechanistic view)
+- Activation oracles: Add direction to activations → ask model what it represents (semantic view)
+
+---
+
+## Phase 3: Test Causality
+
+### 3.1 Steering/Ablation with Probe Directions
 
 **Script:** `run_introspection_steering.py`
 
@@ -205,46 +314,43 @@ The ablation experiment tests whether the probe direction is *causally* involved
 2. **Differential effect with CI:** Bar chart of (introspection_Δcorr − control_Δcorr) with 95% CI. Colored by FDR significance.
 3. **Distribution plot:** Violin plots showing control effect distribution per layer, with introspection effect overlaid. Shows where the effect falls in the null distribution.
 
-### 6. Shared vs Unique Direction Transfer Analysis
+### 3.2 Contrastive Direction Steering/Ablation
 
-**Script:** `analyze_shared_unique.py`
+**Script:** `run_contrastive_direction.py`
 
-Tests whether the model uses a general or domain-specific uncertainty signal:
-1. Loads MC directions from multiple datasets (e.g., SimpleMC, TriviaMC, GPQA)
-2. Decomposes each direction into:
-   - **Shared component:** Average of normalized MC directions (what's common)
-   - **Unique component:** Residual (dataset-specific)
-3. Tests whether probes along these directions transfer to meta activations
+Tests causality of contrastive directions via steering and ablation experiments:
+- Loads introspection data and computes contrastive directions
+- Runs steering experiments with varying multipliers
+- Runs ablation experiments comparing to random controls
 
 ```bash
-# Prerequisites: Run mc_entropy_probe.py on multiple datasets
-python mc_entropy_probe.py --metric logit_gap  # SimpleMC
-# (change DATASET_NAME and repeat for other datasets)
-
-# Then analyze
-python analyze_shared_unique.py --dataset SimpleMC
+python run_contrastive_direction.py --metric logit_gap
 ```
+
+**Direction comparison mode:** Set `COMPARE_DIRECTIONS = True` to compare different methods for finding uncertainty directions:
+
+1. **Probe direction:** Linear regression on activations → metric
+2. **CAA direction:** `mean(high_metric_activations) - mean(low_metric_activations)`
+3. **Cluster directions:** Group activations by metric (quantile bins or k-means), compute centroids, use centroid-to-centroid vectors
+
+**Why clustering?** Uncertainty might be encoded non-linearly or categorically (like one-hot vectors for "certain", "somewhat certain", "uncertain"). Clustering captures this by:
+- Grouping activations into discrete states (low/mid/high metric values)
+- Computing the centroid (mean activation) for each state
+- Using the vector between centroids as the "direction"
+
+**Clustering methods:**
+- `"quantile"` - Group by metric percentiles (e.g., bottom/middle/top third)
+- `"kmeans"` - Cluster in activation space, then label clusters by their mean metric
+
+**What "works better" means:** Directions are compared by their causal effect on behavior—how much does steering along the direction change the model's confidence per unit multiplier? Larger effect = direction better captures the causal mechanism.
 
 **Outputs:**
-- `*_shared_unique_directions.npz` - Decomposed direction vectors
-- `*_shared_unique_stats.json` - Decomposition statistics
-- `*_{dataset}_shared_unique_transfer.json` - Transfer test results
+- `*_steering_results.json` - Steering effects by multiplier
+- `*_ablation_analysis.json` - Ablation effects with statistics
+- `*_direction_comparison.json` - Cosine similarities between direction types (if enabled)
+- `*_direction_comparison.png` - Heatmap visualization (if enabled)
 
-### 7. Direction Analysis and Comparison
-
-**Script:** `analyze_directions.py`
-
-Analyzes and compares probe directions across experiments:
-- Computes pairwise cosine similarities between direction types
-- Runs logit lens analysis (projects directions through unembedding)
-- Generates visualizations
-
-```bash
-python analyze_directions.py                    # Auto-detect directions
-python analyze_directions.py --layer 15         # Focus on specific layer
-```
-
-### 8. Activation Patching
+### 3.3 Activation Patching
 
 **Script:** `run_activation_patching.py`
 
@@ -274,51 +380,42 @@ NUM_PATCHING_SAMPLES = 100       # Samples to patch
 
 **Interpretation:** If patching high→low causes confidence to increase (and low→high causes it to decrease), this provides stronger causal evidence than correlation-based probing.
 
-### 9. Direction Comparison (Clustering vs CAA vs Probes)
+---
 
-**Script:** `run_contrastive_direction.py` with `COMPARE_DIRECTIONS = True`
+## Miscellaneous Analysis Scripts
 
-Compares different methods for finding uncertainty directions:
+### Shared vs Unique Direction Analysis
 
-1. **Probe direction:** Linear regression on activations → metric
-2. **CAA direction:** `mean(high_metric_activations) - mean(low_metric_activations)`
-3. **Cluster directions:** Group activations by metric (quantile bins or k-means), compute centroids, use centroid-to-centroid vectors
+**Script:** `analyze_shared_unique.py`
 
-**Why clustering?** Uncertainty might be encoded non-linearly or categorically (like one-hot vectors for "certain", "somewhat certain", "uncertain"). Clustering captures this by:
-- Grouping activations into discrete states (low/mid/high metric values)
-- Computing the centroid (mean activation) for each state
-- Using the vector between centroids as the "direction"
-
-**Clustering methods:**
-- `"quantile"` - Group by metric percentiles (e.g., bottom/middle/top third)
-- `"kmeans"` - Cluster in activation space, then label clusters by their mean metric
-
-**What "works better" means:** Directions are compared by their causal effect on behavior—how much does steering along the direction change the model's confidence per unit multiplier? Larger effect = direction better captures the causal mechanism.
+Tests whether the model uses a general or domain-specific uncertainty signal:
+1. Loads MC directions from multiple datasets (e.g., SimpleMC, TriviaMC, GPQA)
+2. Decomposes each direction into:
+   - **Shared component:** Average of normalized MC directions (what's common)
+   - **Unique component:** Residual (dataset-specific)
+3. Tests whether probes along these directions transfer to meta activations
 
 ```bash
-# Enable comparison mode in run_contrastive_direction.py:
-COMPARE_DIRECTIONS = True
-N_CLUSTERS = 3
-CLUSTER_METHOD = "quantile"  # or "kmeans"
+# Prerequisites: Run mc_entropy_probe.py on multiple datasets
+python mc_entropy_probe.py --metric logit_gap  # SimpleMC
+# (change DATASET_NAME and repeat for other datasets)
 
-python run_contrastive_direction.py --metric logit_gap
+# Then analyze
+python analyze_shared_unique.py --dataset SimpleMC
 ```
 
 **Outputs:**
-- `*_direction_comparison.json` - Cosine similarities between direction types
-- `*_direction_comparison.png` - Heatmap visualization
-- `*_direction_steering_comparison.json` - Causal effect of each direction type
+- `*_shared_unique_directions.npz` - Decomposed direction vectors
+- `*_shared_unique_stats.json` - Decomposition statistics
+- `*_{dataset}_shared_unique_transfer.json` - Transfer test results
 
-### 10. MC Answer Position Bias Analysis
+### MC Answer Position Bias Analysis
 
 **Script:** `analyze_mc_answer_bias.py`
 
 Checks whether answer letter positions (A/B/C/D) correlate with uncertainty metrics. This helps interpret logit lens results—if the MC probe direction projects onto B/C-like tokens, is that because B/C answers actually correlate with uncertainty in the data?
 
 ```bash
-# Configure at top of script:
-BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
-
 python analyze_mc_answer_bias.py
 ```
 
@@ -327,6 +424,25 @@ python analyze_mc_answer_bias.py
 - `*_mc_answer_bias.json` - Spearman correlations between position and each metric
 
 **Interpretation:** If there's no correlation between answer position and uncertainty metrics, the B/C pattern in logit lens is likely spurious or reflects model biases rather than dataset structure.
+
+### Contrastive Ablation Visualization
+
+**Script:** `visualize_contrastive_ablation.py`
+
+Creates visualizations from existing steering and ablation results:
+- Confidence change vs multiplier (steering curve)
+- Alignment change by layer
+- Summary statistics
+
+```bash
+python visualize_contrastive_ablation.py
+```
+
+### Introspection Direction Experiment
+
+**Script:** `run_introspection_direction_experiment.py`
+
+Focused analysis of the introspection mapping direction. Combines probe training with steering experiments in a single script for quick iteration.
 
 ---
 
@@ -463,7 +579,7 @@ python mc_entropy_probe.py --load-in-8bit --batch-size 4
 
 ---
 
-## Typical Workflow
+## Typical Workflows
 
 ### Quick start (single metric)
 
@@ -484,10 +600,14 @@ python run_introspection_experiment.py --metric logit_gap
 # 2. Train introspection score probe
 python run_introspection_probe.py --metric logit_gap
 
-# 3. Run steering
+# 3. Analyze directions
+python analyze_directions.py
+python act_oracles.py
+
+# 4. Run steering
 python run_introspection_steering.py --metric logit_gap
 
-# 4. Compare with entropy metric (re-uses saved activations)
+# 5. Compare with entropy metric (re-uses saved activations)
 python run_introspection_experiment.py --metric entropy  # Only re-trains probe
 python run_introspection_probe.py --metric entropy
 python run_introspection_steering.py --metric entropy
@@ -504,6 +624,22 @@ python mc_entropy_probe.py --metric logit_gap  # DATASET_NAME = "GPQA"
 
 # Analyze shared vs unique directions
 python analyze_shared_unique.py --dataset SimpleMC
+```
+
+### Contrastive direction workflow
+
+```bash
+# 1. Run introspection experiment to get activations
+python run_introspection_experiment.py --metric entropy
+
+# 2. Compute contrastive directions
+python compute_contrastive_directions.py
+
+# 3. Analyze directions
+python analyze_directions.py
+
+# 4. Test causality
+python run_contrastive_direction.py --metric entropy
 ```
 
 ---
@@ -536,11 +672,8 @@ Dataset loading utilities (SimpleMC, GPQA, MMLU, TruthfulQA, etc.)
 ### `SimpleMC.jsonl`
 Simple multiple-choice questions dataset.
 
-### `run_contrastive_direction.py`
-Alternative to regression: find direction via contrastive examples (well-calibrated vs miscalibrated). Also supports direction comparison mode (`COMPARE_DIRECTIONS = True`) for comparing probe, CAA, and cluster-based directions.
+### `logres_helpers.py`
+Helper functions for logistic regression analysis.
 
-### `run_activation_patching.py`
-Tests causal role of full activation patterns via cross-sample patching (replacing activations from high-confidence samples into low-confidence samples).
-
-### `run_introspection_direction_experiment.py`
-Focused analysis of the introspection mapping direction.
+### `ao_with_tests.py`
+Alternative activation oracle implementation with built-in test cases.
