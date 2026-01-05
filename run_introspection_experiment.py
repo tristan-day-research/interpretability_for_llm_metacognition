@@ -1345,6 +1345,7 @@ def run_introspection_analysis(
 
     results = {}
     directions = {} if extract_directions else None
+    probe_components = {}  # Store trained probe components for reuse
 
     for layer_idx in tqdm(sorted(direct_activations.keys()), desc="Training probes"):
         X_direct = direct_activations[layer_idx]
@@ -1419,6 +1420,13 @@ def run_introspection_analysis(
                 direct_results["probe"]
             )
 
+        # 6. Store probe components for reuse (e.g., other-confidence transfer)
+        probe_components[layer_idx] = {
+            "scaler": direct_results["scaler"],
+            "pca": direct_results["pca"],
+            "probe": direct_results["probe"],
+        }
+
         # Pack results
         results[layer_idx] = {
             "direct_to_direct": {
@@ -1460,7 +1468,7 @@ def run_introspection_analysis(
             "pca_variance_explained": direct_results["pca_variance_explained"]
         }
 
-    return results, test_idx, directions
+    return results, test_idx, directions, probe_components
 
 def run_mc_answer_analysis(
     direct_activations: Dict[int, np.ndarray],
@@ -1476,6 +1484,7 @@ def run_mc_answer_analysis(
     print(f"\nRunning MC answer probe analysis across {len(direct_activations)} layers...")
 
     results = {}
+    mc_probe_components = {}  # Store trained probe components for reuse
 
     for layer_idx in tqdm(sorted(direct_activations.keys()), desc="Training MC answer probes"):
         X_direct = direct_activations[layer_idx]
@@ -1539,96 +1548,70 @@ def run_mc_answer_analysis(
             "d2d_predictions": d2d_predictions.tolist(),
         }
 
-    return results
+        # Store probe components for reuse (e.g., other-confidence transfer)
+        mc_probe_components[layer_idx] = {
+            "scaler": scaler,
+            "pca": pca,
+            "clf": clf,
+        }
+
+    return results, mc_probe_components
 
 
-def run_other_confidence_probe_analysis(
+def apply_probes_to_other(
     other_activations: Dict[int, np.ndarray],
-    meta_activations: Dict[int, np.ndarray],
+    entropy_probe_components: Dict[int, Dict],
+    mc_probe_components: Dict[int, Dict],
     direct_entropy: np.ndarray,
-    train_idx: np.ndarray,
+    model_predicted_answer: np.ndarray,
     test_idx: np.ndarray,
 ) -> Dict:
     """
-    Train probes on other-confidence activations and test transfer to self-confidence.
+    Apply trained probes to other-confidence activations.
 
-    This tests whether "other-confidence" activations (estimating human difficulty)
-    also encode the model's own uncertainty. If they do, it suggests the model may
-    not be specifically introspecting during the self-confidence task.
+    Only computes D→M(Other) - reuses trained probe components from main analysis.
+    This is a control test: if transfer works equally well to other-confidence,
+    the model encodes uncertainty similarly regardless of the meta task.
 
-    Trains:
-    - O2O: Other-confidence activations → direct entropy (sanity check)
-    - O2S: Other-confidence probe → Self-confidence meta activations (transfer)
+    Args:
+        other_activations: Layer activations from other-confidence task
+        entropy_probe_components: {layer: {"scaler", "pca", "probe"}} from run_introspection_analysis
+        mc_probe_components: {layer: {"scaler", "pca", "clf"}} from run_mc_answer_analysis
+        direct_entropy: Ground truth entropy values
+        model_predicted_answer: Model's predicted MC answer (A/B/C/D as int)
+        test_idx: Test set indices
 
-    For comparison with main analysis:
-    - D2D trains on direct activations → entropy
-    - D2M transfers to meta (self-confidence) activations
-
-    Returns dict with layer-wise results including R², correlations, and predictions.
+    Returns:
+        Dict with layer-wise D→M(Other) R² and accuracy for both probes
     """
-    print(f"\nRunning other-confidence probe analysis across {len(other_activations)} layers...")
+    print(f"\nApplying trained probes to other-confidence activations...")
+
+    y_entropy = direct_entropy[test_idx]
+    y_mc = model_predicted_answer[test_idx]
 
     results = {}
+    for layer_idx in tqdm(sorted(other_activations.keys()), desc="Testing D→M(Other) transfer"):
+        X_other = other_activations[layer_idx][test_idx]
 
-    for layer_idx in tqdm(sorted(other_activations.keys()), desc="Training other-conf probes"):
-        X_other = other_activations[layer_idx]
-        X_meta = meta_activations[layer_idx]
-        y = direct_entropy
+        # --- Entropy probe: centered scaling ---
+        ent_comps = entropy_probe_components[layer_idx]
+        other_mean = np.mean(X_other, axis=0)
+        X_other_centered = X_other - other_mean
+        X_other_scaled = X_other_centered / ent_comps["scaler"].scale_
+        X_other_pca = ent_comps["pca"].transform(X_other_scaled)
+        entropy_preds = ent_comps["probe"].predict(X_other_pca)
+        entropy_r2 = r2_score(y_entropy, entropy_preds)
 
-        # Split
-        X_other_train = X_other[train_idx]
-        X_other_test = X_other[test_idx]
-        X_meta_test = X_meta[test_idx]
-        y_train = y[train_idx]
-        y_test = y[test_idx]
-
-        # --- Train on Other-Confidence ---
-        scaler = StandardScaler()
-        X_other_train_scaled = scaler.fit_transform(X_other_train)
-        X_other_test_scaled = scaler.transform(X_other_test)
-
-        # PCA
-        n_components = min(PCA_COMPONENTS, X_other_train_scaled.shape[1], X_other_train_scaled.shape[0])
-        pca = PCA(n_components=n_components)
-        X_other_train_pca = pca.fit_transform(X_other_train_scaled)
-        X_other_test_pca = pca.transform(X_other_test_scaled)
-
-        # Ridge regression
-        probe = Ridge(alpha=PROBE_ALPHA)
-        probe.fit(X_other_train_pca, y_train)
-
-        # O2O: Other → Other (sanity check)
-        o2o_preds = probe.predict(X_other_test_pca)
-        o2o_r2 = r2_score(y_test, o2o_preds)
-        o2o_pearson = pearsonr(y_test, o2o_preds)[0]
-
-        # --- Transfer to Self-Confidence Meta ---
-        # Centered scaling (same as D2M fixed approach)
-        meta_mean = np.mean(X_meta_test, axis=0)
-        X_meta_centered = X_meta_test - meta_mean
-        X_meta_test_cen = X_meta_centered / scaler.scale_
-        X_meta_test_cen_pca = pca.transform(X_meta_test_cen)
-
-        o2s_preds = probe.predict(X_meta_test_cen_pca)
-        o2s_r2 = r2_score(y_test, o2s_preds)
-        o2s_pearson = pearsonr(y_test, o2s_preds)[0]
-
-        # Shuffled baseline
-        shuffled_y_train = y_train.copy()
-        np.random.shuffle(shuffled_y_train)
-        probe_shuffled = Ridge(alpha=PROBE_ALPHA)
-        probe_shuffled.fit(X_other_train_pca, shuffled_y_train)
-        shuffled_preds = probe_shuffled.predict(X_other_test_pca)
-        shuffled_r2 = r2_score(y_test, shuffled_preds)
+        # --- MC answer probe: centered scaling ---
+        mc_comps = mc_probe_components[layer_idx]
+        X_other_mc_centered = X_other - np.mean(X_other, axis=0)
+        X_other_mc_scaled = X_other_mc_centered / mc_comps["scaler"].scale_
+        X_other_mc_pca = mc_comps["pca"].transform(X_other_mc_scaled)
+        mc_acc = mc_comps["clf"].score(X_other_mc_pca, y_mc)
 
         results[layer_idx] = {
-            "o2o_r2": o2o_r2,
-            "o2o_pearson": o2o_pearson,
-            "o2s_r2": o2s_r2,
-            "o2s_pearson": o2s_pearson,
-            "shuffled_r2": shuffled_r2,
-            "o2o_predictions": o2o_preds.tolist(),
-            "o2s_predictions": o2s_preds.tolist(),
+            "d2m_other_entropy_r2": entropy_r2,
+            "d2m_other_mc_accuracy": mc_acc,
         }
 
     return results
@@ -1759,65 +1742,67 @@ def plot_calibration_split(
     print(f"Calibration split plot saved to {output_path}")
 
 
-def plot_other_confidence_probe_comparison(
+def plot_other_confidence_comparison(
     main_results: Dict,
+    mc_results: Dict,
     other_results: Dict,
     output_path: str
 ):
     """
-    Side-by-side comparison: Self-confidence probes vs Other-confidence probes.
+    Compare direct-trained probe transfer to self-confidence vs other-confidence.
 
-    Left panel: Self-confidence (main analysis)
-      - D2D: Direct → Direct (sanity check)
-      - D2M: Direct → Meta (self-confidence transfer)
+    2-panel figure:
+      - Left: Entropy probe (D→D, D→M Self, D→M Other, Shuffled)
+      - Right: MC answer probe (D→D, D→M Self, D→M Other, Shuffled)
 
-    Right panel: Other-confidence
-      - O2O: Other-confidence → Other-confidence (sanity check)
-      - O2S: Other-confidence → Self-confidence meta (cross-task transfer)
-
-    If O2S transfer is strong, it suggests the model encodes uncertainty
-    similarly across different meta-judgment tasks, not specifically during
-    self-confidence introspection.
+    If D→M(Other) transfer is as strong as D→M(Self), it suggests the model
+    encodes uncertainty similarly across both meta tasks, not specifically
+    during self-confidence introspection.
     """
     layers = sorted(main_results.keys())
 
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharey=True)
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
-    # Left: Self-confidence probes (from main analysis)
+    # --- Panel 1: Entropy Probe ---
     ax1 = axes[0]
-    d2d_r2 = [main_results[l]["direct_to_direct"]["r2"] for l in layers]
-    d2m_r2 = [main_results[l]["direct_to_meta_fixed"]["r2"] for l in layers]
+    d2d = [main_results[l]["direct_to_direct"]["test_r2"] for l in layers]
+    d2m_self = [main_results[l]["direct_to_meta_fixed"]["r2"] for l in layers]
+    d2m_other = [other_results[l]["d2m_other_entropy_r2"] for l in layers]
     shuffled = [main_results[l]["shuffled_baseline"]["r2"] for l in layers]
 
-    ax1.plot(layers, d2d_r2, 'o-', label='D→D (Direct activations)', linewidth=2, color='C0')
-    ax1.plot(layers, d2m_r2, 's-', label='D→M (Self-conf transfer)', linewidth=2, color='C1')
-    ax1.plot(layers, shuffled, 'x--', label='Shuffled baseline', linewidth=1, alpha=0.5, color='gray')
+    ax1.plot(layers, d2d, 'o-', label='D→D', linewidth=2, color='C0')
+    ax1.plot(layers, d2m_self, 's-', label='D→M (Self)', linewidth=2, color='C1')
+    ax1.plot(layers, d2m_other, '^-', label='D→M (Other)', linewidth=2, color='C2')
+    ax1.plot(layers, shuffled, 'x--', label='Shuffled', linewidth=1, alpha=0.5, color='gray')
     ax1.axhline(y=0, color='black', linestyle='-', alpha=0.3)
     ax1.set_xlabel('Layer Index')
     ax1.set_ylabel('R² Score')
-    ax1.set_title('Self-Confidence Probes (Main Analysis)')
+    ax1.set_title('Entropy Probe Transfer')
     ax1.legend(loc='best')
     ax1.grid(True, alpha=0.3)
 
-    # Right: Other-confidence probes
+    # --- Panel 2: MC Answer Probe ---
     ax2 = axes[1]
-    o2o_r2 = [other_results[l]["o2o_r2"] for l in layers]
-    o2s_r2 = [other_results[l]["o2s_r2"] for l in layers]
-    other_shuffled = [other_results[l]["shuffled_r2"] for l in layers]
+    mc_d2d = [mc_results[l]["d2d_accuracy"] for l in layers]
+    mc_d2m_self = [mc_results[l]["d2m_centered_accuracy"] for l in layers]
+    mc_d2m_other = [other_results[l]["d2m_other_mc_accuracy"] for l in layers]
+    mc_shuffled = [mc_results[l]["shuffled_accuracy"] for l in layers]
 
-    ax2.plot(layers, o2o_r2, 'o-', label='O→O (Other-conf activations)', linewidth=2, color='C2')
-    ax2.plot(layers, o2s_r2, 's-', label='O→S (Self-conf transfer)', linewidth=2, color='C3')
-    ax2.plot(layers, other_shuffled, 'x--', label='Shuffled baseline', linewidth=1, alpha=0.5, color='gray')
-    ax2.axhline(y=0, color='black', linestyle='-', alpha=0.3)
+    ax2.plot(layers, mc_d2d, 'o-', label='D→D', linewidth=2, color='C0')
+    ax2.plot(layers, mc_d2m_self, 's-', label='D→M (Self)', linewidth=2, color='C1')
+    ax2.plot(layers, mc_d2m_other, '^-', label='D→M (Other)', linewidth=2, color='C2')
+    ax2.plot(layers, mc_shuffled, 'x--', label='Shuffled', linewidth=1, alpha=0.5, color='gray')
+    ax2.axhline(y=0.25, color='black', linestyle='-', alpha=0.3)  # 4-way random chance
     ax2.set_xlabel('Layer Index')
-    ax2.set_title('Other-Confidence Probes')
+    ax2.set_ylabel('Accuracy')
+    ax2.set_title('MC Answer Probe Transfer')
     ax2.legend(loc='best')
     ax2.grid(True, alpha=0.3)
 
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.close()
-    print(f"Other-confidence probe comparison saved to {output_path}")
+    print(f"Other-confidence transfer comparison saved to {output_path}")
 
 
 # ============================================================================
@@ -2706,7 +2691,7 @@ def run_single_experiment(
 
     # Run introspection analysis with selected metric
     print(f"\nRunning introspection analysis with metric: {METRIC}")
-    results, test_idx, directions = run_introspection_analysis(
+    results, test_idx, directions, entropy_probe_components = run_introspection_analysis(
         data["direct_activations"],
         data["meta_activations"],
         direct_target,  # Use selected metric
@@ -2744,7 +2729,7 @@ def run_single_experiment(
     train_idx, _ = train_test_split(indices, train_size=TRAIN_SPLIT, random_state=SEED)
 
     # Run MC answer probe analysis
-    mc_answer_results = run_mc_answer_analysis(
+    mc_answer_results, mc_probe_components = run_mc_answer_analysis(
         data["direct_activations"],
         data["meta_activations"],
         model_predicted_answer,
@@ -2789,28 +2774,29 @@ def run_single_experiment(
         )
 
     # Other-confidence probe analysis (only when activations were collected)
+    # Uses trained probe components from main analysis - only computes D→M(Other)
     other_probe_results = None
     if META_TASK == "confidence" and other_data is not None and "other_activations" in other_data:
         print("\n" + "=" * 60)
-        print("Running OTHER-CONFIDENCE PROBE ANALYSIS...")
-        print("(Testing whether other-confidence activations encode model's uncertainty)")
+        print("Running OTHER-CONFIDENCE TRANSFER ANALYSIS...")
+        print("(Testing whether direct-trained probes transfer to other-confidence)")
         print("=" * 60)
 
-        other_probe_results = run_other_confidence_probe_analysis(
+        other_probe_results = apply_probes_to_other(
             other_data["other_activations"],
-            data["meta_activations"],
+            entropy_probe_components,
+            mc_probe_components,
             direct_target,
-            train_idx,
+            model_predicted_answer,
             test_idx
         )
 
         # Print summary
-        best_o2o_layer = max(other_probe_results.keys(), key=lambda l: other_probe_results[l]["o2o_r2"])
-        best_o2s_layer = max(other_probe_results.keys(), key=lambda l: other_probe_results[l]["o2s_r2"])
-        print(f"\nOther-Confidence Probe Results:")
-        print(f"  Best O→O: Layer {best_o2o_layer} (R²={other_probe_results[best_o2o_layer]['o2o_r2']:.3f})")
-        print(f"  Best O→S: Layer {best_o2s_layer} (R²={other_probe_results[best_o2s_layer]['o2s_r2']:.3f})")
-        print(f"  (Compare to D→D and D→M from main analysis)")
+        best_entropy_layer = max(other_probe_results.keys(), key=lambda l: other_probe_results[l]["d2m_other_entropy_r2"])
+        best_mc_layer = max(other_probe_results.keys(), key=lambda l: other_probe_results[l]["d2m_other_mc_accuracy"])
+        print(f"\nDirect Probe Transfer to Other-Confidence:")
+        print(f"  Best Entropy D→M(Other): Layer {best_entropy_layer} (R²={other_probe_results[best_entropy_layer]['d2m_other_entropy_r2']:.3f})")
+        print(f"  Best MC D→M(Other): Layer {best_mc_layer} (acc={other_probe_results[best_mc_layer]['d2m_other_mc_accuracy']:.3f})")
 
     # Calibration split analysis: split test set into calibrated vs miscalibrated trials
     # Uses stated_confidence from behavioral analysis
@@ -2850,10 +2836,11 @@ def run_single_experiment(
 
     # Plot other-confidence probe comparison (only when available)
     if other_probe_results is not None:
-        plot_other_confidence_probe_comparison(
+        plot_other_confidence_comparison(
             results,
+            mc_answer_results,
             other_probe_results,
-            output_path=f"{metric_prefix}_other_confidence_probe.png"
+            output_path=f"{metric_prefix}_other_confidence_transfer.png"
         )
 
     # Save results (metric-specific filename)
@@ -2902,13 +2889,10 @@ def run_single_experiment(
 
     # Add other-confidence probe results if available
     if other_probe_results is not None:
-        results_to_save["other_confidence_probe"] = {
+        results_to_save["other_confidence_transfer"] = {
             str(layer_idx): {
-                "o2o_r2": layer_data["o2o_r2"],
-                "o2o_pearson": layer_data["o2o_pearson"],
-                "o2s_r2": layer_data["o2s_r2"],
-                "o2s_pearson": layer_data["o2s_pearson"],
-                "shuffled_r2": layer_data["shuffled_r2"],
+                "d2m_other_entropy_r2": layer_data["d2m_other_entropy_r2"],
+                "d2m_other_mc_accuracy": layer_data["d2m_other_mc_accuracy"],
             }
             for layer_idx, layer_data in other_probe_results.items()
         }
