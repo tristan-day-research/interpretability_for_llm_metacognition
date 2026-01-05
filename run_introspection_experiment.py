@@ -1013,7 +1013,8 @@ def collect_other_confidence(
     tokenizer,
     num_layers: int,
     use_chat_template: bool,
-    batch_size: int = BATCH_SIZE
+    batch_size: int = BATCH_SIZE,
+    collect_activations: bool = False
 ) -> Dict:
     """
     Collect other-confidence (human difficulty estimation) responses.
@@ -1027,10 +1028,14 @@ def collect_other_confidence(
 
     Uses KV cache prefix sharing for efficiency.
 
+    Args:
+        collect_activations: If True, also collect layer activations for probe analysis.
+
     Returns dict with:
         - other_probs: list of prob arrays over S-Z options
         - other_responses: list of predicted confidence letters
         - other_signals: list of expected confidence values (weighted avg of midpoints)
+        - other_activations: (optional) dict of layer_idx -> [n_questions, hidden_dim] activations
     """
     print(f"\nCollecting other-confidence (control) data for {len(questions)} questions...")
 
@@ -1048,15 +1053,16 @@ def collect_other_confidence(
             other_prompts.append(prompt)
             other_options_list.append(opts)
 
-        # Use prefix caching for efficiency (no activations needed)
-        _, other_probs_raw, _, _, other_responses = process_prompts_with_prefix_cache(
+        # Use prefix caching for efficiency
+        desc = "Other-confidence (with activations)" if collect_activations else "Other-confidence (with prefix cache)"
+        other_activations_raw, other_probs_raw, _, _, other_responses = process_prompts_with_prefix_cache(
             other_prompts,
             other_options_list,
             tokenizer,
             extractor,
             batch_size,
-            desc="Other-confidence (with prefix cache)",
-            collect_activations=False
+            desc=desc,
+            collect_activations=collect_activations
         )
 
         # Convert to expected format and compute signals
@@ -1068,11 +1074,29 @@ def collect_other_confidence(
 
     print(f"Other-confidence signals: mean={np.mean(other_signals):.3f}, std={np.std(other_signals):.3f}")
 
-    return {
+    result = {
         "other_probs": other_probs_list,
         "other_responses": other_responses,
         "other_signals": np.array(other_signals),
     }
+
+    if collect_activations and other_activations_raw is not None and len(other_activations_raw) > 0:
+        # other_activations_raw is a list of dicts (one per question), each dict maps layer_idx -> activation
+        # Convert to dict of numpy arrays keyed by layer
+        num_layers = len(other_activations_raw[0])
+        other_layer_acts = {i: [] for i in range(num_layers)}
+        for acts in other_activations_raw:
+            for layer_idx, act in acts.items():
+                other_layer_acts[layer_idx].append(act)
+
+        other_activations = {
+            layer_idx: np.array(acts)
+            for layer_idx, acts in other_layer_acts.items()
+        }
+        result["other_activations"] = other_activations
+        print(f"Collected other-confidence activations: {len(other_activations)} layers, shape={other_activations[0].shape}")
+
+    return result
 
 
 # ============================================================================
@@ -1517,6 +1541,285 @@ def run_mc_answer_analysis(
 
     return results
 
+
+def run_other_confidence_probe_analysis(
+    other_activations: Dict[int, np.ndarray],
+    meta_activations: Dict[int, np.ndarray],
+    direct_entropy: np.ndarray,
+    train_idx: np.ndarray,
+    test_idx: np.ndarray,
+) -> Dict:
+    """
+    Train probes on other-confidence activations and test transfer to self-confidence.
+
+    This tests whether "other-confidence" activations (estimating human difficulty)
+    also encode the model's own uncertainty. If they do, it suggests the model may
+    not be specifically introspecting during the self-confidence task.
+
+    Trains:
+    - O2O: Other-confidence activations → direct entropy (sanity check)
+    - O2S: Other-confidence probe → Self-confidence meta activations (transfer)
+
+    For comparison with main analysis:
+    - D2D trains on direct activations → entropy
+    - D2M transfers to meta (self-confidence) activations
+
+    Returns dict with layer-wise results including R², correlations, and predictions.
+    """
+    print(f"\nRunning other-confidence probe analysis across {len(other_activations)} layers...")
+
+    results = {}
+
+    for layer_idx in tqdm(sorted(other_activations.keys()), desc="Training other-conf probes"):
+        X_other = other_activations[layer_idx]
+        X_meta = meta_activations[layer_idx]
+        y = direct_entropy
+
+        # Split
+        X_other_train = X_other[train_idx]
+        X_other_test = X_other[test_idx]
+        X_meta_test = X_meta[test_idx]
+        y_train = y[train_idx]
+        y_test = y[test_idx]
+
+        # --- Train on Other-Confidence ---
+        scaler = StandardScaler()
+        X_other_train_scaled = scaler.fit_transform(X_other_train)
+        X_other_test_scaled = scaler.transform(X_other_test)
+
+        # PCA
+        n_components = min(PCA_COMPONENTS, X_other_train_scaled.shape[1], X_other_train_scaled.shape[0])
+        pca = PCA(n_components=n_components)
+        X_other_train_pca = pca.fit_transform(X_other_train_scaled)
+        X_other_test_pca = pca.transform(X_other_test_scaled)
+
+        # Ridge regression
+        probe = Ridge(alpha=PROBE_ALPHA)
+        probe.fit(X_other_train_pca, y_train)
+
+        # O2O: Other → Other (sanity check)
+        o2o_preds = probe.predict(X_other_test_pca)
+        o2o_r2 = r2_score(y_test, o2o_preds)
+        o2o_pearson = pearsonr(y_test, o2o_preds)[0]
+
+        # --- Transfer to Self-Confidence Meta ---
+        # Centered scaling (same as D2M fixed approach)
+        meta_mean = np.mean(X_meta_test, axis=0)
+        X_meta_centered = X_meta_test - meta_mean
+        X_meta_test_cen = X_meta_centered / scaler.scale_
+        X_meta_test_cen_pca = pca.transform(X_meta_test_cen)
+
+        o2s_preds = probe.predict(X_meta_test_cen_pca)
+        o2s_r2 = r2_score(y_test, o2s_preds)
+        o2s_pearson = pearsonr(y_test, o2s_preds)[0]
+
+        # Shuffled baseline
+        shuffled_y_train = y_train.copy()
+        np.random.shuffle(shuffled_y_train)
+        probe_shuffled = Ridge(alpha=PROBE_ALPHA)
+        probe_shuffled.fit(X_other_train_pca, shuffled_y_train)
+        shuffled_preds = probe_shuffled.predict(X_other_test_pca)
+        shuffled_r2 = r2_score(y_test, shuffled_preds)
+
+        results[layer_idx] = {
+            "o2o_r2": o2o_r2,
+            "o2o_pearson": o2o_pearson,
+            "o2s_r2": o2s_r2,
+            "o2s_pearson": o2s_pearson,
+            "shuffled_r2": shuffled_r2,
+            "o2o_predictions": o2o_preds.tolist(),
+            "o2s_predictions": o2s_preds.tolist(),
+        }
+
+    return results
+
+
+def compute_calibration_masks(
+    stated_confidence: np.ndarray,
+    direct_entropy: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Compute calibrated/miscalibrated masks using median split.
+
+    Calibrated: model's meta-judgment matches actual uncertainty
+      - High confidence (above median) AND low entropy (below median)
+      - Low confidence (below median) AND high entropy (above median)
+
+    Miscalibrated: model's meta-judgment opposes actual uncertainty
+      - High confidence AND high entropy
+      - Low confidence AND low entropy
+
+    Returns (calibrated_mask, miscalibrated_mask).
+    Uses median split for balanced groups.
+    """
+    conf_median = np.median(stated_confidence)
+    ent_median = np.median(direct_entropy)
+
+    calibrated = (
+        ((stated_confidence > conf_median) & (direct_entropy < ent_median)) |
+        ((stated_confidence < conf_median) & (direct_entropy > ent_median))
+    )
+    miscalibrated = (
+        ((stated_confidence > conf_median) & (direct_entropy > ent_median)) |
+        ((stated_confidence < conf_median) & (direct_entropy < ent_median))
+    )
+    return calibrated, miscalibrated
+
+
+def split_results_by_calibration(
+    results: Dict,
+    y_test: np.ndarray,
+    calibrated_mask: np.ndarray,
+    miscalibrated_mask: np.ndarray
+) -> Dict:
+    """
+    Recompute R² separately for calibrated/miscalibrated test trials.
+
+    Uses predictions already stored in results dict from run_introspection_analysis.
+    Also extracts shuffled baseline R² for reference.
+    """
+    split_results = {}
+    for layer_idx, layer_data in results.items():
+        d2d_preds = np.array(layer_data["direct_to_direct"]["predictions"])
+        d2m_preds = np.array(layer_data["direct_to_meta_fixed"]["predictions"])
+        shuffled_r2 = layer_data["shuffled_baseline"]["r2"]
+
+        # Calibrated subset
+        if calibrated_mask.sum() > 1:
+            d2d_r2_cal = r2_score(y_test[calibrated_mask], d2d_preds[calibrated_mask])
+            d2m_r2_cal = r2_score(y_test[calibrated_mask], d2m_preds[calibrated_mask])
+        else:
+            d2d_r2_cal = float('nan')
+            d2m_r2_cal = float('nan')
+
+        # Miscalibrated subset
+        if miscalibrated_mask.sum() > 1:
+            d2d_r2_mis = r2_score(y_test[miscalibrated_mask], d2d_preds[miscalibrated_mask])
+            d2m_r2_mis = r2_score(y_test[miscalibrated_mask], d2m_preds[miscalibrated_mask])
+        else:
+            d2d_r2_mis = float('nan')
+            d2m_r2_mis = float('nan')
+
+        split_results[layer_idx] = {
+            "calibrated": {"d2d_r2": d2d_r2_cal, "d2m_r2": d2m_r2_cal},
+            "miscalibrated": {"d2d_r2": d2d_r2_mis, "d2m_r2": d2m_r2_mis},
+            "shuffled_r2": shuffled_r2,
+        }
+    return split_results
+
+
+def plot_calibration_split(
+    split_results: Dict,
+    n_calibrated: int,
+    n_miscalibrated: int,
+    output_path: str
+):
+    """
+    Side-by-side 1x2 figure: calibrated (left) vs miscalibrated (right).
+
+    Shows D2D and D2M R² curves for each subset to see if transfer
+    is driven by calibrated or miscalibrated trials.
+    """
+    layers = sorted(split_results.keys())
+    shuffled_r2 = [split_results[l]["shuffled_r2"] for l in layers]
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+    # Left: Calibrated trials
+    ax1 = axes[0]
+    cal_d2d = [split_results[l]["calibrated"]["d2d_r2"] for l in layers]
+    cal_d2m = [split_results[l]["calibrated"]["d2m_r2"] for l in layers]
+    ax1.plot(layers, cal_d2d, 'o-', label='Direct→Direct', linewidth=2, color='C0')
+    ax1.plot(layers, cal_d2m, 's-', label='Direct→Meta', linewidth=2, color='C1')
+    ax1.plot(layers, shuffled_r2, 'x--', label='Shuffled baseline', linewidth=1, alpha=0.5, color='gray')
+    ax1.axhline(y=0, color='black', linestyle='-', alpha=0.3)
+    ax1.set_xlabel('Layer Index')
+    ax1.set_ylabel('R² Score')
+    ax1.set_title(f'Calibrated Trials (n={n_calibrated})')
+    ax1.legend(loc='best')
+    ax1.grid(True, alpha=0.3)
+
+    # Right: Miscalibrated trials
+    ax2 = axes[1]
+    mis_d2d = [split_results[l]["miscalibrated"]["d2d_r2"] for l in layers]
+    mis_d2m = [split_results[l]["miscalibrated"]["d2m_r2"] for l in layers]
+    ax2.plot(layers, mis_d2d, 'o-', label='Direct→Direct', linewidth=2, color='C0')
+    ax2.plot(layers, mis_d2m, 's-', label='Direct→Meta', linewidth=2, color='C1')
+    ax2.plot(layers, shuffled_r2, 'x--', label='Shuffled baseline', linewidth=1, alpha=0.5, color='gray')
+    ax2.axhline(y=0, color='black', linestyle='-', alpha=0.3)
+    ax2.set_xlabel('Layer Index')
+    ax2.set_ylabel('R² Score')
+    ax2.set_title(f'Miscalibrated Trials (n={n_miscalibrated})')
+    ax2.legend(loc='best')
+    ax2.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"Calibration split plot saved to {output_path}")
+
+
+def plot_other_confidence_probe_comparison(
+    main_results: Dict,
+    other_results: Dict,
+    output_path: str
+):
+    """
+    Side-by-side comparison: Self-confidence probes vs Other-confidence probes.
+
+    Left panel: Self-confidence (main analysis)
+      - D2D: Direct → Direct (sanity check)
+      - D2M: Direct → Meta (self-confidence transfer)
+
+    Right panel: Other-confidence
+      - O2O: Other-confidence → Other-confidence (sanity check)
+      - O2S: Other-confidence → Self-confidence meta (cross-task transfer)
+
+    If O2S transfer is strong, it suggests the model encodes uncertainty
+    similarly across different meta-judgment tasks, not specifically during
+    self-confidence introspection.
+    """
+    layers = sorted(main_results.keys())
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharey=True)
+
+    # Left: Self-confidence probes (from main analysis)
+    ax1 = axes[0]
+    d2d_r2 = [main_results[l]["direct_to_direct"]["r2"] for l in layers]
+    d2m_r2 = [main_results[l]["direct_to_meta_fixed"]["r2"] for l in layers]
+    shuffled = [main_results[l]["shuffled_baseline"]["r2"] for l in layers]
+
+    ax1.plot(layers, d2d_r2, 'o-', label='D→D (Direct activations)', linewidth=2, color='C0')
+    ax1.plot(layers, d2m_r2, 's-', label='D→M (Self-conf transfer)', linewidth=2, color='C1')
+    ax1.plot(layers, shuffled, 'x--', label='Shuffled baseline', linewidth=1, alpha=0.5, color='gray')
+    ax1.axhline(y=0, color='black', linestyle='-', alpha=0.3)
+    ax1.set_xlabel('Layer Index')
+    ax1.set_ylabel('R² Score')
+    ax1.set_title('Self-Confidence Probes (Main Analysis)')
+    ax1.legend(loc='best')
+    ax1.grid(True, alpha=0.3)
+
+    # Right: Other-confidence probes
+    ax2 = axes[1]
+    o2o_r2 = [other_results[l]["o2o_r2"] for l in layers]
+    o2s_r2 = [other_results[l]["o2s_r2"] for l in layers]
+    other_shuffled = [other_results[l]["shuffled_r2"] for l in layers]
+
+    ax2.plot(layers, o2o_r2, 'o-', label='O→O (Other-conf activations)', linewidth=2, color='C2')
+    ax2.plot(layers, o2s_r2, 's-', label='O→S (Self-conf transfer)', linewidth=2, color='C3')
+    ax2.plot(layers, other_shuffled, 'x--', label='Shuffled baseline', linewidth=1, alpha=0.5, color='gray')
+    ax2.axhline(y=0, color='black', linestyle='-', alpha=0.3)
+    ax2.set_xlabel('Layer Index')
+    ax2.set_title('Other-Confidence Probes')
+    ax2.legend(loc='best')
+    ax2.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"Other-confidence probe comparison saved to {output_path}")
+
+
 # ============================================================================
 # ANALYSIS AND VISUALIZATION
 # ============================================================================
@@ -1733,6 +2036,9 @@ def analyze_behavioral_introspection(
             team_score = self_correct + sum(delegated) * 0.5
             result["team_score"] = float(team_score)
             result["team_score_normalized"] = float(team_score / len(delegated)) if delegated else 0.0
+
+    # Include stated_confidence for downstream analysis (e.g., calibration split)
+    result["stated_confidence"] = stated_confidence.tolist()
 
     return result
 
@@ -2227,7 +2533,8 @@ def run_single_experiment(
     tokenizer,
     num_layers: int,
     metric: str,
-    batch_size: int
+    batch_size: int,
+    collect_other_activations: bool = False
 ):
     """Run a single introspection experiment for one dataset/task combination."""
     global DATASET_NAME, META_TASK, NUM_QUESTIONS, METRIC
@@ -2335,7 +2642,8 @@ def run_single_experiment(
         print("=" * 60)
 
         other_data = collect_other_confidence(
-            questions, model, tokenizer, num_layers, use_chat_template, batch_size=batch_size
+            questions, model, tokenizer, num_layers, use_chat_template,
+            batch_size=batch_size, collect_activations=collect_other_activations
         )
 
         # Add example prompts for other-confidence
@@ -2480,6 +2788,74 @@ def run_single_experiment(
             test_idx
         )
 
+    # Other-confidence probe analysis (only when activations were collected)
+    other_probe_results = None
+    if META_TASK == "confidence" and other_data is not None and "other_activations" in other_data:
+        print("\n" + "=" * 60)
+        print("Running OTHER-CONFIDENCE PROBE ANALYSIS...")
+        print("(Testing whether other-confidence activations encode model's uncertainty)")
+        print("=" * 60)
+
+        other_probe_results = run_other_confidence_probe_analysis(
+            other_data["other_activations"],
+            data["meta_activations"],
+            direct_target,
+            train_idx,
+            test_idx
+        )
+
+        # Print summary
+        best_o2o_layer = max(other_probe_results.keys(), key=lambda l: other_probe_results[l]["o2o_r2"])
+        best_o2s_layer = max(other_probe_results.keys(), key=lambda l: other_probe_results[l]["o2s_r2"])
+        print(f"\nOther-Confidence Probe Results:")
+        print(f"  Best O→O: Layer {best_o2o_layer} (R²={other_probe_results[best_o2o_layer]['o2o_r2']:.3f})")
+        print(f"  Best O→S: Layer {best_o2s_layer} (R²={other_probe_results[best_o2s_layer]['o2s_r2']:.3f})")
+        print(f"  (Compare to D→D and D→M from main analysis)")
+
+    # Calibration split analysis: split test set into calibrated vs miscalibrated trials
+    # Uses stated_confidence from behavioral analysis
+    stated_confidence = np.array(behavioral["stated_confidence"])
+    test_confidence = stated_confidence[test_idx]
+    test_entropy = direct_target[test_idx]
+
+    calibrated_mask, miscalibrated_mask = compute_calibration_masks(test_confidence, test_entropy)
+
+    print(f"\nCalibration split (median):")
+    print(f"  Calibrated: {calibrated_mask.sum()} trials (high conf + low ent, or low conf + high ent)")
+    print(f"  Miscalibrated: {miscalibrated_mask.sum()} trials (high conf + high ent, or low conf + low ent)")
+
+    # Split probe results by calibration
+    calibration_split = split_results_by_calibration(
+        results, direct_target[test_idx], calibrated_mask, miscalibrated_mask
+    )
+
+    # Print summary of calibration split
+    if calibrated_mask.sum() > 1 and miscalibrated_mask.sum() > 1:
+        best_cal_d2m_layer = max(calibration_split.keys(),
+                                  key=lambda l: calibration_split[l]["calibrated"]["d2m_r2"])
+        best_mis_d2m_layer = max(calibration_split.keys(),
+                                  key=lambda l: calibration_split[l]["miscalibrated"]["d2m_r2"])
+        print(f"\n  Calibrated best D→M: Layer {best_cal_d2m_layer} "
+              f"(R²={calibration_split[best_cal_d2m_layer]['calibrated']['d2m_r2']:.3f})")
+        print(f"  Miscalibrated best D→M: Layer {best_mis_d2m_layer} "
+              f"(R²={calibration_split[best_mis_d2m_layer]['miscalibrated']['d2m_r2']:.3f})")
+
+    # Plot calibration split
+    plot_calibration_split(
+        calibration_split,
+        n_calibrated=int(calibrated_mask.sum()),
+        n_miscalibrated=int(miscalibrated_mask.sum()),
+        output_path=f"{metric_prefix}_calibration_split.png"
+    )
+
+    # Plot other-confidence probe comparison (only when available)
+    if other_probe_results is not None:
+        plot_other_confidence_probe_comparison(
+            results,
+            other_probe_results,
+            output_path=f"{metric_prefix}_other_confidence_probe.png"
+        )
+
     # Save results (metric-specific filename)
     results_to_save = {
         "config": {
@@ -2514,7 +2890,28 @@ def run_single_experiment(
             for layer_idx, layer_results in mc_answer_results.items()
         },
         "model_predicted_answer": model_predicted_answer.tolist(),
+        "calibration_split": {
+            str(layer_idx): layer_data
+            for layer_idx, layer_data in calibration_split.items()
+        },
+        "calibration_counts": {
+            "calibrated": int(calibrated_mask.sum()),
+            "miscalibrated": int(miscalibrated_mask.sum()),
+        },
     }
+
+    # Add other-confidence probe results if available
+    if other_probe_results is not None:
+        results_to_save["other_confidence_probe"] = {
+            str(layer_idx): {
+                "o2o_r2": layer_data["o2o_r2"],
+                "o2o_pearson": layer_data["o2o_pearson"],
+                "o2s_r2": layer_data["o2s_r2"],
+                "o2s_pearson": layer_data["o2s_pearson"],
+                "shuffled_r2": layer_data["shuffled_r2"],
+            }
+            for layer_idx, layer_data in other_probe_results.items()
+        }
 
     # Properly serialize nested dicts
     for layer_idx in results_to_save["probe_results"]:
@@ -2551,6 +2948,8 @@ def main():
                         help=f"Load model in 4-bit quantization (default: {LOAD_IN_4BIT})")
     parser.add_argument("--load-in-8bit", action="store_true", default=LOAD_IN_8BIT,
                         help=f"Load model in 8-bit quantization (default: {LOAD_IN_8BIT})")
+    parser.add_argument("--collect-other-activations", action="store_true", default=False,
+                        help="Collect activations during other-confidence task for probe analysis")
     args = parser.parse_args()
 
     print(f"Device: {DEVICE}")
@@ -2578,7 +2977,8 @@ def main():
                 tokenizer=tokenizer,
                 num_layers=num_layers,
                 metric=args.metric,
-                batch_size=args.batch_size
+                batch_size=args.batch_size,
+                collect_other_activations=args.collect_other_activations
             )
 
     print("\n" + "=" * 80)

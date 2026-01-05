@@ -115,6 +115,9 @@ The core introspection test. For each question:
 ```bash
 python run_introspection_experiment.py --metric logit_gap
 python run_introspection_experiment.py --metric entropy
+
+# Optionally collect activations during other-confidence task for probe analysis
+python run_introspection_experiment.py --metric entropy --collect-other-activations
 ```
 
 **Meta-judgment task types:** Configure `META_TASK` at the top of the script:
@@ -130,12 +133,28 @@ The delegate task asks "Would you answer this yourself or delegate to a teammate
 - `*_meta_activations.npz` - Meta prompt activations
 - `*_{metric}_results.json` - Probe performance by layer for selected metric
 - `*_{metric}_directions.npz` - Probe directions for steering
-- `*_results.png` - Visualization
+- `*_{metric}_results.png` - Main visualization
+- `*_{metric}_calibration_split.png` - Calibrated vs miscalibrated trials (side-by-side)
+- `*_{metric}_other_confidence_probe.png` - Other-confidence probe comparison (if `--collect-other-activations`)
 
 **Key metrics:**
 - `direct_to_direct R²` - Can we predict the metric from direct activations? (sanity check)
 - `direct_to_meta R²` - Does the probe transfer to meta activations? (introspection test)
 - `behavioral correlation` - Does stated confidence correlate with actual uncertainty?
+
+**Calibration split analysis:** Test set trials are automatically split into:
+- **Calibrated trials:** Model's meta-judgment matches actual uncertainty (high confidence + low entropy, or low confidence + high entropy)
+- **Miscalibrated trials:** Model's meta-judgment opposes actual uncertainty (high confidence + high entropy, or low confidence + low entropy)
+
+Uses median split for balanced groups. D2D and D2M R² are computed separately for each subset to see whether transfer is driven by one subset. If D2M transfer only works on calibrated trials, the model might only be introspecting when behaviorally correct. If D2M is equal/stronger on miscalibrated trials, the probe picks up entropy regardless of behavioral accuracy.
+
+**Other-confidence probe analysis (`--collect-other-activations`):** When enabled, the script also:
+1. Collects activations during the other-confidence control task (asking model to estimate human difficulty instead of its own confidence)
+2. Trains probes: other-confidence activations → direct entropy
+3. Tests transfer: O→O (sanity check) and O→S (other-confidence → self-confidence meta)
+4. Generates side-by-side comparison figure
+
+This tests whether "other-confidence" activations also encode the model's own uncertainty. If O→S transfer is strong, it suggests the model encodes uncertainty similarly across different meta-judgment tasks, not specifically during self-confidence introspection. Adds ~2x inference time for the confidence task.
 
 ### 1.4 Contrastive Direction Computation
 
