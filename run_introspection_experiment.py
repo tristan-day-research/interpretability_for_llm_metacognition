@@ -31,11 +31,12 @@ from pathlib import Path
 from tqdm import tqdm
 from typing import List, Dict, Tuple, Optional
 import matplotlib.pyplot as plt
-from sklearn.linear_model import Ridge
+from sklearn.linear_model import Ridge, LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import r2_score, mean_absolute_error
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
+from scipy.stats import pearsonr, spearmanr
 import os
 from dotenv import load_dotenv
 import random
@@ -1148,11 +1149,17 @@ def train_probe(
     train_mae = mean_absolute_error(y_train, y_pred_train)
     test_mae = mean_absolute_error(y_test, y_pred_test)
 
+    # NEW: Correlations
+    test_pearson, _ = pearsonr(y_test, y_pred_test)
+    test_spearman, _ = spearmanr(y_test, y_pred_test)
+
     result = {
         "train_r2": train_r2,
         "test_r2": test_r2,
         "train_mae": train_mae,
         "test_mae": test_mae,
+        "test_pearson": test_pearson,   # <--- Added
+        "test_spearman": test_spearman, # <--- Added
         "predictions": y_pred_test,
         "pca_variance_explained": pca.explained_variance_ratio_.sum() if USE_PCA else None
     }
@@ -1184,13 +1191,63 @@ def apply_trained_probe(
 
     r2 = r2_score(y, y_pred)
     mae = mean_absolute_error(y, y_pred)
+    
+    # NEW: Correlations - The "Shift Invariant" Check
+    pearson, _ = pearsonr(y, y_pred)
+    spearman, _ = spearmanr(y, y_pred)
 
     return {
         "r2": r2,
         "mae": mae,
+        "pearson": pearson,     # <--- Added
+        "spearman": spearman,   # <--- Added
         "predictions": y_pred
     }
 
+def apply_probe_centering_only(
+    X_meta: np.ndarray,
+    y_test: np.ndarray,
+    direct_scaler: StandardScaler,
+    pca: Optional[PCA],
+    probe: Ridge
+) -> Dict:
+    """
+    Apply probe with Mean-Shift correction but Shared Variance.
+    
+    This fixes the 'Prompt Offset' (intercept) without distorting the 
+    geometry (angles) of the activation space.
+    """
+    # 1. Calculate Meta Mean locally
+    meta_mean = np.mean(X_meta, axis=0)
+    
+    # 2. Center Meta data using its OWN mean
+    X_centered = X_meta - meta_mean
+    
+    # 3. Scale using DIRECT scaler's variance (preserve geometry)
+    # direct_scaler.scale_ contains the std deviation of direct data
+    X_scaled = X_centered / direct_scaler.scale_
+    
+    # 4. Apply Direct PCA and Probe
+    if pca is not None:
+        X_final = pca.transform(X_scaled)
+    else:
+        X_final = X_scaled
+        
+    y_pred = probe.predict(X_final)
+    
+    # Metrics
+    r2 = r2_score(y_test, y_pred)
+    mae = mean_absolute_error(y_test, y_pred)
+    pearson, _ = pearsonr(y_test, y_pred)
+    spearman, _ = spearmanr(y_test, y_pred)
+    
+    return {
+        "r2": r2,
+        "mae": mae,
+        "pearson": pearson,
+        "spearman": spearman,
+        "predictions": y_pred
+    }
 
 def apply_probe_with_separate_scaling(
     X: np.ndarray,
@@ -1200,15 +1257,9 @@ def apply_probe_with_separate_scaling(
 ) -> Dict:
     """
     Apply a pre-trained probe to new data with SEPARATE standardization.
-
-    This fixes the distribution shift problem: instead of applying the original
-    scaler (fit on direct activations) to meta activations, we standardize
-    meta activations using their own statistics. This puts both in a comparable
-    standardized space without extreme z-scores.
-
-    The assumption is that the probe learned "pattern X maps to entropy Y" in
-    standardized space, and both direct and meta activations have similar
-    relative structure even if their absolute statistics differ.
+    
+    Standardizes meta activations using their own statistics (Mean=0, Var=1).
+    This acts as an upper bound / domain adaptation test.
     """
     # Standardize X using its own statistics (not the original scaler)
     new_scaler = StandardScaler()
@@ -1223,13 +1274,18 @@ def apply_probe_with_separate_scaling(
 
     r2 = r2_score(y, y_pred)
     mae = mean_absolute_error(y, y_pred)
+    
+    # NEW: Correlations
+    pearson, _ = pearsonr(y, y_pred)
+    spearman, _ = spearmanr(y, y_pred)
 
     return {
         "r2": r2,
         "mae": mae,
+        "pearson": pearson,     # <--- Added
+        "spearman": spearman,   # <--- Added
         "predictions": y_pred
     }
-
 
 def run_introspection_analysis(
     direct_activations: Dict[int, np.ndarray],
@@ -1240,16 +1296,15 @@ def run_introspection_analysis(
 ) -> Dict:
     """
     Run the full introspection analysis:
-    1. Train probe on direct activations → direct entropy
-    2. Test on held-out direct data (sanity check)
-    3. Test on meta activations → direct entropy (THE KEY TEST)
+    1. Train probe on direct activations -> direct entropy
+    2. Test on held-out direct data (Sanity Check)
+    3. Test on meta activations (The Transfer Tests):
+       a. Shared Scaler (Exact probe application)
+       b. Centered Scaler (Mean-shift correction, Shared geometry)
+       c. Separate Scaler (Domain adaptation / Upper bound)
     4. Shuffled baseline control
 
-    If extract_directions=True, also extracts the entropy probe direction
-    from each layer for use in steering/ablation experiments.
-
-    Returns (results, test_idx, directions) where directions is a dict
-    mapping layer_idx -> direction vector (or None if extract_directions=False).
+    Returns (results, test_idx, directions).
     """
     print(f"\nRunning introspection analysis across {len(direct_activations)} layers...")
 
@@ -1280,30 +1335,43 @@ def run_introspection_analysis(
         y_test = y[test_idx]
 
         # 1. Train on direct, test on direct (sanity check)
+        # Note: train_probe now returns correlations too
         direct_results = train_probe(
             X_direct_train, y_train,
             X_direct_test, y_test,
             return_components=True
         )
 
-        # 2. Apply direct-trained probe to meta activations (THE KEY TEST)
-        # 2a. Original approach: use same scaler (causes distribution shift issues)
-        meta_results_shared_scaler = apply_trained_probe(
+        # 2a. Original approach: Shared Scaler
+        # Tests: Is the uncertainty vector identical in absolute terms?
+        # (Likely to fail R2 due to offset, but should have high Pearson if introspecting)
+        meta_results_shared = apply_trained_probe(
             X_meta_test, y_test,
             direct_results["scaler"],
             direct_results["pca"],
             direct_results["probe"]
         )
 
-        # 2b. Fixed approach: standardize meta activations separately
-        meta_results_separate_scaler = apply_probe_with_separate_scaling(
+        # 2b. NEW: Centering Only
+        # Tests: Is the uncertainty vector structurally identical (same angles) 
+        # but shifted in position (prompt offset)?
+        meta_results_centered = apply_probe_centering_only(
+            X_meta_test, y_test,
+            direct_results["scaler"],
+            direct_results["pca"],
+            direct_results["probe"]
+        )
+
+        # 2c. Fixed approach: Separate Scaler
+        # Tests: Is the uncertainty vector recoverable if we allow warping the space?
+        # (Upper bound / Domain adaptation)
+        meta_results_separate = apply_probe_with_separate_scaling(
             X_meta_test, y_test,
             direct_results["pca"],
             direct_results["probe"]
         )
 
-        # 3. Shuffled baseline: train probe on shuffled labels, test on real labels
-        # This gives the expected R² under the null hypothesis (no real signal)
+        # 3. Shuffled baseline
         shuffled_y_train = y_train.copy()
         np.random.shuffle(shuffled_y_train)
         shuffled_results = train_probe(
@@ -1319,7 +1387,7 @@ def run_introspection_analysis(
             return_components=False
         )
 
-        # 5. Extract entropy direction from direct→direct probe (for steering)
+        # 5. Extract entropy direction (for steering)
         if extract_directions:
             directions[layer_idx] = extract_direction(
                 direct_results["scaler"],
@@ -1327,25 +1395,35 @@ def run_introspection_analysis(
                 direct_results["probe"]
             )
 
+        # Pack results
         results[layer_idx] = {
             "direct_to_direct": {
                 "train_r2": direct_results["train_r2"],
                 "test_r2": direct_results["test_r2"],
-                "train_mae": direct_results["train_mae"],
+                "test_pearson": direct_results["test_pearson"],
                 "test_mae": direct_results["test_mae"],
                 "predictions": direct_results["predictions"].tolist(),
             },
             "direct_to_meta": {
-                # Keep original (shared scaler) for backwards compatibility
-                "r2": meta_results_shared_scaler["r2"],
-                "mae": meta_results_shared_scaler["mae"],
-                "predictions": meta_results_shared_scaler["predictions"].tolist(),
+                # Shared scaler (Original)
+                "r2": meta_results_shared["r2"],
+                "pearson": meta_results_shared["pearson"],
+                "mae": meta_results_shared["mae"],
+                "predictions": meta_results_shared["predictions"].tolist(),
+            },
+            "direct_to_meta_centered": {
+                # Centered scaler (New "Goldilocks" metric)
+                "r2": meta_results_centered["r2"],
+                "pearson": meta_results_centered["pearson"],
+                "mae": meta_results_centered["mae"],
+                "predictions": meta_results_centered["predictions"].tolist(),
             },
             "direct_to_meta_fixed": {
-                # Separate scaling - the corrected transfer test
-                "r2": meta_results_separate_scaler["r2"],
-                "mae": meta_results_separate_scaler["mae"],
-                "predictions": meta_results_separate_scaler["predictions"].tolist(),
+                # Separate scaler (Separate mean+var)
+                "r2": meta_results_separate["r2"],
+                "pearson": meta_results_separate["pearson"],
+                "mae": meta_results_separate["mae"],
+                "predictions": meta_results_separate["predictions"].tolist(),
             },
             "shuffled_baseline": {
                 "r2": shuffled_results["test_r2"],
@@ -1360,6 +1438,84 @@ def run_introspection_analysis(
 
     return results, test_idx, directions
 
+def run_mc_answer_analysis(
+    direct_activations: Dict[int, np.ndarray],
+    meta_activations: Dict[int, np.ndarray],
+    model_predicted_answer: np.ndarray,
+    train_idx: np.ndarray,
+    test_idx: np.ndarray,
+) -> Dict:
+    """
+    Train logistic regression probe to predict model's MC answer choice (A/B/C/D).
+    Computes BOTH Separate (Upper Bound) and Centered (Rigorous) transfer metrics.
+    """
+    print(f"\nRunning MC answer probe analysis across {len(direct_activations)} layers...")
+
+    results = {}
+
+    for layer_idx in tqdm(sorted(direct_activations.keys()), desc="Training MC answer probes"):
+        X_direct = direct_activations[layer_idx]
+        X_meta = meta_activations[layer_idx]
+        y = model_predicted_answer
+
+        # Split
+        X_direct_train = X_direct[train_idx]
+        X_direct_test = X_direct[test_idx]
+        X_meta_test = X_meta[test_idx]
+        y_train = y[train_idx]
+        y_test = y[test_idx]
+
+        # --- Train on Direct ---
+        scaler = StandardScaler()
+        X_direct_train_scaled = scaler.fit_transform(X_direct_train)
+        X_direct_test_scaled = scaler.transform(X_direct_test)
+
+        # PCA
+        pca = PCA(n_components=min(256, X_direct_train_scaled.shape[1], X_direct_train_scaled.shape[0]))
+        X_direct_train_pca = pca.fit_transform(X_direct_train_scaled)
+        X_direct_test_pca = pca.transform(X_direct_test_scaled)
+
+        # Logistic Regression
+        clf = LogisticRegression(max_iter=1000, random_state=42)
+        clf.fit(X_direct_train_pca, y_train)
+
+        # D2D Accuracy
+        d2d_accuracy = clf.score(X_direct_test_pca, y_test)
+        d2d_predictions = clf.predict(X_direct_test_pca)
+
+        # --- Transfer 1: Separate Scaling (Upper Bound) ---
+        meta_scaler_sep = StandardScaler()
+        X_meta_test_sep = meta_scaler_sep.fit_transform(X_meta_test)
+        X_meta_test_sep_pca = pca.transform(X_meta_test_sep)
+        d2m_separate_accuracy = clf.score(X_meta_test_sep_pca, y_test)
+
+        # --- Transfer 2: Centered Scaling (Rigorous) ---
+        # 1. Center Meta using its own mean
+        meta_mean = np.mean(X_meta_test, axis=0)
+        X_meta_centered = X_meta_test - meta_mean
+        # 2. Scale using DIRECT variance (scaler.scale_)
+        # This ensures we aren't "re-fitting" the geometry
+        X_meta_test_cen = X_meta_centered / scaler.scale_
+        X_meta_test_cen_pca = pca.transform(X_meta_test_cen)
+        d2m_centered_accuracy = clf.score(X_meta_test_cen_pca, y_test)
+
+        # Shuffled baseline
+        shuffled_y_train = y_train.copy()
+        np.random.shuffle(shuffled_y_train)
+        clf_shuffled = LogisticRegression(max_iter=1000, random_state=42)
+        clf_shuffled.fit(X_direct_train_pca, shuffled_y_train)
+        shuffled_accuracy = clf_shuffled.score(X_direct_test_pca, y_test)
+
+        results[layer_idx] = {
+            "d2d_accuracy": d2d_accuracy,
+            "d2m_accuracy": d2m_separate_accuracy, # Legacy key
+            "d2m_separate_accuracy": d2m_separate_accuracy,
+            "d2m_centered_accuracy": d2m_centered_accuracy,
+            "shuffled_accuracy": shuffled_accuracy,
+            "d2d_predictions": d2d_predictions.tolist(),
+        }
+
+    return results
 
 # ============================================================================
 # ANALYSIS AND VISUALIZATION
@@ -1838,124 +1994,153 @@ def print_results(results: Dict, behavioral: Dict, other_confidence_analysis: Di
         else:
             print("  → No evidence for introspection (negative transfer)")
 
-
 def plot_results(
     results: Dict,
     behavioral: Dict,
     direct_entropies: np.ndarray,
     test_idx: np.ndarray,
-    output_path: str = "introspection_results.png"
+    output_path: str = "introspection_results.png",
+    mc_answer_results: Optional[Dict] = None
 ):
-    """Create visualization of results."""
+    """
+    Create visualization of results with 4 panels.
+    
+    Panel 1: Separate Scaler (Upper Bound).
+    Panel 2: Centered Scaler (Rigorous).
+    Panel 3: Pearson Correlation.
+    Panel 4: NORMALIZED Timecourse (Min-Max). Compares signal emergence timing.
+    """
     layers = sorted(results.keys())
 
-    d2d_r2 = [results[l]["direct_to_direct"]["test_r2"] for l in layers]
-    d2m_r2_orig = [results[l]["direct_to_meta"]["r2"] for l in layers]
-    d2m_r2_fixed = [results[l]["direct_to_meta_fixed"]["r2"] for l in layers]
-    m2m_r2 = [results[l]["meta_to_meta"]["test_r2"] for l in layers]
-    shuffled_r2 = [results[l]["shuffled_baseline"]["r2"] for l in layers]
+    # --- Data Extraction ---
+    # 1. Entropy Metrics
+    ent_d2d_r2 = [results[l]["direct_to_direct"]["test_r2"] for l in layers]
+    ent_d2m_separate_r2 = [results[l]["direct_to_meta_fixed"]["r2"] for l in layers] 
+    ent_d2m_centered_r2 = [results[l]["direct_to_meta_centered"]["r2"] for l in layers] 
+    ent_shuffled_r2 = [results[l]["shuffled_baseline"]["r2"] for l in layers]
+    ent_pearson = [results[l]["direct_to_meta"]["pearson"] for l in layers]
+    ent_d2d_pearson = [results[l]["direct_to_direct"]["test_pearson"] for l in layers]
+    
+    # 2. MC Answer Metrics
+    has_mc = mc_answer_results is not None
+    if has_mc:
+        mc_d2d_acc = [mc_answer_results[l]["d2d_accuracy"] for l in layers]
+        # Robust check for new keys
+        first_layer = mc_answer_results[layers[0]]
+        if "d2m_centered_accuracy" in first_layer:
+            mc_d2m_sep_acc = [mc_answer_results[l]["d2m_separate_accuracy"] for l in layers]
+            mc_d2m_cen_acc = [mc_answer_results[l]["d2m_centered_accuracy"] for l in layers]
+        else:
+            mc_d2m_sep_acc = [mc_answer_results[l]["d2m_accuracy"] for l in layers]
+            mc_d2m_cen_acc = mc_d2m_sep_acc
+        
+        mc_chance = 0.25
+    
+    # --- Plotting ---
+    fig, axes = plt.subplots(2, 2, figsize=(18, 12))
+    plt.suptitle(f'Introspection Analysis: {get_model_short_name(BASE_MODEL_NAME)} on {DATASET_NAME} ({META_TASK})', fontsize=16)
 
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    # Helper: Min-Max Normalization
+    def normalize(data):
+        arr = np.array(data)
+        return (arr - arr.min()) / (arr.max() - arr.min() + 1e-9)
 
-    # Plot 1: All R² curves (using fixed D→M)
+    # Helper for common entropy baselines
+    def plot_ent_baselines(ax, metric_d2d, metric_shuffled=None):
+        ax.plot(layers, metric_d2d, 'o-', label='Entropy D→D', color='tab:blue', linewidth=2)
+        if metric_shuffled is not None:
+            ax.plot(layers, metric_shuffled, ':', label='Entropy Shuffled', color='gray', alpha=0.6)
+
+    # Helper for MC lines
+    def plot_mc_lines(ax, d2d, d2m, label_suffix=""):
+        if has_mc:
+            ax.plot(layers, d2d, 'd-', label='MC Ans D→D', color='tab:green', linewidth=2)
+            ax.plot(layers, d2m, 'd-', label=f'MC Ans D→M {label_suffix}', color='tab:red', linewidth=2)
+            ax.axhline(y=mc_chance, color='tab:green', linestyle=':', alpha=0.4, label='Chance')
+
+    # =========================================================================
+    # Panel 1: Method 1 - Separate Scaler (Upper Bound)
+    # =========================================================================
     ax1 = axes[0, 0]
-    ax1.plot(layers, d2d_r2, 'o-', label='Direct→Direct', linewidth=2)
-    ax1.plot(layers, d2m_r2_fixed, 's-', label='Direct→Meta (transfer test)', linewidth=2)
-    ax1.plot(layers, m2m_r2, '^-', label='Meta→Meta', linewidth=2, alpha=0.7)
-    ax1.plot(layers, shuffled_r2, 'x--', label='Shuffled baseline', linewidth=1, alpha=0.5, color='gray')
+    plot_ent_baselines(ax1, ent_d2d_r2, ent_shuffled_r2)
+    ax1.plot(layers, ent_d2m_separate_r2, 's-', label='Entropy D→M Sep', color='tab:orange', linewidth=2)
+    if has_mc:
+        plot_mc_lines(ax1, mc_d2d_acc, mc_d2m_sep_acc, "Sep ")
+
     ax1.axhline(y=0, color='black', linestyle='-', alpha=0.3)
     ax1.set_xlabel('Layer Index')
-    ax1.set_ylabel('R² Score')
-    ax1.set_title('Probe Performance: Can We Predict Direct Entropy?')
-    ax1.legend(loc='best')
+    ax1.set_ylabel('$R^2$ / Accuracy')
+    ax1.set_title('Method 1: Separate Scaler (Upper Bound)\n(Absolute Performance)')
+    ax1.legend(loc='lower center', bbox_to_anchor=(0.5, 0.0), ncol=2, fontsize=8, framealpha=0.95)
     ax1.grid(True, alpha=0.3)
+    bottom_y = min(min(ent_shuffled_r2), min(ent_d2m_separate_r2), -0.1)
+    ax1.set_ylim(bottom=max(-2.0, bottom_y - 0.1), top=1.05)
 
-    # Plot 2: Comparison of original vs fixed D→M scaling
+
+    # =========================================================================
+    # Panel 2: Method 2 - Centered Scaler (Rigorous)
+    # =========================================================================
     ax2 = axes[0, 1]
-    ax2.plot(layers, d2m_r2_fixed, 's-', label='D→M (separate scaling)', linewidth=2, color='C1')
-    ax2.plot(layers, d2m_r2_orig, 'x--', label='D→M (shared scaling - broken)', linewidth=1.5, alpha=0.7, color='C3')
-    ax2.plot(layers, d2d_r2, 'o-', label='D→D (reference)', linewidth=1.5, alpha=0.5, color='C0')
+    plot_ent_baselines(ax2, ent_d2d_r2, ent_shuffled_r2)
+    ax2.plot(layers, ent_d2m_centered_r2, 's-', label='Entropy D→M Cen', color='tab:orange', linewidth=2)
+    if has_mc:
+        plot_mc_lines(ax2, mc_d2d_acc, mc_d2m_cen_acc, "Cen ")
+
     ax2.axhline(y=0, color='black', linestyle='-', alpha=0.3)
     ax2.set_xlabel('Layer Index')
-    ax2.set_ylabel('R² Score')
-    ax2.set_title('Scaling Fix: Shared vs Separate Standardization')
-    ax2.legend(loc='best')
+    ax2.set_ylabel('$R^2$ / Accuracy')
+    ax2.set_title('Method 2: Centered Scaler (Rigorous)\n(Geometry Check)')
+    ax2.legend(loc='lower center', bbox_to_anchor=(0.5, 0.0), ncol=2, fontsize=8, framealpha=0.95)
     ax2.grid(True, alpha=0.3)
+    ax2.set_ylim(bottom=max(-2.0, bottom_y - 0.1), top=1.05)
 
-    # Plot 3: Prediction scatter for best D→D layer
+
+    # =========================================================================
+    # Panel 3: Method 3 - Pearson Correlation
+    # =========================================================================
     ax3 = axes[1, 0]
-    best_d2d_layer = max(layers, key=lambda l: results[l]["direct_to_direct"]["test_r2"])
-    best_d2d_r2 = results[best_d2d_layer]["direct_to_direct"]["test_r2"]
-    predictions = np.array(results[best_d2d_layer]["direct_to_direct"]["predictions"])
-    actual_entropy = direct_entropies[test_idx]
+    ax3.plot(layers, ent_d2d_pearson, 'o-', label='Entropy D→D Pearson', color='tab:blue', linewidth=2)
+    ax3.plot(layers, ent_pearson, 's-', label='Entropy D→M Pearson', color='tab:orange', linewidth=2)
 
-    ax3.scatter(actual_entropy, predictions, alpha=0.5, s=30, color='C0')
-    # Reference line: y=x (perfect prediction)
-    min_val = min(actual_entropy.min(), predictions.min())
-    max_val = max(actual_entropy.max(), predictions.max())
-    ax3.plot([min_val, max_val], [min_val, max_val], 'r--', label='y=x (perfect)', alpha=0.7)
-    ax3.set_xlabel('Actual Entropy')
-    ax3.set_ylabel('Predicted Entropy')
-    ax3.set_title(f'Prediction Quality (Layer {best_d2d_layer}, R²={best_d2d_r2:.3f})')
-    ax3.legend(loc='best')
+    ax3.axhline(y=0, color='black', linestyle='-', alpha=0.3)
+    ax3.set_xlabel('Layer Index')
+    ax3.set_ylabel('Correlation (r)')
+    ax3.set_title('Method 3: Pearson Correlation\n(Shift Invariant Signal Check)')
+    ax3.legend(loc='lower right', fontsize=9)
     ax3.grid(True, alpha=0.3)
+    ax3.set_ylim(-0.1, 1.05)
 
-    # Plot 4: Summary text
+
+    # =========================================================================
+    # Panel 4: Normalized Timecourse (Min-Max Scaled)
+    # This visualizes the "Pointer vs Direct Access" timing
+    # =========================================================================
     ax4 = axes[1, 1]
-    ax4.axis('off')
+    
+    # 1. Entropy D->D (Baseline Logic)
+    ax4.plot(layers, normalize(ent_d2d_r2), 'o-', label='Entropy D→D', color='tab:blue', alpha=0.4)
+    
+    # 2. Entropy D->M Separate (Introspection Signal)
+    ax4.plot(layers, normalize(ent_d2m_separate_r2), 's-', label='Entropy D→M', color='tab:orange', linewidth=2.5)
+    
+    if has_mc:
+        # 3. MC Answer D->D (Baseline Fact)
+        ax4.plot(layers, normalize(mc_d2d_acc), 'd-', label='MC Ans D→D', color='tab:green', alpha=0.4)
+        
+        # 4. MC Answer D->M (Transferred Fact)
+        ax4.plot(layers, normalize(mc_d2m_sep_acc), 'd-', label='MC Ans D→M', color='tab:red', linewidth=2.5)
 
-    best_d2d_layer = max(layers, key=lambda l: results[l]['direct_to_direct']['test_r2'])
-    best_d2m_layer = max(layers, key=lambda l: results[l]['direct_to_meta_fixed']['r2'])
-    best_m2m_layer = max(layers, key=lambda l: results[l]['meta_to_meta']['test_r2'])
+    ax4.set_xlabel('Layer Index')
+    ax4.set_ylabel('Normalized Score (0-1)')
+    ax4.set_title('Signal Emergence (Min-Max Scaled)\nCheck: Do Red/Orange lines rise together?')
+    ax4.legend(loc='best', fontsize=9)
+    ax4.grid(True, alpha=0.3)
+    ax4.set_ylim(-0.05, 1.05)
 
-    transfer_ratio = max(d2m_r2_fixed) / max(max(d2d_r2), 0.001)
-
-    # Format correlation strings with subsample-to-m CIs
-    full_p = behavioral.get('full_correlation_pvalue')
-    full_p_str = f"p={full_p:.1e}" if full_p is not None and not np.isnan(full_p) else ""
-
-    full_ci = behavioral.get('full_correlation_ci95', [None, None])
-    full_ci_std = behavioral.get('full_correlation_ci_std', 0)
-    test_ci = behavioral.get('test_correlation_ci95', [None, None])
-    test_ci_std = behavioral.get('test_correlation_ci_std', 0)
-
-    n_full = behavioral.get('n_samples_full', '?')
-    n_test = behavioral.get('n_samples_test', '?')
-
-    full_ci_str = f"±{full_ci_std:.3f} [{full_ci[0]:.3f}, {full_ci[1]:.3f}]" if full_ci[0] is not None else ""
-    test_ci_str = f"±{test_ci_std:.3f} [{test_ci[0]:.3f}, {test_ci[1]:.3f}]" if test_ci[0] is not None else ""
-
-    summary_text = f"""
-INTROSPECTION EXPERIMENT SUMMARY
-
-Behavioral Correlation (stated conf vs entropy):
-  Full (n={n_full}):  r = {behavioral['full_correlation']:.4f} {full_ci_str}  {full_p_str}
-  Test (n={n_test}):  r = {behavioral['test_correlation']:.4f} {test_ci_str}
-  (Negative = model reports low confidence when uncertain)
-
-Best Layer Results:
-  Direct→Direct: Layer {best_d2d_layer}  (R² = {max(d2d_r2):.4f})
-  Direct→Meta:   Layer {best_d2m_layer}  (R² = {max(d2m_r2_fixed):.4f})
-  Meta→Meta:     Layer {best_m2m_layer}  (R² = {max(m2m_r2):.4f})
-
-Transfer Ratio (D→M / D→D): {transfer_ratio:.1%}
-
-Interpretation:
-  Transfer ratio near 100% = entropy probe transfers well
-  to meta-judgment activations (evidence for introspection).
-
-  Transfer ratio near 0% = meta activations encode entropy
-  differently than direct activations (no transfer).
-"""
-    ax4.text(0.05, 0.95, summary_text, transform=ax4.transAxes, fontsize=10,
-             verticalalignment='top', fontfamily='monospace',
-             bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
-
-    plt.tight_layout()
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     print(f"\nPlot saved to {output_path}")
-
-
+                    
 def get_mc_prefix() -> str:
     """Get prefix for mc_entropy_probe.py output files."""
     model_short = get_model_short_name(BASE_MODEL_NAME)
@@ -2236,6 +2421,37 @@ def run_single_experiment(
         )
         print(f"Saved {METRIC} directions to {directions_prefix}_directions.npz")
 
+    # Compute model's predicted MC answer (argmax over A/B/C/D probabilities)
+    # This is the answer the model would give on the direct task
+    direct_probs_array = np.array([p if p else [0.25, 0.25, 0.25, 0.25] for p in data["direct_probs"]])
+    model_predicted_answer = np.argmax(direct_probs_array, axis=1)  # 0=A, 1=B, 2=C, 3=D
+    print(f"\nModel predicted answers: {len(model_predicted_answer)} questions")
+    print(f"  Answer distribution: A={np.sum(model_predicted_answer==0)}, B={np.sum(model_predicted_answer==1)}, "
+          f"C={np.sum(model_predicted_answer==2)}, D={np.sum(model_predicted_answer==3)}")
+
+    # Get train/test indices from introspection analysis (need to recompute since run_introspection_analysis
+    # returns test_idx but not train_idx)
+    n_questions = len(direct_target)
+    indices = np.arange(n_questions)
+    train_idx, _ = train_test_split(indices, train_size=TRAIN_SPLIT, random_state=SEED)
+
+    # Run MC answer probe analysis
+    mc_answer_results = run_mc_answer_analysis(
+        data["direct_activations"],
+        data["meta_activations"],
+        model_predicted_answer,
+        train_idx,
+        test_idx
+    )
+
+    # Print MC answer probe summary
+    best_mc_d2d_layer = max(mc_answer_results.keys(), key=lambda l: mc_answer_results[l]["d2d_accuracy"])
+    best_mc_d2m_layer = max(mc_answer_results.keys(), key=lambda l: mc_answer_results[l]["d2m_accuracy"])
+    print(f"\nMC Answer Probe Results:")
+    print(f"  Best D→D: Layer {best_mc_d2d_layer} (acc={mc_answer_results[best_mc_d2d_layer]['d2d_accuracy']:.3f})")
+    print(f"  Best D→M: Layer {best_mc_d2m_layer} (acc={mc_answer_results[best_mc_d2m_layer]['d2m_accuracy']:.3f})")
+    print(f"  Chance: 0.250 (4-class)")
+
     # Behavioral analysis (uses selected METRIC for correlation with stated confidence)
     behavioral = analyze_behavioral_introspection(
         data["meta_responses"],
@@ -2289,6 +2505,15 @@ def run_single_experiment(
         "behavioral": behavioral,
         "other_confidence_analysis": other_confidence_analysis,  # None if not confidence task
         "test_indices": test_idx.tolist(),
+        "mc_answer_probe": {
+            str(layer_idx): {
+                "d2d_accuracy": layer_results["d2d_accuracy"],
+                "d2m_accuracy": layer_results["d2m_accuracy"],
+                "shuffled_accuracy": layer_results["shuffled_accuracy"],
+            }
+            for layer_idx, layer_results in mc_answer_results.items()
+        },
+        "model_predicted_answer": model_predicted_answer.tolist(),
     }
 
     # Properly serialize nested dicts
@@ -2309,7 +2534,8 @@ def run_single_experiment(
     plot_results(
         results, behavioral,
         direct_target, test_idx,
-        output_path=f"{metric_prefix}_results.png"
+        output_path=f"{metric_prefix}_results.png",
+        mc_answer_results=mc_answer_results
     )
 
     print(f"\n✓ Introspection experiment complete! ({dataset_name} / {meta_task} / {metric})")
