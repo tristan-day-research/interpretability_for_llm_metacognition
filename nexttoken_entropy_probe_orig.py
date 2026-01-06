@@ -55,7 +55,6 @@ DATASET_PATH = None  # Auto-detect based on model name, or set explicitly
 MAX_PROMPT_LENGTH = 500
 SEED = 42
 CHECKPOINT_INTERVAL = 200  # Save checkpoint every N prompts
-BATCH_SIZE = 8  # Batch size for extraction
 
 # Quantization (for large models like 70B)
 LOAD_IN_4BIT = False
@@ -195,43 +194,42 @@ def extract_all_activations_and_metrics(
     """
     Extract activations from all layers for all prompts and compute uncertainty metrics.
     Supports resuming from checkpoint.
-    Batched execution for speed.
 
     Returns:
         activations: Dict mapping layer_idx -> array of shape (num_samples, hidden_dim)
         metrics: Dict mapping metric_name -> array of shape (num_samples,)
         predicted_tokens: array of shape (num_samples,) with argmax token IDs
     """
-    # Ensure pad token is set for batching
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-
     # Check for existing checkpoint
     if checkpoint_path.exists():
         print(f"Loading checkpoint from {checkpoint_path}...")
         checkpoint = np.load(checkpoint_path, allow_pickle=True)
 
+        # Handle both old and new checkpoint formats
         if "processed_count" in checkpoint.files:
             start_idx = int(checkpoint["processed_count"])
             all_layer_activations = {
                 int(k.split("_")[1]): list(checkpoint[k])
                 for k in checkpoint.files if k.startswith("layer_")
             }
+            # Load all metrics from checkpoint
             all_metrics = {metric: [] for metric in AVAILABLE_METRICS}
             for metric in AVAILABLE_METRICS:
                 if metric in checkpoint.files:
                     all_metrics[metric] = list(checkpoint[metric])
                 elif metric == "entropy" and "entropies" in checkpoint.files:
+                    # Backward compatibility
                     all_metrics["entropy"] = list(checkpoint["entropies"])
-            
+            # Load predicted tokens from checkpoint
             if "predicted_tokens" in checkpoint.files:
                 all_predicted_tokens = list(checkpoint["predicted_tokens"])
             else:
                 all_predicted_tokens = []
             print(f"Resuming from prompt {start_idx}/{len(dataset)}")
         else:
+            # Old checkpoint format without processed_count - start fresh
             print("Warning: Old checkpoint format detected, starting fresh extraction")
-            checkpoint_path.unlink()
+            checkpoint_path.unlink()  # Remove incompatible checkpoint
             start_idx = 0
             all_layer_activations = {i: [] for i in range(num_layers)}
             all_metrics = {metric: [] for metric in AVAILABLE_METRICS}
@@ -242,7 +240,7 @@ def extract_all_activations_and_metrics(
         all_metrics = {metric: [] for metric in AVAILABLE_METRICS}
         all_predicted_tokens = []
 
-    print(f"Extracting activations from {num_layers} layers (Batch Size: {BATCH_SIZE})...")
+    print(f"Extracting activations from {num_layers} layers...")
     model.eval()
 
     # Set up hooks for activation extraction
@@ -255,8 +253,7 @@ def extract_all_activations_and_metrics(
                 hidden_states = output[0]
             else:
                 hidden_states = output
-            # Store batch of last token activations: (B, Hidden)
-            activations_cache[layer_idx] = hidden_states[:, -1, :].detach()
+            activations_cache[layer_idx] = hidden_states.detach()
         return hook
 
     # Get layers
@@ -271,20 +268,15 @@ def extract_all_activations_and_metrics(
         handle = layer.register_forward_hook(make_hook(i))
         hooks.append(handle)
 
-    total_samples = len(dataset)
-    
     try:
-        # Process in batches
-        for i in tqdm(range(start_idx, total_samples, BATCH_SIZE)):
-            batch_items = dataset[i : min(i + BATCH_SIZE, total_samples)]
-            texts = [item["text"] for item in batch_items]
-            current_batch_size = len(texts)
+        for i in tqdm(range(start_idx, len(dataset))):
+            item = dataset[i]
+            text = item["text"]
 
-            # Tokenize batch
+            # Tokenize
             inputs = tokenizer(
-                texts,
+                text,
                 return_tensors="pt",
-                padding=True,
                 truncation=True,
                 max_length=MAX_PROMPT_LENGTH
             )
@@ -294,51 +286,42 @@ def extract_all_activations_and_metrics(
             # Clear cache
             activations_cache.clear()
 
-            # Forward pass
+            # Forward pass to get logits AND activations
             with torch.no_grad():
                 outputs = model(input_ids=input_ids, attention_mask=attention_mask, use_cache=False)
 
-            # Process outputs for each item in batch
-            # Get logits at last position for each sample
-            # Attention mask handling: we need the position of the last real token
-            # But the script assumes next-token prediction on the provided text, so last position is correct
-            # if padding is on the right. Standard tokenizers pad right by default or config.
-            # Assuming standard behavior: last column is the prediction for next token.
-            
-            # Extract metrics for the batch
-            batch_logits = outputs.logits[:, -1, :].cpu().numpy()
-            batch_probs = torch.softmax(outputs.logits[:, -1, :], dim=-1).cpu().numpy()
-            
-            for b in range(current_batch_size):
-                final_logits = batch_logits[b]
-                probs = batch_probs[b]
-                
-                # Metrics
-                item_metrics = compute_uncertainty_metrics(probs, final_logits)
-                predicted_token = int(np.argmax(final_logits))
-                
-                all_predicted_tokens.append(predicted_token)
-                for metric_name, metric_value in item_metrics.items():
-                    all_metrics[metric_name].append(metric_value)
+            # Get logits at last position (for next-token prediction)
+            final_logits = outputs.logits[0, -1, :].cpu().numpy()
+            probs = torch.softmax(outputs.logits[0, -1, :], dim=-1).cpu().numpy()
 
-            # Extract activations
-            for layer_idx, batch_acts in activations_cache.items():
-                # batch_acts is (B, Hidden) on GPU (from hook)
-                # Move to CPU and extend list
-                all_layer_activations[layer_idx].extend(batch_acts.cpu().numpy())
+            # Compute all uncertainty metrics
+            item_metrics = compute_uncertainty_metrics(probs, final_logits)
+
+            # Store predicted token (argmax)
+            predicted_token = int(np.argmax(final_logits))
+            all_predicted_tokens.append(predicted_token)
+
+            # Store metrics
+            for metric_name, metric_value in item_metrics.items():
+                all_metrics[metric_name].append(metric_value)
+
+            # Extract activations at last token
+            for layer_idx, acts in activations_cache.items():
+                all_layer_activations[layer_idx].append(acts[0, -1, :].cpu().numpy())
 
             # Checkpoint
-            if (i + current_batch_size) % CHECKPOINT_INTERVAL < BATCH_SIZE and (i + current_batch_size) < total_samples:
+            if (i + 1) % CHECKPOINT_INTERVAL == 0:
                 save_checkpoint_with_metrics(
-                    all_layer_activations, all_metrics, all_predicted_tokens, i + current_batch_size, checkpoint_path
+                    all_layer_activations, all_metrics, all_predicted_tokens, i + 1, checkpoint_path
                 )
 
             # Clear memory
             del inputs, input_ids, attention_mask, outputs
-            if (i + 1) % 50 == 0:
+            if (i + 1) % 100 == 0:
                 torch.cuda.empty_cache()
 
     finally:
+        # Remove hooks
         for handle in hooks:
             handle.remove()
 
@@ -359,7 +342,9 @@ def extract_all_activations_and_metrics(
     for metric_name, values in metrics.items():
         print(f"  {metric_name}: range=[{values.min():.3f}, {values.max():.3f}], "
               f"mean={values.mean():.3f}, std={values.std():.3f}")
-    
+    print(f"\nPredicted tokens: {len(predicted_tokens)} unique tokens: {len(np.unique(predicted_tokens))}")
+
+    # Clean up checkpoint
     if checkpoint_path.exists():
         checkpoint_path.unlink()
         print("Removed checkpoint file")
@@ -379,6 +364,7 @@ def save_checkpoint_with_metrics(
         f"layer_{i}": np.array(acts)
         for i, acts in layer_activations.items()
     }
+    # Save all metrics
     for metric_name, values in metrics.items():
         save_dict[metric_name] = np.array(values)
     save_dict["predicted_tokens"] = np.array(predicted_tokens)
@@ -399,36 +385,18 @@ def _train_probe_for_layer(
     pca_components: int,
     alpha: float
 ) -> Tuple[int, Dict, np.ndarray]:
-    """Train probe for a single layer with bootstrap.
-    
-    OPTIMIZATION: If use_pca is True, we fit PCA once on the full dataset 
-    and transform X before the bootstrap loop. This avoids re-fitting PCA 100 times.
+    """Train probe for a single layer with bootstrap. Used for parallel execution.
+
+    Returns (layer_idx, results_dict, direction_vector).
+    Direction is extracted from a final probe trained on full training set.
     """
-    rng = np.random.RandomState(seed + layer_idx)
+    rng = np.random.RandomState(seed + layer_idx)  # Reproducible per-layer
     n = len(targets)
-    
-    # Pre-compute PCA to speed up bootstrap
-    X_for_bootstrap = X
-    bootstrap_use_pca_flag = use_pca
-    
-    # Store the pre-computed PCA object if we use it, to reconstruct direction later (optional)
-    # But for direction, we use the original slow method (fit on final split) to ensure exact
-    # compatibility with core.LinearProbe's get_direction().
-    if use_pca:
-        scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(X)
-        n_comp = min(pca_components, X.shape[0], X.shape[1])
-        pca_pre = PCA(n_components=n_comp)
-        X_pca = pca_pre.fit_transform(X_scaled)
-        
-        # Use projected data for the repeated stats calculation
-        X_for_bootstrap = X_pca
-        bootstrap_use_pca_flag = False
 
     test_r2s = []
     test_maes = []
 
-    # Bootstrap for confidence intervals (fast loop)
+    # Bootstrap for confidence intervals
     for _ in range(n_bootstrap):
         # Random split
         indices = np.arange(n)
@@ -437,15 +405,15 @@ def _train_probe_for_layer(
         train_idx = indices[:split_idx]
         test_idx = indices[split_idx:]
 
-        X_train = X_for_bootstrap[train_idx]
-        X_test = X_for_bootstrap[test_idx]
+        X_train = X[train_idx]
+        X_test = X[test_idx]
         y_train = targets[train_idx]
         y_test = targets[test_idx]
 
-        # Train probe (using pre-computed features if optimization was applied)
+        # Train probe
         probe = LinearProbe(
             alpha=alpha,
-            use_pca=bootstrap_use_pca_flag,
+            use_pca=use_pca,
             pca_components=pca_components
         )
         probe.fit(X_train, y_train)
@@ -456,9 +424,7 @@ def _train_probe_for_layer(
         test_maes.append(test_eval["mae"])
 
     # Train final probe on canonical split for direction extraction
-    # We use the ORIGINAL method (slow, potentially with internal PCA) here 
-    # to ensure the direction vector is in the correct space and format expected by downstream tools.
-    rng_final = np.random.RandomState(seed)
+    rng_final = np.random.RandomState(seed)  # Same seed across layers for consistent split
     indices = np.arange(n)
     rng_final.shuffle(indices)
     split_idx = int(n * train_split)
@@ -466,11 +432,11 @@ def _train_probe_for_layer(
 
     final_probe = LinearProbe(
         alpha=alpha,
-        use_pca=use_pca, # Use original setting
+        use_pca=use_pca,
         pca_components=pca_components
     )
     final_probe.fit(X[train_idx], targets[train_idx])
-    direction = final_probe.get_direction()
+    direction = final_probe.get_direction()  # Always in original space
 
     return layer_idx, {
         "test_r2_mean": float(np.mean(test_r2s)),
@@ -481,9 +447,23 @@ def _train_probe_for_layer(
 
 
 def top_k_accuracy(proba: np.ndarray, y_true: np.ndarray, k: int, classes: np.ndarray) -> float:
-    """Compute top-k accuracy."""
+    """
+    Compute top-k accuracy: fraction of samples where true label is in top-k predictions.
+
+    Args:
+        proba: Predicted probabilities, shape (n_samples, n_classes)
+        y_true: True labels, shape (n_samples,)
+        k: Number of top predictions to consider
+        classes: Array of class labels corresponding to proba columns
+
+    Returns:
+        Top-k accuracy as float
+    """
+    # Get top-k class indices for each sample
     top_k_indices = np.argsort(proba, axis=1)[:, -k:]
     top_k_classes = classes[top_k_indices]
+
+    # Check if true class is in top-k
     correct = np.any(top_k_classes == y_true[:, None], axis=1)
     return float(np.mean(correct))
 
@@ -498,11 +478,14 @@ def _train_token_probe_for_layer(
     pca_components: int,
 ) -> Tuple[int, Dict]:
     """
-    Train logistic regression probe to predict next token.
+    Train logistic regression probe to predict next token from layer activations.
+
+    Uses top-k accuracy since vocabulary is very large (~128k tokens).
     """
     rng = np.random.RandomState(seed)
     n = len(tokens)
 
+    # Split
     indices = np.arange(n)
     rng.shuffle(indices)
     split_idx = int(n * train_split)
@@ -512,27 +495,30 @@ def _train_token_probe_for_layer(
     X_train, X_test = X[train_idx], X[test_idx]
     y_train, y_test = tokens[train_idx], tokens[test_idx]
 
-    # OPTIMIZATION: Manual Scaling and PCA to ensure efficiency
-    # (Previously this was standard, but explicit is good)
+    # Scale
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
 
+    # PCA
     if use_pca:
         n_components = min(pca_components, X_train_scaled.shape[1], X_train_scaled.shape[0])
-        # Use randomized solver for speed on large dims
-        pca = PCA(n_components=n_components, svd_solver='randomized', random_state=seed)
+        pca = PCA(n_components=n_components)
         X_train_pca = pca.fit_transform(X_train_scaled)
         X_test_pca = pca.transform(X_test_scaled)
     else:
         X_train_pca = X_train_scaled
         X_test_pca = X_test_scaled
 
-    # Train classifier (Limit n_jobs to 1 as we are already parallel across layers)
-    clf = LogisticRegression(max_iter=1000, random_state=seed, solver='lbfgs', n_jobs=1)
+    # Train classifier (multinomial logistic regression)
+    # lbfgs solver handles multinomial automatically when n_classes > 2
+    clf = LogisticRegression(max_iter=1000, random_state=seed, solver='lbfgs')
     clf.fit(X_train_pca, y_train)
 
+    # Evaluate top-1 accuracy
     top1_acc = clf.score(X_test_pca, y_test)
+
+    # Top-k accuracy
     proba = clf.predict_proba(X_test_pca)
     top5_acc = top_k_accuracy(proba, y_test, k=5, classes=clf.classes_)
     top10_acc = top_k_accuracy(proba, y_test, k=10, classes=clf.classes_)
@@ -552,12 +538,28 @@ def run_token_prediction_probe(
     use_pca: bool = True,
     pca_components: int = PCA_COMPONENTS,
 ) -> Dict[int, Dict]:
-    """Train logistic regression probes to predict next token."""
+    """
+    Train logistic regression probes to predict next token from each layer's activations.
+
+    This is a high-dimensional classification (vocab_size classes), so we report
+    top-k accuracy (k=1, 5, 10) rather than just exact match.
+
+    Args:
+        activations: Dict mapping layer_idx -> activations array
+        predicted_tokens: Array of predicted token IDs (argmax of logits)
+        n_jobs: Number of parallel jobs (-1 for all CPUs)
+        use_pca: Whether to apply PCA before training
+        pca_components: Number of PCA components
+
+    Returns:
+        Dict mapping layer_idx -> {top1_accuracy, top5_accuracy, top10_accuracy, n_classes}
+    """
     layer_indices = sorted(activations.keys())
     n_unique = len(np.unique(predicted_tokens))
     print(f"\nTraining token prediction probes across {len(activations)} layers...")
     print(f"  Target: {len(predicted_tokens)} tokens, {n_unique} unique classes")
 
+    # Run in parallel across layers
     results_list = Parallel(n_jobs=n_jobs, verbose=10)(
         delayed(_train_token_probe_for_layer)(
             layer_idx,
@@ -570,7 +572,10 @@ def run_token_prediction_probe(
         )
         for layer_idx in layer_indices
     )
-    return {layer_idx: result for layer_idx, result in results_list}
+
+    # Convert to dict
+    results = {layer_idx: result for layer_idx, result in results_list}
+    return results
 
 
 def run_all_probes(
@@ -581,7 +586,12 @@ def run_all_probes(
     pca_components: int = PCA_COMPONENTS,
     alpha: float = PROBE_ALPHA
 ) -> Tuple[Dict[str, Dict[int, Dict]], Dict[str, Dict[int, np.ndarray]]]:
-    """Train probes for all layers and all metrics with bootstrap."""
+    """Train probes for all layers and all metrics with bootstrap confidence intervals.
+
+    Returns:
+        all_results: Dict mapping metric_name -> {layer_idx -> result dict with R², MAE stats}
+        all_directions: Dict mapping metric_name -> {layer_idx -> normalized direction vector}
+    """
     pca_str = f"PCA={pca_components}" if use_pca else "no PCA"
     layer_indices = sorted(activations.keys())
 
@@ -592,6 +602,7 @@ def run_all_probes(
         print(f"\nTraining probes for metric '{metric_name}' across {len(activations)} layers "
               f"({N_BOOTSTRAP} bootstrap iterations, {pca_str})...")
 
+        # Run in parallel across layers
         results_list = Parallel(n_jobs=n_jobs, verbose=10)(
             delayed(_train_probe_for_layer)(
                 layer_idx,
@@ -607,6 +618,7 @@ def run_all_probes(
             for layer_idx in layer_indices
         )
 
+        # Convert list of (layer_idx, result, direction) tuples to dicts
         all_results[metric_name] = {layer_idx: result for layer_idx, result, _ in results_list}
         all_directions[metric_name] = {layer_idx: direction for layer_idx, _, direction in results_list}
 
@@ -629,11 +641,14 @@ def print_results(all_results: Dict[str, Dict[int, Dict]]):
             print(f"{layer_idx:<8} {r2_str:<20} {mae_str:<20}")
 
         print("="*80)
+
+        # Find best layer
         best_layer = max(results.keys(), key=lambda l: results[l]["test_r2_mean"])
         best_r2 = results[best_layer]["test_r2_mean"]
         best_std = results[best_layer]["test_r2_std"]
         print(f"Best layer: {best_layer} (Test R² = {best_r2:.4f} ± {best_std:.4f})")
 
+    # Print comparison across metrics
     print("\n" + "="*80)
     print("METRIC COMPARISON (Best R² per metric)")
     print("="*80)
@@ -648,18 +663,26 @@ def plot_results(
     output_path: Path,
     token_results: Optional[Dict[int, Dict]] = None
 ):
-    """Plot R² and token accuracy across layers."""
+    """Plot R² and token accuracy across layers.
+
+    - Single metric: 1 panel with dual y-axes (R² left, Accuracy right)
+    - Multiple metrics: 2 panels (Panel 1: R² lines + token, Panel 2: bar chart)
+    """
     metric_names = list(all_results.keys())
     n_metrics = len(metric_names)
     layers = sorted(all_results[metric_names[0]].keys())
+
+    # Colors for R² metrics (avoid green/orange/red which are used for token)
     colors_r2 = ['tab:blue', 'tab:purple', 'tab:cyan', 'tab:brown', 'tab:pink']
 
+    # Decide layout based on number of metrics
     if n_metrics == 1:
         fig, ax1 = plt.subplots(figsize=(12, 6))
     else:
         fig, axes = plt.subplots(1, 2, figsize=(14, 5))
         ax1 = axes[0]
 
+    # Panel 1: R² lines + token accuracy
     for i, metric_name in enumerate(metric_names):
         results = all_results[metric_name]
         test_r2_mean = [results[l]["test_r2_mean"] for l in layers]
@@ -676,6 +699,7 @@ def plot_results(
     ax1.set_ylabel('R² Score')
     ax1.grid(True, alpha=0.3)
 
+    # Add token accuracy on right axis (if provided)
     if token_results is not None:
         ax2 = ax1.twinx()
         top1 = [token_results[l]["top1_accuracy"] for l in layers]
@@ -687,6 +711,7 @@ def plot_results(
         ax2.plot(layers, top10, '^-', label='Token Top-10', color='tab:red', markersize=4, linewidth=2)
         ax2.set_ylabel('Accuracy')
 
+        # Combined legend
         lines1, labels1 = ax1.get_legend_handles_labels()
         lines2, labels2 = ax2.get_legend_handles_labels()
         ax1.legend(lines1 + lines2, labels1 + labels2, loc='best')
@@ -695,6 +720,7 @@ def plot_results(
 
     ax1.set_title('Probe Performance by Layer')
 
+    # Panel 2: Bar chart (only for multiple metrics)
     if n_metrics > 1:
         ax_bar = axes[1]
         best_r2s = []
@@ -712,6 +738,7 @@ def plot_results(
         ax_bar.set_title('Best R² by Metric')
         ax_bar.grid(True, alpha=0.3, axis='y')
 
+        # Add layer labels on bars
         for bar, layer in zip(bars, best_layers):
             height = bar.get_height()
             ax_bar.annotate(f'L{layer}', xy=(bar.get_x() + bar.get_width() / 2, height),
@@ -726,6 +753,7 @@ def plot_results(
 def plot_entropy_distribution(entropies: np.ndarray, output_path: Path):
     """Plot entropy distribution histogram."""
     _, ax = plt.subplots(figsize=(8, 5))
+
     ax.hist(entropies, bins=30, edgecolor='black', alpha=0.7,
             weights=np.ones(len(entropies)) / len(entropies) * 100)
     ax.axvline(entropies.mean(), color='red', linestyle='--',
@@ -737,6 +765,7 @@ def plot_entropy_distribution(entropies: np.ndarray, output_path: Path):
     ax.set_title(f'Next-Token Entropy Distribution (n={len(entropies)})')
     ax.legend()
     ax.grid(True, alpha=0.3)
+
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     print(f"Entropy distribution plot saved to {output_path}")
@@ -752,22 +781,29 @@ def load_activations(activations_path: Path) -> Tuple[Dict[int, np.ndarray], Dic
         for k in data.files if k.startswith("layer_")
     }
 
+    # Load all available metrics
     metrics = {}
     for metric_name in AVAILABLE_METRICS:
         if metric_name in data.files:
             metrics[metric_name] = data[metric_name]
         elif metric_name == "entropy" and "entropies" in data.files:
+            # Backward compatibility: old files have "entropies" key
             metrics["entropy"] = data["entropies"]
 
     if not metrics:
         raise ValueError(f"No metrics found in {activations_path}. Re-run without --plot-only.")
 
+    # Load predicted tokens if available
     predicted_tokens = data["predicted_tokens"] if "predicted_tokens" in data.files else None
+
     print(f"Loaded {len(activations)} layers, {len(list(metrics.values())[0])} samples, {len(metrics)} metrics")
+    if predicted_tokens is not None:
+        print(f"  Predicted tokens: {len(predicted_tokens)}, unique: {len(np.unique(predicted_tokens))}")
     return activations, metrics, predicted_tokens
 
 
 def get_base_output_prefix() -> str:
+    """Generate base output filename prefix (without metric) for shared files like activations."""
     model_short = get_model_short_name(BASE_MODEL_NAME)
     if MODEL_NAME != BASE_MODEL_NAME:
         adapter_short = get_model_short_name(MODEL_NAME)
@@ -776,6 +812,7 @@ def get_base_output_prefix() -> str:
 
 
 def get_metric_output_prefix(metric: str) -> str:
+    """Generate output filename prefix for metric-specific files."""
     return f"{get_base_output_prefix()}_{metric}"
 
 
@@ -786,11 +823,11 @@ def main():
     parser.add_argument("--metric", type=str, default=METRIC, choices=AVAILABLE_METRICS,
                         help=f"Metric to probe (default: {METRIC})")
     parser.add_argument("--all-metrics", action="store_true",
-                        help="Train probes for all metrics")
+                        help="Train probes for all metrics (takes ~5x longer than single metric)")
     parser.add_argument("--plot-only", action="store_true",
                         help="Skip extraction, load saved activations and retrain probes")
     parser.add_argument("--no-token-probe", action="store_true",
-                        help="Skip token prediction probe")
+                        help="Skip token prediction probe (faster)")
     args = parser.parse_args()
 
     METRIC = args.metric
@@ -801,49 +838,63 @@ def main():
     else:
         print(f"Metric: {METRIC}")
 
-    base_prefix = get_base_output_prefix()
+    # Generate output prefix
+    base_prefix = get_base_output_prefix()  # For shared files (activations)
     print(f"Base output prefix: {base_prefix}")
 
+    # Define shared output paths (metric-agnostic)
     activations_path = Path(f"{base_prefix}_activations.npz")
     entropy_dist_path = Path(f"{base_prefix}_entropy_distribution.png")
     checkpoint_path = Path(f"{base_prefix}_checkpoint.npz")
 
     if args.plot_only:
+        # Load existing activations
         if not activations_path.exists():
-            raise FileNotFoundError(f"Activations file not found: {activations_path}")
+            raise FileNotFoundError(
+                f"Activations file not found: {activations_path}. "
+                "Run without --plot-only first."
+            )
         activations, all_metrics, predicted_tokens = load_activations(activations_path)
     else:
+        # Full run: load model and extract activations
         model, tokenizer, num_layers = load_model_and_tokenizer(
             BASE_MODEL_NAME,
             adapter_path=MODEL_NAME if MODEL_NAME != BASE_MODEL_NAME else None,
             load_in_4bit=LOAD_IN_4BIT,
             load_in_8bit=LOAD_IN_8BIT,
         )
+
+        # Find and load dataset
         dataset_path = find_dataset_path()
         dataset, dataset_config = load_dataset(dataset_path)
 
+        # Extract activations and compute all uncertainty metrics (with checkpointing)
         activations, all_metrics, predicted_tokens = extract_all_activations_and_metrics(
             dataset, model, tokenizer, num_layers, checkpoint_path
         )
 
+        # Save activations, metrics, and predicted tokens (so we can reuse for different metrics)
         print("\nSaving activations and metrics...")
         np.savez_compressed(
             activations_path,
             **{f"layer_{i}": acts for i, acts in activations.items()},
-            **all_metrics,
-            predicted_tokens=predicted_tokens,
+            **all_metrics,  # Save all metrics for reuse
+            predicted_tokens=predicted_tokens,  # Save predicted tokens
         )
         print(f"Saved to {activations_path}")
 
+    # Determine which metrics to train probes for
     if run_all_metrics:
-        metrics_to_train = all_metrics
+        metrics_to_train = all_metrics  # All 5 metrics
     else:
         if METRIC not in all_metrics:
-            raise ValueError(f"Metric '{METRIC}' not found in saved file.")
-        metrics_to_train = {METRIC: all_metrics[METRIC]}
+            raise ValueError(f"Metric '{METRIC}' not found in saved file. Available: {list(all_metrics.keys())}")
+        metrics_to_train = {METRIC: all_metrics[METRIC]}  # Just the selected one
 
+    # Train probes (bootstrap for confidence intervals) and extract directions
     results, directions = run_all_probes(activations, metrics_to_train)
 
+    # Run token prediction probe BEFORE plotting (so we can include it in plots)
     token_results = None
     if not args.no_token_probe and predicted_tokens is not None:
         print("\n" + "=" * 60)
@@ -855,7 +906,9 @@ def main():
             n_jobs=-1, use_pca=USE_PCA, pca_components=PCA_COMPONENTS
         )
 
+        # Save token prediction results
         token_results_path = Path(f"{base_prefix}_token_prediction_results.json")
+
         token_output_data = {
             "config": {
                 "base_model": BASE_MODEL_NAME,
@@ -867,40 +920,81 @@ def main():
             "n_unique_tokens": int(len(np.unique(predicted_tokens))),
             "results": {str(k): v for k, v in token_results.items()}
         }
+
         with open(token_results_path, "w") as f:
             json.dump(token_output_data, f, indent=2)
         print(f"Saved token prediction results to {token_results_path}")
 
+        # Print best layers for token prediction
+        best_top1_layer = max(token_results.keys(), key=lambda l: token_results[l]["top1_accuracy"])
+        best_top5_layer = max(token_results.keys(), key=lambda l: token_results[l]["top5_accuracy"])
+        print(f"\nBest layer for top-1 accuracy: {best_top1_layer} ({token_results[best_top1_layer]['top1_accuracy']:.3f})")
+        print(f"Best layer for top-5 accuracy: {best_top5_layer} ({token_results[best_top5_layer]['top5_accuracy']:.3f})")
+    elif args.no_token_probe:
+        print("\nSkipping token prediction probe (--no-token-probe)")
+    elif predicted_tokens is None:
+        print("\nSkipping token prediction probe (no predicted tokens available - re-extract)")
+
+    # Save results and directions for each metric
     for metric_name in metrics_to_train.keys():
         metric_target = metrics_to_train[metric_name]
         layer_results = results[metric_name]
         layer_directions = directions[metric_name]
-        metric_prefix = get_metric_output_prefix(metric_name)
-        
-        # Save directions
-        np.savez_compressed(
-            f"{metric_prefix}_directions.npz",
-            **{f"layer_{i}": d for i, d in layer_directions.items()},
-            _metadata_model=np.array(BASE_MODEL_NAME),
-            _metadata_metric=np.array(metric_name)
-        )
 
-        # Save results
+        # Generate metric-specific output paths
+        metric_prefix = get_metric_output_prefix(metric_name)
+        metric_directions_path = Path(f"{metric_prefix}_directions.npz")
+        metric_results_path = Path(f"{metric_prefix}_results.json")
+        metric_plot_path = Path(f"{metric_prefix}_results.png")
+
+        # Save directions
+        directions_data = {
+            f"layer_{layer_idx}": direction
+            for layer_idx, direction in layer_directions.items()
+        }
+        directions_data["_metadata_model"] = np.array(BASE_MODEL_NAME)
+        directions_data["_metadata_metric"] = np.array(metric_name)
+        np.savez_compressed(metric_directions_path, **directions_data)
+        print(f"Saved {metric_name} directions to {metric_directions_path}")
+
+        # Save results with metadata
         output_data = {
-            "config": {"metric": metric_name, "train_split": TRAIN_SPLIT, "seed": SEED},
+            "config": {
+                "base_model": BASE_MODEL_NAME,
+                "adapter": MODEL_NAME if MODEL_NAME != BASE_MODEL_NAME else None,
+                "metric": metric_name,
+                "train_split": TRAIN_SPLIT,
+                "probe_alpha": PROBE_ALPHA,
+                "use_pca": USE_PCA,
+                "pca_components": PCA_COMPONENTS,
+                "n_bootstrap": N_BOOTSTRAP,
+                "seed": SEED,
+            },
             "metric_stats": {
                 "mean": float(metric_target.mean()),
                 "std": float(metric_target.std()),
+                "min": float(metric_target.min()),
+                "max": float(metric_target.max()),
+                "variance": float(metric_target.var()),
+                "median": float(np.median(metric_target)),
+                "iqr": float(np.percentile(metric_target, 75) - np.percentile(metric_target, 25)),
             },
-            "results": {str(k): v for k, v in layer_results.items()}
+            "results": {
+                str(k): v for k, v in layer_results.items()
+            }
         }
-        with open(f"{metric_prefix}_results.json", "w") as f:
+
+        with open(metric_results_path, "w") as f:
             json.dump(output_data, f, indent=2)
+        print(f"Saved {metric_name} results to {metric_results_path}")
 
-        plot_results({metric_name: layer_results}, Path(f"{metric_prefix}_results.png"), token_results=token_results)
+        # Plot results for this metric
+        plot_results({metric_name: layer_results}, metric_plot_path, token_results=token_results)
 
+    # Print results summary (all metrics together)
     print_results(results)
 
+    # Plot entropy distribution (using entropy metric if available)
     if "entropy" in all_metrics:
         plot_entropy_distribution(all_metrics["entropy"], entropy_dist_path)
 

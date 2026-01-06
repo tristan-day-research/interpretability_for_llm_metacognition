@@ -121,6 +121,8 @@ PRETRAINED_PROBE_PATH = "mc_probe_trained.pkl"  # If saved from run_mc_experimen
 #   logit_gap - z(top) - z(second) - logit gap between top two
 #   top_logit - z(top) - mean(z) - centered top logit
 AVAILABLE_METRICS = ["entropy", "top_prob", "margin", "logit_gap", "top_logit"]
+# Metrics where high value = uncertain (vs high value = confident)
+UNCERTAINTY_METRICS = {"entropy"}  # Only entropy; others are confidence metrics
 METRIC = "entropy"  # Which metric to probe (set via --metric flag)
 
 np.random.seed(SEED)
@@ -1619,33 +1621,51 @@ def apply_probes_to_other(
 
 def compute_calibration_masks(
     stated_confidence: np.ndarray,
-    direct_entropy: np.ndarray
+    direct_metric: np.ndarray,
+    metric_is_uncertainty: bool = True
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Compute calibrated/miscalibrated masks using median split.
 
+    Args:
+        stated_confidence: Model's stated confidence (meta-judgment)
+        direct_metric: The uncertainty/confidence metric being probed
+        metric_is_uncertainty: True if high metric = uncertain (entropy),
+                               False if high metric = confident (logit_gap, top_prob, margin, top_logit)
+
     Calibrated: model's meta-judgment matches actual uncertainty
-      - High confidence (above median) AND low entropy (below median)
-      - Low confidence (below median) AND high entropy (above median)
+      - For uncertainty metrics (entropy): high conf + low metric, or low conf + high metric
+      - For confidence metrics (logit_gap): high conf + high metric, or low conf + low metric
 
     Miscalibrated: model's meta-judgment opposes actual uncertainty
-      - High confidence AND high entropy
-      - Low confidence AND low entropy
 
     Returns (calibrated_mask, miscalibrated_mask).
     Uses median split for balanced groups.
     """
     conf_median = np.median(stated_confidence)
-    ent_median = np.median(direct_entropy)
+    metric_median = np.median(direct_metric)
 
-    calibrated = (
-        ((stated_confidence > conf_median) & (direct_entropy < ent_median)) |
-        ((stated_confidence < conf_median) & (direct_entropy > ent_median))
-    )
-    miscalibrated = (
-        ((stated_confidence > conf_median) & (direct_entropy > ent_median)) |
-        ((stated_confidence < conf_median) & (direct_entropy < ent_median))
-    )
+    if metric_is_uncertainty:
+        # High metric = uncertain, so calibrated = (high conf + low metric) or (low conf + high metric)
+        calibrated = (
+            ((stated_confidence > conf_median) & (direct_metric < metric_median)) |
+            ((stated_confidence < conf_median) & (direct_metric > metric_median))
+        )
+        miscalibrated = (
+            ((stated_confidence > conf_median) & (direct_metric > metric_median)) |
+            ((stated_confidence < conf_median) & (direct_metric < metric_median))
+        )
+    else:
+        # High metric = confident, so calibrated = (high conf + high metric) or (low conf + low metric)
+        calibrated = (
+            ((stated_confidence > conf_median) & (direct_metric > metric_median)) |
+            ((stated_confidence < conf_median) & (direct_metric < metric_median))
+        )
+        miscalibrated = (
+            ((stated_confidence > conf_median) & (direct_metric < metric_median)) |
+            ((stated_confidence < conf_median) & (direct_metric > metric_median))
+        )
+
     return calibrated, miscalibrated
 
 
@@ -2802,13 +2822,21 @@ def run_single_experiment(
     # Uses stated_confidence from behavioral analysis
     stated_confidence = np.array(behavioral["stated_confidence"])
     test_confidence = stated_confidence[test_idx]
-    test_entropy = direct_target[test_idx]
+    test_metric = direct_target[test_idx]
 
-    calibrated_mask, miscalibrated_mask = compute_calibration_masks(test_confidence, test_entropy)
+    # Determine if the current metric indicates uncertainty (high = uncertain) or confidence (high = confident)
+    metric_is_uncertainty = METRIC in UNCERTAINTY_METRICS
+    calibrated_mask, miscalibrated_mask = compute_calibration_masks(
+        test_confidence, test_metric, metric_is_uncertainty=metric_is_uncertainty
+    )
 
-    print(f"\nCalibration split (median):")
-    print(f"  Calibrated: {calibrated_mask.sum()} trials (high conf + low ent, or low conf + high ent)")
-    print(f"  Miscalibrated: {miscalibrated_mask.sum()} trials (high conf + high ent, or low conf + low ent)")
+    print(f"\nCalibration split (median) for {METRIC}:")
+    if metric_is_uncertainty:
+        print(f"  Calibrated: {calibrated_mask.sum()} trials (high conf + low {METRIC}, or low conf + high {METRIC})")
+        print(f"  Miscalibrated: {miscalibrated_mask.sum()} trials (high conf + high {METRIC}, or low conf + low {METRIC})")
+    else:
+        print(f"  Calibrated: {calibrated_mask.sum()} trials (high conf + high {METRIC}, or low conf + low {METRIC})")
+        print(f"  Miscalibrated: {miscalibrated_mask.sum()} trials (high conf + low {METRIC}, or low conf + high {METRIC})")
 
     # Split probe results by calibration
     calibration_split = split_results_by_calibration(

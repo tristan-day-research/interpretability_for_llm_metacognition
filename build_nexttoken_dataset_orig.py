@@ -38,12 +38,8 @@ SEED = 42
 # --- OPTIMIZATION CONFIG ---
 # Batch size depends on VRAM. 16-32 is usually safe for 8B models on 24GB VRAM.
 # Decrease if you hit OOM errors.
-BATCH_SIZE = 16
+BATCH_SIZE = 16 
 # ---------------------------
-
-# Quantization (for large models like 70B)
-LOAD_IN_4BIT = False
-LOAD_IN_8BIT = False
 
 OUTPUTS_DIR = Path("outputs")
 OUTPUTS_DIR.mkdir(exist_ok=True)
@@ -346,9 +342,7 @@ def main():
     # Load model
     model, tokenizer, num_layers = load_model_and_tokenizer(
         BASE_MODEL_NAME,
-        adapter_path=MODEL_NAME if MODEL_NAME != BASE_MODEL_NAME else None,
-        load_in_4bit=LOAD_IN_4BIT,
-        load_in_8bit=LOAD_IN_8BIT,
+        adapter_path=MODEL_NAME if MODEL_NAME != BASE_MODEL_NAME else None
     )
     print(f"Model has {num_layers} layers")
 
