@@ -146,7 +146,7 @@ def load_model_and_tokenizer(
             else:
                 quantization_config = BitsAndBytesConfig(
                     load_in_8bit=True,
-                    llm_int8_enable_fp32_cpu_offload=True  # Allow CPU offload if needed
+                    llm_int8_enable_fp32_cpu_offload=True,  # Allow CPU offload if needed
                 )
                 model_kwargs["device_map"] = {"": 0}
                 print("  Using 8-bit quantization (with CPU offload if needed)")

@@ -941,6 +941,52 @@ def bootstrap_accuracy_change_ci(
     return float(ci_low), float(ci_high), float(point_estimate)
 
 
+def bootstrap_correlation_change_ci(
+    baseline_conf: np.ndarray,
+    baseline_metric: np.ndarray,
+    ablated_conf: np.ndarray,
+    ablated_metric: np.ndarray,
+    n_bootstrap: int = 1000,
+    ci_level: float = 0.95,
+    seed: int = 42,
+) -> Tuple[float, float, float]:
+    """
+    Compute bootstrap CI for correlation change.
+
+    Args:
+        baseline_conf: Confidence values for baseline condition
+        baseline_metric: Metric values for baseline condition
+        ablated_conf: Confidence values for ablated condition
+        ablated_metric: Metric values for ablated condition
+        n_bootstrap: Number of bootstrap samples
+        ci_level: Confidence level
+        seed: Random seed
+
+    Returns:
+        (ci_low, ci_high, point_estimate): CI bounds and point estimate
+    """
+    rng = np.random.default_rng(seed)
+    n = len(baseline_conf)
+
+    baseline_corr = compute_correlation(baseline_conf, baseline_metric)
+    ablated_corr = compute_correlation(ablated_conf, ablated_metric)
+    point_estimate = ablated_corr - baseline_corr
+
+    boot_changes = []
+    for _ in range(n_bootstrap):
+        idx = rng.choice(n, size=n, replace=True)
+        boot_base_corr = compute_correlation(baseline_conf[idx], baseline_metric[idx])
+        boot_abl_corr = compute_correlation(ablated_conf[idx], ablated_metric[idx])
+        boot_changes.append(boot_abl_corr - boot_base_corr)
+
+    boot_changes = np.array(boot_changes)
+    alpha = 1 - ci_level
+    ci_low = np.percentile(boot_changes, 100 * alpha / 2)
+    ci_high = np.percentile(boot_changes, 100 * (1 - alpha / 2))
+
+    return float(ci_low), float(ci_high), float(point_estimate)
+
+
 def format_meta_prompt(question: Dict, tokenizer, use_chat_template: bool) -> str:
     """Format a meta/confidence question."""
     prompt, _ = format_stated_confidence_prompt(question, tokenizer, use_chat_template)
@@ -1353,8 +1399,13 @@ def run_experiment_parallel(
                     ds_scaler, ds_pca, ds_probe = all_probes[measure_layer]
 
                     if probe_type == "mc_classification":
-                        ds_base = accuracy_score(y_test, apply_mc_probe_d2m_fixed(ds_captured_test[0], ds_pca, ds_probe))
-                        ds_primary = accuracy_score(y_test, apply_mc_probe_d2m_fixed(ds_captured_test[1], ds_pca, ds_probe))
+                        # Get per-question predictions for bootstrap CIs
+                        ds_base_preds = apply_mc_probe_d2m_fixed(ds_captured_test[0], ds_pca, ds_probe)
+                        ds_primary_preds = apply_mc_probe_d2m_fixed(ds_captured_test[1], ds_pca, ds_probe)
+                        ds_base_correct = (ds_base_preds == y_test).astype(int)
+                        ds_primary_correct = (ds_primary_preds == y_test).astype(int)
+                        ds_base = float(np.mean(ds_base_correct))
+                        ds_primary = float(np.mean(ds_primary_correct))
                         ds_ctrls = []
                         for c_idx in range(num_controls):
                             c_score = accuracy_score(y_test, apply_mc_probe_d2m_fixed(ds_captured_test[c_idx + 2], ds_pca, ds_probe))
@@ -1367,10 +1418,16 @@ def run_experiment_parallel(
                             "primary_acc_change": float(ds_primary - ds_base),
                             "control_accs": ds_ctrls,
                             "control_acc_changes": [a - ds_base for a in ds_ctrls],
+                            # Per-question data for bootstrap CIs
+                            "baseline_correct": ds_base_correct.tolist(),
+                            "primary_correct": ds_primary_correct.tolist(),
                         }
                     else:
-                        ds_base_r2 = r2_score(y_test, apply_probe_d2m_fixed(ds_captured_test[0], ds_pca, ds_probe))
-                        ds_primary_r2 = r2_score(y_test, apply_probe_d2m_fixed(ds_captured_test[1], ds_pca, ds_probe))
+                        # Get per-question predictions for bootstrap CIs
+                        ds_base_preds = apply_probe_d2m_fixed(ds_captured_test[0], ds_pca, ds_probe)
+                        ds_primary_preds = apply_probe_d2m_fixed(ds_captured_test[1], ds_pca, ds_probe)
+                        ds_base_r2 = r2_score(y_test, ds_base_preds)
+                        ds_primary_r2 = r2_score(y_test, ds_primary_preds)
                         ds_ctrl_r2s = []
                         for c_idx in range(num_controls):
                             c_r2 = r2_score(y_test, apply_probe_d2m_fixed(ds_captured_test[c_idx + 2], ds_pca, ds_probe))
@@ -1383,6 +1440,10 @@ def run_experiment_parallel(
                             "primary_r2_change": float(ds_primary_r2 - ds_base_r2),
                             "control_r2s": ds_ctrl_r2s,
                             "control_r2_changes": [r - ds_base_r2 for r in ds_ctrl_r2s],
+                            # Per-question data for bootstrap CIs
+                            "y_test": y_test.tolist(),
+                            "baseline_preds": ds_base_preds.tolist(),
+                            "primary_preds": ds_primary_preds.tolist(),
                         }
 
             # Store captured baseline and primary for diagnostics
@@ -1846,6 +1907,15 @@ def analyze_d2m_transfer_ablation_results(
                 p_value_rank = (n_extreme + 1) / (len(control_changes) + 1)
                 z_score = (primary_change - layer_null_mean) / layer_null_std if layer_null_std > 0 else 0.0
 
+                # Bootstrap CI over questions (sampling uncertainty)
+                boot_ci_low, boot_ci_high = None, None
+                if "baseline_correct" in ds and "primary_correct" in ds:
+                    baseline_correct = np.array(ds["baseline_correct"])
+                    primary_correct = np.array(ds["primary_correct"])
+                    boot_ci_low, boot_ci_high, _ = bootstrap_accuracy_change_ci(
+                        baseline_correct, primary_correct, n_bootstrap=1000, seed=42 + layer_idx
+                    )
+
                 raw_p_values_ds.append((layer_idx, p_value_rank))
                 analysis[effects_key][layer_idx] = {
                     "measure_layer": ds["measure_layer"],
@@ -1863,6 +1933,8 @@ def analyze_d2m_transfer_ablation_results(
                     "p_value_rank": p_value_rank,
                     "z_score": z_score,
                     "null_ci_95": (float(layer_null_ci[0]), float(layer_null_ci[1])),
+                    # Bootstrap CI (sampling uncertainty over questions)
+                    "bootstrap_ci_95": (boot_ci_low, boot_ci_high) if boot_ci_low is not None else None,
                 }
             else:
                 primary_change = ds["primary_r2_change"]
@@ -1870,6 +1942,16 @@ def analyze_d2m_transfer_ablation_results(
                 n_extreme = np.sum(np.abs(control_changes) >= primary_abs)
                 p_value_rank = (n_extreme + 1) / (len(control_changes) + 1)
                 z_score = (primary_change - layer_null_mean) / layer_null_std if layer_null_std > 0 else 0.0
+
+                # Bootstrap CI over questions (sampling uncertainty)
+                boot_ci_low, boot_ci_high = None, None
+                if "y_test" in ds and "baseline_preds" in ds and "primary_preds" in ds:
+                    y_test_ds = np.array(ds["y_test"])
+                    base_preds = np.array(ds["baseline_preds"])
+                    primary_preds = np.array(ds["primary_preds"])
+                    boot_ci_low, boot_ci_high, _ = bootstrap_metric_change_ci(
+                        y_test_ds, base_preds, primary_preds, r2_score, n_bootstrap=1000, seed=42 + layer_idx
+                    )
 
                 raw_p_values_ds.append((layer_idx, p_value_rank))
                 analysis[effects_key][layer_idx] = {
@@ -1888,6 +1970,8 @@ def analyze_d2m_transfer_ablation_results(
                     "p_value_rank": p_value_rank,
                     "z_score": z_score,
                     "null_ci_95": (float(layer_null_ci[0]), float(layer_null_ci[1])),
+                    # Bootstrap CI (sampling uncertainty over questions)
+                    "bootstrap_ci_95": (boot_ci_low, boot_ci_high) if boot_ci_low is not None else None,
                 }
 
         # FDR correction for this downstream type
@@ -1970,12 +2054,19 @@ def analyze_behavioral_ablation_results(layer_results: Dict, layers: List[int], 
         control_corr_changes = [c - baseline_corr for c in control_corrs]
         all_control_corr_changes.extend(control_corr_changes)
 
+        # Bootstrap CI over questions (sampling uncertainty)
+        boot_ci_low, boot_ci_high, _ = bootstrap_correlation_change_ci(
+            baseline_conf, baseline_metric, ablated_conf, ablated_metric,
+            n_bootstrap=1000, seed=42 + layer_idx
+        )
+
         layer_data[layer_idx] = {
             "baseline_corr": baseline_corr,
             "ablated_corr": ablated_corr,
             "primary_corr_change": primary_corr_change,
             "control_corrs": control_corrs,
             "control_corr_changes": control_corr_changes,
+            "bootstrap_ci_95": (boot_ci_low, boot_ci_high),
         }
 
     pooled_null = np.array(all_control_corr_changes)
@@ -2016,6 +2107,8 @@ def analyze_behavioral_ablation_results(layer_results: Dict, layers: List[int], 
             "z_score": z_score,
             # CI from control distribution - "what range do random directions produce?"
             "null_ci_95": (float(null_ci_low), float(null_ci_high)),
+            # Bootstrap CI - sampling uncertainty for the primary effect
+            "bootstrap_ci_95": ld["bootstrap_ci_95"],
         }
 
     # FDR correction
@@ -2197,8 +2290,9 @@ def plot_d2m_heatmap(
     2. Z-score heatmap
     3. Behavioral correlation change (simultaneous all-layer if available, else per-layer)
     """
-    ablation_layers = matrix_analysis["ablation_layers"]
-    measurement_layers = matrix_analysis["measurement_layers"]
+    # Sort layers by index for interpretable axes
+    ablation_layers = sorted(matrix_analysis["ablation_layers"])
+    measurement_layers = sorted(matrix_analysis["measurement_layers"])
 
     # Detect probe type and set key name
     probe_type = matrix_analysis.get("probe_type", "entropy_regression")
@@ -2331,7 +2425,8 @@ def plot_results(
 ):
     """Generate plots for the experiment results."""
 
-    layers = behavioral_analysis["layers"]
+    # Sort layers by index for interpretable x-axis
+    layers = sorted(behavioral_analysis["layers"])
 
     # Detect probe type from d2m_analysis if available
     if d2m_analysis is not None:
@@ -2364,11 +2459,20 @@ def plot_results(
     ctrl_means = [behavioral_analysis["effects"][l]["control_change_mean"] for l in layers]
     ctrl_stds = [behavioral_analysis["effects"][l]["control_change_std"] for l in layers]
 
+    # Bootstrap CIs (sampling uncertainty) for behavioral
+    boot_ci_lows = [behavioral_analysis["effects"][l]["bootstrap_ci_95"][0] for l in layers]
+    boot_ci_highs = [behavioral_analysis["effects"][l]["bootstrap_ci_95"][1] for l in layers]
+
     # Draw shaded region for null distribution 95% CI
     ax1.axhspan(null_ci[0], null_ci[1], alpha=0.2, color='gray', label='Null 95% CI (pooled)')
 
-    # MC changes as points (no error bars - the null CI is the reference)
-    ax1.scatter(x, mc_changes, s=80, color='tab:red', zorder=5, label='MC Answer Ablation')
+    # MC changes as points with bootstrap CI error bars
+    mc_changes_arr = np.array(mc_changes)
+    boot_err_low = mc_changes_arr - np.array(boot_ci_lows)
+    boot_err_high = np.array(boot_ci_highs) - mc_changes_arr
+    ax1.errorbar(x, mc_changes, yerr=[boot_err_low, boot_err_high],
+                 fmt='o', markersize=8, color='tab:red', capsize=4, capthick=1.5,
+                 elinewidth=1.5, zorder=5, label='MC Ablation ± 95% CI')
     ax1.bar(x, ctrl_means, width, yerr=ctrl_stds, label='Control (mean±std)',
             color='tab:gray', alpha=0.4, capsize=3)
 
@@ -2441,12 +2545,32 @@ def plot_results(
             ctrl_ci_lows_n1 = [ds_n1[l]["control_change_ci_95"][0] for l in layers_n1]
             ctrl_ci_highs_n1 = [ds_n1[l]["control_change_ci_95"][1] for l in layers_n1]
 
+            # Bootstrap CIs (sampling uncertainty) - if available
+            boot_ci_lows_n1 = []
+            boot_ci_highs_n1 = []
+            has_boot_ci_n1 = False
+            for l in layers_n1:
+                boot_ci = ds_n1[l].get("bootstrap_ci_95")
+                if boot_ci and boot_ci[0] is not None:
+                    boot_ci_lows_n1.append(boot_ci[0])
+                    boot_ci_highs_n1.append(boot_ci[1])
+                    has_boot_ci_n1 = True
+                else:
+                    boot_ci_lows_n1.append(np.nan)
+                    boot_ci_highs_n1.append(np.nan)
+
             # Draw control CI as shaded region
             ax3.fill_between(x_n1, ctrl_ci_lows_n1, ctrl_ci_highs_n1, alpha=0.3, color='gray', label='Ctrl 95% CI')
             ax3.axhline(y=0, color='black', linestyle='-', linewidth=0.5)
 
-            # Main effect as points (no error bars - significance shown by being outside shaded region)
-            ax3.scatter(x_n1, mc_changes_n1, s=80, color='tab:purple', zorder=5, label='Main effect')
+            # Main effect with bootstrap CI error bars
+            if has_boot_ci_n1:
+                ax3.errorbar(x_n1, mc_changes_n1, yerr=[np.array(mc_changes_n1) - np.array(boot_ci_lows_n1),
+                                                        np.array(boot_ci_highs_n1) - np.array(mc_changes_n1)],
+                             fmt='o', color='tab:purple', markersize=8, capsize=4, capthick=2,
+                             label='Main effect ± Boot CI', zorder=5)
+            else:
+                ax3.scatter(x_n1, mc_changes_n1, s=80, color='tab:purple', zorder=5, label='Main effect')
 
             ax3.set_xlabel('Ablation Layer')
             ax3.set_ylabel(f'{metric_label} Change')
@@ -2472,12 +2596,32 @@ def plot_results(
             ctrl_ci_lows_final = [ds_final[l]["control_change_ci_95"][0] for l in layers_final]
             ctrl_ci_highs_final = [ds_final[l]["control_change_ci_95"][1] for l in layers_final]
 
+            # Bootstrap CIs (sampling uncertainty) - if available
+            boot_ci_lows_final = []
+            boot_ci_highs_final = []
+            has_boot_ci_final = False
+            for l in layers_final:
+                boot_ci = ds_final[l].get("bootstrap_ci_95")
+                if boot_ci and boot_ci[0] is not None:
+                    boot_ci_lows_final.append(boot_ci[0])
+                    boot_ci_highs_final.append(boot_ci[1])
+                    has_boot_ci_final = True
+                else:
+                    boot_ci_lows_final.append(np.nan)
+                    boot_ci_highs_final.append(np.nan)
+
             # Draw control CI as shaded region
             ax4.fill_between(x_final, ctrl_ci_lows_final, ctrl_ci_highs_final, alpha=0.3, color='gray', label='Ctrl 95% CI')
             ax4.axhline(y=0, color='black', linestyle='-', linewidth=0.5)
 
-            # Main effect as points (no error bars - significance shown by being outside shaded region)
-            ax4.scatter(x_final, mc_changes_final, s=80, color='tab:cyan', zorder=5, label='Main effect')
+            # Main effect with bootstrap CI error bars
+            if has_boot_ci_final:
+                ax4.errorbar(x_final, mc_changes_final, yerr=[np.array(mc_changes_final) - np.array(boot_ci_lows_final),
+                                                              np.array(boot_ci_highs_final) - np.array(mc_changes_final)],
+                             fmt='o', color='tab:cyan', markersize=8, capsize=4, capthick=2,
+                             label='Main effect ± Boot CI', zorder=5)
+            else:
+                ax4.scatter(x_final, mc_changes_final, s=80, color='tab:cyan', zorder=5, label='Main effect')
 
             ax4.set_xlabel('Ablation Layer')
             ax4.set_ylabel(f'{metric_label} Change')

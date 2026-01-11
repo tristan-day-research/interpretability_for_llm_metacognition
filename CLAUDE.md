@@ -1,5 +1,8 @@
 # Guidelines for Claude
 
+## Do not run tests locally
+This repo runs on a remote machine. Never run `python run_mc_answer_ablation.py` or similar test commands locally - it won't work and wastes time. Rely on static analysis instead.
+
 ## Complete the task on the first attempt
 When asked to do something, implement the full solution - don't wait for follow-up requests to add obvious components. If measuring an effect, include statistical significance. If adding a mode, make it replace the old behavior rather than running both.
 
@@ -14,6 +17,9 @@ Think about what someone would need to actually use your output. Raw numbers wit
 
 ## When unsure, ask - don't guess conservatively
 If the scope is unclear, ask for clarification rather than implementing a minimal version and waiting for complaints. One good implementation is better than three rounds of fixes.
+
+## Solve problems, don't explain them away
+When something isn't working, focus on finding and fixing the root cause. Don't suggest workarounds, don't explain why the problem "isn't really a bug", and don't recommend avoiding the broken feature. Keep investigating until you understand what's actually wrong and fix it.
 
 ## Before declaring any refactoring complete
 

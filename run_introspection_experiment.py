@@ -2608,9 +2608,6 @@ def run_single_experiment(
         print("  Options: 1/2 (alternating mapping per trial)")
         print("")
 
-    # Check for existing MC data first
-    mc_data = try_load_mc_data()
-
     # Load questions
     print(f"\nLoading {NUM_QUESTIONS} questions from {dataset_name}...")
     questions = load_questions(dataset_name, NUM_QUESTIONS)
@@ -2623,12 +2620,9 @@ def run_single_experiment(
     use_chat_template = has_chat_template(tokenizer) and not is_base_model(BASE_MODEL_NAME)
     print(f"Using chat template: {use_chat_template}")
 
-    # Collect paired data (direct and meta for each question)
-    # If we have existing MC data, only run meta prompts
-    if mc_data is not None:
-        data = collect_meta_only(questions, model, tokenizer, num_layers, use_chat_template, mc_data, batch_size=batch_size)
-    else:
-        data = collect_paired_data(questions, model, tokenizer, num_layers, use_chat_template, batch_size=batch_size)
+    # Always collect fresh paired data (direct and meta for each question)
+    # to ensure consistent quantization settings between direct and meta activations
+    data = collect_paired_data(questions, model, tokenizer, num_layers, use_chat_template, batch_size=batch_size)
 
     # Generate output prefixes
     # Base prefix for shared files (activations, paired data)

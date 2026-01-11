@@ -528,8 +528,8 @@ def _train_token_probe_for_layer(
         X_train_pca = X_train_scaled
         X_test_pca = X_test_scaled
 
-    # Train classifier (Limit n_jobs to 1 as we are already parallel across layers)
-    clf = LogisticRegression(max_iter=1000, random_state=seed, solver='lbfgs', n_jobs=1)
+    # Train classifier
+    clf = LogisticRegression(max_iter=1000, random_state=seed, solver='lbfgs')
     clf.fit(X_train_pca, y_train)
 
     top1_acc = clf.score(X_test_pca, y_test)
