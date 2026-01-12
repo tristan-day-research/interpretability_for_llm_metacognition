@@ -69,7 +69,7 @@ class BatchedExtractor:
         input_ids: torch.Tensor,
         attention_mask: torch.Tensor,
         option_token_ids: List[int]
-    ) -> Tuple[List[Dict[int, np.ndarray]], List[np.ndarray], List[float]]:
+    ) -> Tuple[List[Dict[int, np.ndarray]], List[np.ndarray], List[np.ndarray], List[float]]:
         """
         Extract activations AND compute option probabilities in one forward pass.
 
@@ -81,6 +81,7 @@ class BatchedExtractor:
         Returns:
             layer_activations: List of {layer_idx: activation} dicts, one per batch item
             option_probs: List of probability arrays over options, one per batch item
+            option_logits: List of raw logit arrays over options, one per batch item
             entropies: List of entropy values, one per batch item
         """
         self.activations = {}
@@ -100,16 +101,19 @@ class BatchedExtractor:
 
         # Extract logits and compute probabilities for each batch item
         all_probs = []
+        all_logits = []
         all_entropies = []
         for batch_idx in range(batch_size):
             final_logits = outputs.logits[batch_idx, -1, :]
             option_logits = final_logits[option_token_ids]
+            logits_np = option_logits.cpu().numpy()
             probs = torch.softmax(option_logits, dim=-1).cpu().numpy()
             entropy = compute_entropy_from_probs(probs)
             all_probs.append(probs)
+            all_logits.append(logits_np)
             all_entropies.append(entropy)
 
-        return all_layer_activations, all_probs, all_entropies
+        return all_layer_activations, all_probs, all_logits, all_entropies
 
     def __enter__(self):
         """Context manager entry - register hooks."""

@@ -4,6 +4,8 @@ Core utilities for introspection experiments.
 Modules:
 - model_utils: Model loading, naming, device detection
 - extraction: BatchedExtractor for activation/logit extraction
+- metrics: Uncertainty metric computation (entropy, logit_gap, etc.)
+- directions: Direction finding methods (probe, mean_diff)
 - probes: Linear probe training, transfer testing, permutation tests
 - questions: Question loading, hashing, consistency verification
 - steering: Steering and ablation hooks for activation intervention
@@ -24,6 +26,23 @@ from .extraction import (
     compute_entropy_from_probs,
     BatchedExtractor,
     extract_activations_only,
+)
+
+from .metrics import (
+    compute_entropy,
+    compute_metrics_single,
+    compute_mc_metrics,
+    compute_nexttoken_metrics,
+    METRIC_INFO,
+    metric_sign_for_confidence,
+)
+
+from .directions import (
+    probe_direction,
+    mean_diff_direction,
+    find_directions,
+    apply_direction,
+    evaluate_transfer,
 )
 
 from .probes import (
@@ -101,6 +120,19 @@ __all__ = [
     "compute_entropy_from_probs",
     "BatchedExtractor",
     "extract_activations_only",
+    # metrics
+    "compute_entropy",
+    "compute_metrics_single",
+    "compute_mc_metrics",
+    "compute_nexttoken_metrics",
+    "METRIC_INFO",
+    "metric_sign_for_confidence",
+    # directions
+    "probe_direction",
+    "mean_diff_direction",
+    "find_directions",
+    "apply_direction",
+    "evaluate_transfer",
     # probes
     "LinearProbe",
     "train_and_evaluate_probe",
