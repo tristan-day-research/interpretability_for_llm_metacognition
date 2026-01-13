@@ -8,7 +8,7 @@ Test the hypothesis that LLMs genuinely introspect on their uncertainty rather t
 
 1. **Identify**: Find internal correlates of output uncertainty (entropy, logit_gap, etc.)
 2. **Transfer**: Test whether these correlates appear during meta-judgment tasks (confidence reports, delegation decisions)
-3. **Causality**: Verify the relationship is causal via steering and ablation (future)
+3. **Causality**: Verify the relationship is causal via ablation (and steering, future)
 4. **Interpret**: Understand what the uncertainty direction represents (future)
 
 ## Workflow
@@ -44,6 +44,39 @@ python test_meta_transfer.py
 ```
 
 This loads directions from Step 0 and tests how well they predict the original metric when applied to activations from a meta-task (confidence rating or delegation game).
+
+### Step 2: Test causality via ablation
+
+Test whether directions are causally necessary for meta-judgments:
+
+```
+python run_ablation_causality.py
+```
+
+This ablates directions during meta-task inference and measures if the correlation between stated confidence and actual uncertainty degrades. Control ablations (random orthogonal directions) establish a null distribution.
+
+**Configuration**:
+```python
+INPUT_BASE_NAME = "Llama-3.1-8B-Instruct_SimpleMC"
+METRIC = "entropy"
+META_TASK = "confidence"  # or "delegate"
+NUM_QUESTIONS = 100
+NUM_CONTROLS = 25  # random directions per layer for null distribution
+```
+
+**Key design choices**:
+- Tests ALL layers (no pre-filtering by transfer R²—let ablation determine what matters)
+- Tests BOTH probe and mean_diff methods in a single run
+- Pooled null distribution + FDR correction for robust statistics
+
+**Outputs**:
+```
+outputs/
+├── {model}_{dataset}_ablation_{task}_{metric}_results.json
+├── {model}_{dataset}_ablation_{task}_{metric}_probe.png
+├── {model}_{dataset}_ablation_{task}_{metric}_mean_diff.png
+└── {model}_{dataset}_ablation_{task}_{metric}_comparison.png
+```
 
 ## Direction-Finding Methods
 
@@ -156,10 +189,13 @@ entropy_probes/
 ├── identify_mc_correlate.py          # Step 0: MC task
 ├── identify_nexttoken_correlate.py   # Step 0: Next-token task
 ├── test_meta_transfer.py             # Step 1: Transfer test
+├── run_ablation_causality.py         # Step 2: Ablation causality test
 ├── core/
 │   ├── metrics.py                    # Metric computation
 │   ├── directions.py                 # Direction finding
 │   ├── extraction.py                 # Activation extraction
+│   ├── steering.py                   # Activation intervention hooks
+│   ├── steering_experiments.py       # Ablation experiment utilities
 │   └── model_utils.py                # Model loading
 ├── tasks.py                          # Prompt templates
 ├── outputs/                          # Results

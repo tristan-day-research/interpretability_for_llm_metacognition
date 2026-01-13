@@ -42,6 +42,9 @@ from .directions import (
     mean_diff_direction,
     find_directions,
     apply_direction,
+    apply_probe_shared,
+    apply_probe_centered,
+    apply_probe_separate,
     evaluate_transfer,
 )
 
@@ -132,6 +135,9 @@ __all__ = [
     "mean_diff_direction",
     "find_directions",
     "apply_direction",
+    "apply_probe_shared",
+    "apply_probe_centered",
+    "apply_probe_separate",
     "evaluate_transfer",
     # probes
     "LinearProbe",

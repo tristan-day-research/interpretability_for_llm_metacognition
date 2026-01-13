@@ -514,6 +514,7 @@ def main():
             mean_diff_quantile=MEAN_DIFF_QUANTILE,
             seed=SEED,
             n_jobs=N_JOBS,
+            return_scaler=True,  # Save scaler info for transfer tests
         )
 
         all_results[metric] = results
@@ -549,6 +550,10 @@ def main():
         for method in ["probe", "mean_diff"]:
             for layer in range(num_layers):
                 dir_save[f"{method}_layer_{layer}"] = results["directions"][method][layer]
+                # Save scaler info for probe method (for centered transfer)
+                if method == "probe" and "scaler_scale" in results["fits"][method][layer]:
+                    dir_save[f"{method}_scaler_scale_{layer}"] = results["fits"][method][layer]["scaler_scale"]
+                    dir_save[f"{method}_scaler_mean_{layer}"] = results["fits"][method][layer]["scaler_mean"]
         np.savez(directions_path, **dir_save)
         print(f"  Saved directions: {directions_path}")
 
@@ -578,11 +583,18 @@ def main():
         for method in ["probe", "mean_diff"]:
             results_json["results"][method] = {}
             for layer in range(num_layers):
-                layer_info = results["fits"][method][layer].copy()
-                # Convert any numpy types
-                for k, v in layer_info.items():
+                layer_info = {}
+                for k, v in results["fits"][method][layer].items():
+                    # Skip numpy arrays (scaler_scale, scaler_mean) - those go in .npz
+                    if isinstance(v, np.ndarray):
+                        continue
+                    # Convert numpy scalars to Python types
                     if isinstance(v, np.floating):
                         layer_info[k] = float(v)
+                    elif isinstance(v, np.integer):
+                        layer_info[k] = int(v)
+                    else:
+                        layer_info[k] = v
                 results_json["results"][method][layer] = layer_info
 
         with open(results_path, "w") as f:

@@ -21,6 +21,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import joblib
 
 from core import (
     load_model_and_tokenizer,
@@ -31,6 +32,7 @@ from core import (
     find_directions,
     METRIC_INFO,
 )
+from core.directions import probe_direction  # For saving probe objects
 from core.questions import load_questions
 from tasks import format_direct_prompt
 
@@ -398,6 +400,8 @@ def main():
         print(f"\n--- {metric.upper()} ({PROBE_N_BOOTSTRAP} bootstrap iterations) ---")
         target_values = metrics_to_analyze[metric]
 
+        # Step 1: Run parallel direction finding WITH bootstrap for R² confidence intervals
+        # This is fast because it uses all CPU cores
         results = find_directions(
             activations_by_layer,
             target_values,
@@ -408,6 +412,7 @@ def main():
             probe_train_split=PROBE_TRAIN_SPLIT,
             mean_diff_quantile=MEAN_DIFF_QUANTILE,
             seed=SEED,
+            return_scaler=True,  # Save scaler info (fast, parallelizable)
         )
 
         all_results[metric] = results
@@ -433,18 +438,51 @@ def main():
             cos_sim = results["comparison"][mid_layer]["cosine_sim"]
             print(f"  probe vs mean_diff cosine similarity (layer {mid_layer}): {cos_sim:.3f}")
 
-        # Save directions file for this metric
+        # Step 2: Fit probes separately (no bootstrap) to save objects for transfer tests
+        # This is fast because it's just one fit per layer, no bootstrap iterations
+        print(f"  Fitting probe objects for transfer tests...")
+        probe_objects = {}
+        for layer in tqdm(range(num_layers), desc="Fitting probes", leave=False):
+            X = activations_by_layer[layer]
+            _, info = probe_direction(
+                X, target_values,
+                alpha=PROBE_ALPHA,
+                pca_components=PROBE_PCA_COMPONENTS,
+                bootstrap_splits=None,  # No bootstrap - just fit once
+                return_probe=True,  # Get the actual objects
+            )
+            probe_objects[layer] = {
+                "scaler": info["scaler"],
+                "pca": info["pca"],
+                "ridge": info["ridge"],
+            }
+
+        # Save directions file for this metric (npz for directions, joblib for probes)
         directions_path = OUTPUT_DIR / f"{base_name}_mc_{metric}_directions.npz"
+        probes_path = OUTPUT_DIR / f"{base_name}_mc_{metric}_probes.joblib"
+
         dir_save = {
             "_metadata_dataset": DATASET,
             "_metadata_model": MODEL,
             "_metadata_metric": metric,
         }
+        probe_save = {
+            "metadata": {"dataset": DATASET, "model": MODEL, "metric": metric},
+            "probes": probe_objects,  # Use the separately-fit probe objects
+        }
+
         for method in ["probe", "mean_diff"]:
             for layer in range(num_layers):
                 dir_save[f"{method}_layer_{layer}"] = results["directions"][method][layer]
+                # Save scaler info for probe method (from parallel results)
+                if method == "probe" and "scaler_scale" in results["fits"][method][layer]:
+                    dir_save[f"{method}_scaler_scale_{layer}"] = results["fits"][method][layer]["scaler_scale"]
+                    dir_save[f"{method}_scaler_mean_{layer}"] = results["fits"][method][layer]["scaler_mean"]
+
         np.savez(directions_path, **dir_save)
+        joblib.dump(probe_save, probes_path)
         print(f"  Saved directions: {directions_path}")
+        print(f"  Saved probes: {probes_path}")
 
         # Save results JSON for this metric
         results_path = OUTPUT_DIR / f"{base_name}_mc_{metric}_results.json"
@@ -472,11 +510,18 @@ def main():
         for method in ["probe", "mean_diff"]:
             results_json["results"][method] = {}
             for layer in range(num_layers):
-                layer_info = results["fits"][method][layer].copy()
-                # Convert any numpy types
-                for k, v in layer_info.items():
+                layer_info = {}
+                for k, v in results["fits"][method][layer].items():
+                    # Skip numpy arrays (scaler_scale, scaler_mean) - those go in .npz
+                    if isinstance(v, np.ndarray):
+                        continue
+                    # Convert numpy scalars to Python types
                     if isinstance(v, np.floating):
                         layer_info[k] = float(v)
+                    elif isinstance(v, np.integer):
+                        layer_info[k] = int(v)
+                    else:
+                        layer_info[k] = v
                 results_json["results"][method][layer] = layer_info
 
         with open(results_path, "w") as f:
@@ -516,6 +561,7 @@ def main():
         print(f"  {base_name}_mc_entropy_distribution.png")
     for metric in METRICS:
         print(f"  {base_name}_mc_{metric}_directions.npz")
+        print(f"  {base_name}_mc_{metric}_probes.joblib")
         print(f"  {base_name}_mc_{metric}_results.json")
         print(f"  {base_name}_mc_{metric}_results.png")
 
