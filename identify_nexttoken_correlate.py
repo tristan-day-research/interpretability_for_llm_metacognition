@@ -309,7 +309,8 @@ def extract_activations_and_metrics(
                 return_tensors="pt",
                 padding=True,
                 truncation=True,
-                max_length=MAX_PROMPT_LENGTH
+                max_length=MAX_PROMPT_LENGTH,
+                add_special_tokens=False
             )
             input_ids = encoded["input_ids"].to(model.device)
             attention_mask = encoded["attention_mask"].to(model.device)

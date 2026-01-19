@@ -48,6 +48,10 @@ NUM_QUESTIONS = 500
 SEED = 42
 BATCH_SIZE = 8
 
+# Quantization (for large models like 70B)
+LOAD_IN_4BIT = False  # Set True for 70B+ models
+LOAD_IN_8BIT = False
+
 # Direction-finding parameters
 PROBE_ALPHA = 1000.0
 PROBE_PCA_COMPONENTS = 100
@@ -253,7 +257,12 @@ def main():
 
     # Load model
     print("Loading model...")
-    model, tokenizer, num_layers = load_model_and_tokenizer(MODEL, adapter_path=ADAPTER)
+    model, tokenizer, num_layers = load_model_and_tokenizer(
+        MODEL,
+        adapter_path=ADAPTER,
+        load_in_4bit=LOAD_IN_4BIT,
+        load_in_8bit=LOAD_IN_8BIT,
+    )
     use_chat_template = should_use_chat_template(MODEL, tokenizer)
     print(f"  Layers: {num_layers}")
     print(f"  Chat template: {use_chat_template}")
@@ -289,15 +298,16 @@ def main():
                 prompts,
                 return_tensors="pt",
                 padding=True,
-                truncation=True,
-                max_length=2048
+                truncation=False,
+                add_special_tokens=False
             )
             input_ids = encoded["input_ids"].to(model.device)
             attention_mask = encoded["attention_mask"].to(model.device)
 
-            layer_acts, probs, logits, _ = extractor.extract_batch(input_ids, attention_mask, option_token_ids)
+            layer_acts_by_pos, probs, logits, _ = extractor.extract_batch(input_ids, attention_mask, option_token_ids)
 
-            for item_acts in layer_acts:
+            # extract_batch returns {pos_name: [per-item dicts]}; we only need "final"
+            for item_acts in layer_acts_by_pos["final"]:
                 for layer, act in item_acts.items():
                     all_activations[layer].append(act)
 

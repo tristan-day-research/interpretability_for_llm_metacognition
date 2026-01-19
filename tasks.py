@@ -106,14 +106,14 @@ def _format_nested_question(question_data: Dict, outer_question: str, outer_opti
     """Format a nested/meta question for display."""
     formatted = ""
     formatted += "-" * 30 + "\n"
+    formatted += outer_question + "\n"
+    formatted += "-" * 10 + "\n"
 
     formatted += question_data["question"] + "\n"
     if "options" in question_data:
         for key, value in question_data["options"].items():
             formatted += f"  {key}: {value}\n"
     formatted += "-" * 10 + "\n"
-
-    formatted += outer_question + "\n"
 
     if outer_options:
         for key, value in outer_options.items():

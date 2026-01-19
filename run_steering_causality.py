@@ -56,6 +56,7 @@ from tasks import (
     get_answer_or_delegate_signal,
     STATED_CONFIDENCE_OPTIONS,
     ANSWER_OR_DELEGATE_OPTIONS,
+    find_mc_positions,
 )
 
 # =============================================================================
@@ -85,6 +86,18 @@ LAYERS = None  # e.g., [20, 25, 30] for quick testing
 # Optional: specify which direction methods to test (None = both probe and mean_diff)
 METHODS = None  # e.g., ["mean_diff"] or ["probe"] to test just one
 
+# Token positions to test (matching test_meta_transfer.py)
+PROBE_POSITIONS = ["question_mark", "question_newline", "options_newline", "final"]
+
+# Layer selection from transfer results (for non-final positions)
+# When LAYERS is None and position != "final", auto-select layers with transfer R² >= threshold
+TRANSFER_R2_THRESHOLD = 0.5  # Layers with R² >= this are tested for non-final positions
+TRANSFER_RESULTS_PATH = None  # Auto-detect from INPUT_BASE_NAME if None
+
+# Control count for non-final positions (final uses NUM_CONTROLS)
+# Fewer controls = faster, but need enough for valid p-values
+NUM_CONTROLS_NONFINAL = 10
+
 # Quantization (for large models)
 LOAD_IN_4BIT = False
 LOAD_IN_8BIT = False
@@ -95,6 +108,82 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 
 np.random.seed(SEED)
 torch.manual_seed(SEED)
+
+
+# =============================================================================
+# TRANSFER RESULTS LOADING (for layer selection)
+# =============================================================================
+
+def load_transfer_results(base_name: str, meta_task: str) -> Optional[Dict]:
+    """
+    Load transfer results JSON to get per-layer R² values.
+
+    Returns None if file not found.
+    """
+    path = TRANSFER_RESULTS_PATH
+    if path is None:
+        path = OUTPUT_DIR / f"{base_name}_transfer_{meta_task}_results.json"
+    else:
+        path = Path(path)
+
+    if not path.exists():
+        return None
+
+    with open(path, "r") as f:
+        return json.load(f)
+
+
+def get_layers_from_transfer(
+    transfer_data: Dict,
+    metric: str,
+    position: str,
+    r2_threshold: float,
+    method: str = "probe",
+) -> List[int]:
+    """
+    Get layers with transfer R² >= threshold for a given metric and position.
+
+    Args:
+        transfer_data: Loaded transfer results JSON
+        metric: Which metric to check (e.g., "top_logit", "entropy")
+        position: Token position (e.g., "final", "question_mark")
+        r2_threshold: Minimum R² to include layer
+        method: Direction method - "probe" uses transfer_by_position, "mean_diff" uses mean_diff_by_position
+
+    Returns:
+        Sorted list of layer indices meeting threshold
+    """
+    # Select the appropriate section based on method
+    if method == "mean_diff":
+        section_key = "mean_diff_by_position"
+        legacy_key = None  # No legacy fallback for mean_diff
+    else:
+        section_key = "transfer_by_position"
+        legacy_key = "transfer"
+
+    # Try position-specific data first
+    if section_key in transfer_data and position in transfer_data[section_key]:
+        pos_data = transfer_data[section_key][position]
+    elif legacy_key and legacy_key in transfer_data:
+        # Fall back to legacy format (final position only, probe only)
+        pos_data = transfer_data[legacy_key]
+    else:
+        return []
+
+    if metric not in pos_data:
+        return []
+
+    metric_data = pos_data[metric]
+    per_layer = metric_data.get("per_layer", {})
+
+    selected = []
+    for layer_str, layer_data in per_layer.items():
+        # Check for centered R² (preferred) or d2m_centered_r2 (legacy)
+        r2 = layer_data.get("centered_r2") or layer_data.get("d2m_centered_r2", 0)
+        if r2 >= r2_threshold:
+            selected.append(int(layer_str))
+
+    return sorted(selected)
 
 
 # =============================================================================
@@ -226,11 +315,16 @@ def run_steering_for_method(
     multipliers: List[float],
     use_chat_template: bool,
     layers: Optional[List[int]] = None,
+    position: str = "final",
 ) -> Dict:
     """
     Run steering experiment for a single direction method.
 
-    Uses KV cache and batched multipliers for efficiency.
+    Uses KV cache and batched multipliers for efficiency (for position="final").
+    For other positions, uses full forward passes with indexed steering hooks.
+
+    Args:
+        position: Token position for steering ("final", "question_mark", etc.)
 
     Returns dict with per-layer results for each multiplier.
     """
@@ -252,9 +346,10 @@ def run_steering_for_method(
         tokenizer.encode(opt, add_special_tokens=False)[0] for opt in options
     ]
 
-    # Format and tokenize prompts
+    # Format and tokenize prompts, find position indices
     prompts = []
     mappings = []
+    position_indices = []  # Per-prompt token index for steering
     for q_idx, question in enumerate(questions):
         if meta_task == "delegate":
             prompt, _, mapping = format_fn(question, tokenizer, trial_index=q_idx, use_chat_template=use_chat_template)
@@ -263,6 +358,20 @@ def run_steering_for_method(
             mapping = None
         prompts.append(prompt)
         mappings.append(mapping)
+
+        # Find position for this prompt
+        positions = find_mc_positions(prompt, tokenizer, question)
+        pos_idx = positions.get(position, -1)
+        position_indices.append(pos_idx)
+
+    # Warn if some positions weren't found (will fall back to final token)
+    n_valid = sum(1 for idx in position_indices if idx >= 0)
+    n_total = len(position_indices)
+    if n_valid < n_total:
+        print(f"  Warning: {position} position found for {n_valid}/{n_total} prompts (others fall back to final)")
+
+    # Determine whether we can use KV cache optimization
+    use_kv_cache = (position == "final")
 
     cached_inputs = pretokenize_prompts(prompts, tokenizer, DEVICE)
 
@@ -322,110 +431,229 @@ def run_steering_for_method(
 
     pbar = tqdm(total=total_forward_passes, desc="  Forward passes")
 
-    for batch_idx, (batch_indices, batch_inputs) in enumerate(gpu_batches):
-        B = len(batch_indices)
+    if use_kv_cache:
+        # =====================================================================
+        # KV CACHE PATH (position="final")
+        # =====================================================================
+        for batch_idx, (batch_indices, batch_inputs) in enumerate(gpu_batches):
+            B = len(batch_indices)
 
-        # Compute KV cache once per batch
-        base_step_data = get_kv_cache(model, batch_inputs)
-        keys_snapshot, values_snapshot = base_step_data["past_key_values_data"]
+            # Compute KV cache once per batch
+            base_step_data = get_kv_cache(model, batch_inputs)
+            keys_snapshot, values_snapshot = base_step_data["past_key_values_data"]
 
-        inputs_template = {
-            "input_ids": base_step_data["input_ids"],
-            "attention_mask": base_step_data["attention_mask"],
-            "use_cache": True
-        }
-        if "position_ids" in base_step_data:
-            inputs_template["position_ids"] = base_step_data["position_ids"]
+            inputs_template = {
+                "input_ids": base_step_data["input_ids"],
+                "attention_mask": base_step_data["attention_mask"],
+                "use_cache": True
+            }
+            if "position_ids" in base_step_data:
+                inputs_template["position_ids"] = base_step_data["position_ids"]
 
-        # Compute baseline (no steering) - shared across all layers
-        if baseline_results[batch_indices[0]] is None:
-            fresh_cache = create_fresh_cache(keys_snapshot, values_snapshot, expand_size=1)
-            baseline_inputs = inputs_template.copy()
-            baseline_inputs["past_key_values"] = fresh_cache
+            # Compute baseline (no steering) - shared across all layers
+            if baseline_results[batch_indices[0]] is None:
+                fresh_cache = create_fresh_cache(keys_snapshot, values_snapshot, expand_size=1)
+                baseline_inputs = inputs_template.copy()
+                baseline_inputs["past_key_values"] = fresh_cache
 
-            with torch.inference_mode():
-                out = model(**baseline_inputs)
-                logits = out.logits[:, -1, :][:, option_token_ids]
-                probs = torch.softmax(logits, dim=-1).float().cpu().numpy()
-
-            for i, q_idx in enumerate(batch_indices):
-                p = probs[i]
-                resp = options[np.argmax(p)]
-                conf = signal_fn(p, mappings[q_idx])
-                m_val = metric_values[q_idx]
-                baseline_results[q_idx] = {
-                    "question_idx": q_idx,
-                    "response": resp,
-                    "confidence": float(conf),
-                    "metric": float(m_val),
-                }
-
-        pbar.update(1)
-
-        # Prepare expanded inputs for batched multiplier sweep
-        expanded_input_ids = inputs_template["input_ids"].repeat_interleave(k_mult, dim=0)
-        expanded_attention_mask = inputs_template["attention_mask"].repeat_interleave(k_mult, dim=0)
-        expanded_inputs_template = {
-            "input_ids": expanded_input_ids,
-            "attention_mask": expanded_attention_mask,
-            "use_cache": True
-        }
-        if "position_ids" in inputs_template:
-            expanded_inputs_template["position_ids"] = inputs_template["position_ids"].repeat_interleave(k_mult, dim=0)
-
-        # Run steering for each layer
-        for layer in layers:
-            if hasattr(model, 'get_base_model'):
-                layer_module = model.get_base_model().model.layers[layer]
-            else:
-                layer_module = model.model.layers[layer]
-
-            direction_tensor = cached_directions[layer]["direction"]
-            control_tensors = cached_directions[layer]["controls"]
-
-            hook = BatchSteeringHook()
-            hook.register(layer_module)
-
-            def run_batched_sweep(dir_vec, result_dict):
-                """Run all multipliers for a direction in one pass."""
-                # Create fresh cache expanded for this pass
-                pass_cache = create_fresh_cache(keys_snapshot, values_snapshot, expand_size=k_mult)
-
-                # Attach cache to inputs
-                current_inputs = expanded_inputs_template.copy()
-                current_inputs["past_key_values"] = pass_cache
-
-                # Build delta tensor: for each question in batch, apply each multiplier
-                # Shape: (B * k_mult, hidden_dim)
-                deltas = []
-                for _ in range(B):
-                    for mult in nonzero_multipliers:
-                        deltas.append(dir_vec * mult)
-                delta_bh = torch.stack(deltas, dim=0)
-                hook.set_delta(delta_bh)
-
-                # Run model
                 with torch.inference_mode():
-                    out = model(**current_inputs)
+                    out = model(**baseline_inputs)
                     logits = out.logits[:, -1, :][:, option_token_ids]
                     probs = torch.softmax(logits, dim=-1).float().cpu().numpy()
 
-                # Store results
                 for i, q_idx in enumerate(batch_indices):
-                    for j, mult in enumerate(nonzero_multipliers):
-                        idx = i * k_mult + j
-                        p = probs[idx]
-                        resp = options[np.argmax(p)]
-                        conf = signal_fn(p, mappings[q_idx])
-                        m_val = metric_values[q_idx]
-                        result_dict[mult][q_idx] = {
-                            "question_idx": q_idx,
-                            "response": resp,
-                            "confidence": float(conf),
-                            "metric": float(m_val),
-                        }
+                    p = probs[i]
+                    resp = options[np.argmax(p)]
+                    conf = signal_fn(p, mappings[q_idx])
+                    m_val = metric_values[q_idx]
+                    baseline_results[q_idx] = {
+                        "question_idx": q_idx,
+                        "response": resp,
+                        "confidence": float(conf),
+                        "metric": float(m_val),
+                    }
 
-            try:
+            pbar.update(1)
+
+            # Prepare expanded inputs for batched multiplier sweep
+            expanded_input_ids = inputs_template["input_ids"].repeat_interleave(k_mult, dim=0)
+            expanded_attention_mask = inputs_template["attention_mask"].repeat_interleave(k_mult, dim=0)
+            expanded_inputs_template = {
+                "input_ids": expanded_input_ids,
+                "attention_mask": expanded_attention_mask,
+                "use_cache": True
+            }
+            if "position_ids" in inputs_template:
+                expanded_inputs_template["position_ids"] = inputs_template["position_ids"].repeat_interleave(k_mult, dim=0)
+
+            # Run steering for each layer
+            for layer in layers:
+                if hasattr(model, 'get_base_model'):
+                    layer_module = model.get_base_model().model.layers[layer]
+                else:
+                    layer_module = model.model.layers[layer]
+
+                direction_tensor = cached_directions[layer]["direction"]
+                control_tensors = cached_directions[layer]["controls"]
+
+                hook = BatchSteeringHook()
+                hook.register(layer_module)
+
+                def run_batched_sweep(dir_vec, result_dict):
+                    """Run all multipliers for a direction in one pass."""
+                    # Create fresh cache expanded for this pass
+                    pass_cache = create_fresh_cache(keys_snapshot, values_snapshot, expand_size=k_mult)
+
+                    # Attach cache to inputs
+                    current_inputs = expanded_inputs_template.copy()
+                    current_inputs["past_key_values"] = pass_cache
+
+                    # Build delta tensor: for each question in batch, apply each multiplier
+                    # Shape: (B * k_mult, hidden_dim)
+                    deltas = []
+                    for _ in range(B):
+                        for mult in nonzero_multipliers:
+                            deltas.append(dir_vec * mult)
+                    delta_bh = torch.stack(deltas, dim=0)
+                    hook.set_delta(delta_bh)
+
+                    # Run model
+                    with torch.inference_mode():
+                        out = model(**current_inputs)
+                        logits = out.logits[:, -1, :][:, option_token_ids]
+                        probs = torch.softmax(logits, dim=-1).float().cpu().numpy()
+
+                    # Store results
+                    for i, q_idx in enumerate(batch_indices):
+                        for j, mult in enumerate(nonzero_multipliers):
+                            idx = i * k_mult + j
+                            p = probs[idx]
+                            resp = options[np.argmax(p)]
+                            conf = signal_fn(p, mappings[q_idx])
+                            m_val = metric_values[q_idx]
+                            result_dict[mult][q_idx] = {
+                                "question_idx": q_idx,
+                                "response": resp,
+                                "confidence": float(conf),
+                                "metric": float(m_val),
+                            }
+
+                try:
+                    # Introspection direction
+                    run_batched_sweep(direction_tensor, layer_results[layer]["steered"])
+                    pbar.update(1)
+
+                    # Control directions
+                    for i_c, ctrl_dir in enumerate(control_tensors):
+                        run_batched_sweep(ctrl_dir, layer_results[layer]["controls"][f"control_{i_c}"])
+                        pbar.update(1)
+
+                finally:
+                    hook.remove()
+
+    else:
+        # =====================================================================
+        # FULL FORWARD PATH (non-final positions)
+        # Batches all multipliers together like KV cache path does
+        # =====================================================================
+        for batch_idx, (batch_indices, batch_inputs) in enumerate(gpu_batches):
+            B = len(batch_indices)
+            seq_len = batch_inputs["input_ids"].shape[1]
+
+            # Compute position indices adjusted for left-padding
+            batch_pos_indices = []
+            for i, q_idx in enumerate(batch_indices):
+                pos = position_indices[q_idx]
+                if pos >= 0:
+                    # Adjust for left-padding: find actual sequence length
+                    actual_len = int(batch_inputs["attention_mask"][i].sum())
+                    pad_offset = seq_len - actual_len
+                    adjusted_pos = pos + pad_offset
+                else:
+                    # Fallback to final token
+                    adjusted_pos = seq_len - 1
+                batch_pos_indices.append(adjusted_pos)
+            batch_pos_tensor = torch.tensor(batch_pos_indices, dtype=torch.long, device=DEVICE)
+
+            # Compute baseline (no steering) - shared across all layers
+            if baseline_results[batch_indices[0]] is None:
+                with torch.inference_mode():
+                    out = model(**batch_inputs)
+                    logits = out.logits[:, -1, :][:, option_token_ids]
+                    probs = torch.softmax(logits, dim=-1).float().cpu().numpy()
+
+                for i, q_idx in enumerate(batch_indices):
+                    p = probs[i]
+                    resp = options[np.argmax(p)]
+                    conf = signal_fn(p, mappings[q_idx])
+                    m_val = metric_values[q_idx]
+                    baseline_results[q_idx] = {
+                        "question_idx": q_idx,
+                        "response": resp,
+                        "confidence": float(conf),
+                        "metric": float(m_val),
+                    }
+
+            pbar.update(1)
+
+            # Prepare expanded inputs for batched multiplier sweep (same as KV cache path)
+            expanded_input_ids = batch_inputs["input_ids"].repeat_interleave(k_mult, dim=0)
+            expanded_attention_mask = batch_inputs["attention_mask"].repeat_interleave(k_mult, dim=0)
+            expanded_inputs = {
+                "input_ids": expanded_input_ids,
+                "attention_mask": expanded_attention_mask,
+            }
+
+            # Expand position indices to match expanded batch
+            expanded_pos_tensor = batch_pos_tensor.repeat_interleave(k_mult)
+
+            # Run steering for each layer (all multipliers batched per direction)
+            for layer in layers:
+                if hasattr(model, 'get_base_model'):
+                    layer_module = model.get_base_model().model.layers[layer]
+                else:
+                    layer_module = model.model.layers[layer]
+
+                direction_tensor = cached_directions[layer]["direction"]
+                control_tensors = cached_directions[layer]["controls"]
+
+                def run_batched_sweep(dir_vec, result_dict):
+                    """Run all multipliers for a direction in one pass."""
+                    # Build delta tensor: for each question in batch, apply each multiplier
+                    # Shape: (B * k_mult, hidden_dim)
+                    deltas = []
+                    for _ in range(B):
+                        for mult in nonzero_multipliers:
+                            deltas.append(dir_vec * mult)
+                    delta_bh = torch.stack(deltas, dim=0)
+
+                    hook = BatchSteeringHook(delta_bh=delta_bh, intervention_position="indexed")
+                    hook.set_position_indices(expanded_pos_tensor)
+                    hook.register(layer_module)
+
+                    try:
+                        with torch.inference_mode():
+                            out = model(**expanded_inputs)
+                            logits = out.logits[:, -1, :][:, option_token_ids]
+                            probs = torch.softmax(logits, dim=-1).float().cpu().numpy()
+
+                        # Store results
+                        for i, q_idx in enumerate(batch_indices):
+                            for j, mult in enumerate(nonzero_multipliers):
+                                idx = i * k_mult + j
+                                p = probs[idx]
+                                resp = options[np.argmax(p)]
+                                conf = signal_fn(p, mappings[q_idx])
+                                m_val = metric_values[q_idx]
+                                result_dict[mult][q_idx] = {
+                                    "question_idx": q_idx,
+                                    "response": resp,
+                                    "confidence": float(conf),
+                                    "metric": float(m_val),
+                                }
+                    finally:
+                        hook.remove()
+
                 # Introspection direction
                 run_batched_sweep(direction_tensor, layer_results[layer]["steered"])
                 pbar.update(1)
@@ -434,12 +662,6 @@ def run_steering_for_method(
                 for i_c, ctrl_dir in enumerate(control_tensors):
                     run_batched_sweep(ctrl_dir, layer_results[layer]["controls"][f"control_{i_c}"])
                     pbar.update(1)
-
-            finally:
-                hook.remove()
-
-        if DEVICE == "cuda":
-            torch.cuda.empty_cache()
 
     pbar.close()
     return {
@@ -917,8 +1139,9 @@ def main():
     print(f"Metric: {METRIC}")
     print(f"Meta-task: {META_TASK}")
     print(f"Questions: {NUM_QUESTIONS}")
-    print(f"Controls per layer: {NUM_CONTROLS}")
+    print(f"Controls: {NUM_CONTROLS} (final), {NUM_CONTROLS_NONFINAL} (non-final)")
     print(f"Multipliers: {STEERING_MULTIPLIERS}")
+    print(f"Positions: {PROBE_POSITIONS}")
 
     # Load directions
     print("\nLoading directions...")
@@ -948,13 +1171,39 @@ def main():
     print(f"  Questions: {len(questions)}")
     print(f"  {METRIC}: mean={metric_values.mean():.3f}, std={metric_values.std():.3f}")
 
-    # Determine layers to test
-    if LAYERS is not None:
-        test_layers = LAYERS
+    # Load transfer results for layer selection (non-final positions)
+    transfer_data = load_transfer_results(INPUT_BASE_NAME, META_TASK)
+    if transfer_data is not None:
+        print(f"\nLoaded transfer results for layer selection")
+        # Preview what layers would be selected FOR EACH (POSITION, METHOD) combination
+        for pos in PROBE_POSITIONS:
+            if pos == "final":
+                print(f"  {pos}: all layers (no R² filter)")
+            else:
+                for method in methods:
+                    pos_layers = get_layers_from_transfer(transfer_data, METRIC, pos, TRANSFER_R2_THRESHOLD, method)
+                    if pos_layers:
+                        print(f"  {pos}/{method}: {len(pos_layers)} layers with {METRIC} R²≥{TRANSFER_R2_THRESHOLD}: {pos_layers}")
+                    else:
+                        # Try fallback to final
+                        fallback_layers = get_layers_from_transfer(transfer_data, METRIC, "final", TRANSFER_R2_THRESHOLD, method)
+                        if fallback_layers:
+                            print(f"  {pos}/{method}: no position-specific data, using final: {len(fallback_layers)} layers")
+                        else:
+                            print(f"  {pos}/{method}: WARNING - no layers found, will use ALL layers")
     else:
-        # Use all layers from first method
-        test_layers = sorted(all_directions[methods[0]].keys())
-    print(f"\nLayers to test: {len(test_layers)}")
+        expected_path = OUTPUT_DIR / f"{INPUT_BASE_NAME}_transfer_{META_TASK}_results.json"
+        print(f"\nNo transfer results found - will use all layers for all positions")
+        print(f"  Expected: {expected_path}")
+
+    # Determine base layers (all available)
+    all_available_layers = sorted(all_directions[methods[0]].keys())
+
+    # Layer selection depends on position - will be set per-position below
+    if LAYERS is not None:
+        print(f"\nExplicit LAYERS override: {len(LAYERS)} layers")
+    else:
+        print(f"\nLayer selection: all layers for final, R²≥{TRANSFER_R2_THRESHOLD} for non-final")
 
     # Load model
     print("\nLoading model...")
@@ -967,38 +1216,115 @@ def main():
     print(f"  Use chat template: {use_chat_template}")
     print(f"  Device: {DEVICE}")
 
-    # Run steering for each method
-    all_results = {}
-    all_analyses = {}
+    # Run steering for each position and method
+    # Structure: {position: {method: analysis}}
+    all_results_by_position = {}
+    all_analyses_by_position = {}
 
-    for method in methods:
-        print(f"\n{'='*60}")
-        print(f"STEERING EXPERIMENT: {method.upper()}")
-        print(f"{'='*60}")
+    for position in PROBE_POSITIONS:
+        print(f"\n{'#'*70}")
+        print(f"# POSITION: {position}")
+        print(f"{'#'*70}")
 
-        results = run_steering_for_method(
-            model=model,
-            tokenizer=tokenizer,
-            questions=questions,
-            metric_values=metric_values,
-            directions=all_directions[method],
-            num_controls=NUM_CONTROLS,
-            meta_task=META_TASK,
-            multipliers=STEERING_MULTIPLIERS,
-            use_chat_template=use_chat_template,
-            layers=test_layers,
-        )
-        all_results[method] = results
+        # Determine number of controls for this position
+        position_num_controls = NUM_CONTROLS if position == "final" else NUM_CONTROLS_NONFINAL
 
-        # Analyze results
-        print(f"\n  Analyzing results...")
-        analysis = analyze_steering_results(results, METRIC)
-        all_analyses[method] = analysis
+        all_results_by_position[position] = {}
+        all_analyses_by_position[position] = {}
 
-        summary = analysis["summary"]
-        print(f"  Significant layers (FDR): {summary['n_significant_fdr']}")
-        print(f"  Sign correct (pooled): {summary['n_sign_correct_pooled']}")
-        print(f"  Best layer: {summary['best_layer']} (slope={summary['best_slope']:.4f})")
+        for method in methods:
+            print(f"\n{'='*60}")
+            print(f"STEERING EXPERIMENT: {method.upper()} @ {position}")
+            print(f"{'='*60}")
+
+            # Determine layers for this position AND method
+            if LAYERS is not None:
+                # Explicit override applies to all positions/methods
+                method_layers = LAYERS
+            elif position == "final":
+                # Final position: use all layers
+                method_layers = all_available_layers
+            else:
+                # Non-final position: select based on transfer R² for THIS method
+                if transfer_data is not None:
+                    method_layers = get_layers_from_transfer(
+                        transfer_data, METRIC, position, TRANSFER_R2_THRESHOLD, method
+                    )
+                    if not method_layers:
+                        # Fall back to "final" position transfer data if position-specific not available
+                        method_layers = get_layers_from_transfer(
+                            transfer_data, METRIC, "final", TRANSFER_R2_THRESHOLD, method
+                        )
+                else:
+                    method_layers = all_available_layers
+
+                if not method_layers:
+                    print("\n" + "!"*70)
+                    print("!!! WARNING: FALLING BACK TO ALL LAYERS !!!")
+                    print(f"!!! No layers meet R²≥{TRANSFER_R2_THRESHOLD} threshold for {method}/{METRIC}")
+                    print(f"!!! This will test {len(all_available_layers)} layers instead of ~50")
+                    print(f"!!! Check that METRIC and method match transfer results")
+                    print("!"*70)
+                    print("Continuing in 3 seconds (Ctrl+C to abort)...")
+                    import time
+                    time.sleep(3)
+                    method_layers = all_available_layers
+
+            print(f"  Layers: {len(method_layers)} (range {min(method_layers)}-{max(method_layers)})")
+            print(f"  Controls: {position_num_controls}")
+
+            results = run_steering_for_method(
+                model=model,
+                tokenizer=tokenizer,
+                questions=questions,
+                metric_values=metric_values,
+                directions=all_directions[method],
+                num_controls=position_num_controls,
+                meta_task=META_TASK,
+                multipliers=STEERING_MULTIPLIERS,
+                use_chat_template=use_chat_template,
+                layers=method_layers,
+                position=position,
+            )
+            all_results_by_position[position][method] = results
+
+            # Analyze results
+            print(f"\n  Analyzing results...")
+            analysis = analyze_steering_results(results, METRIC)
+            all_analyses_by_position[position][method] = analysis
+
+            summary = analysis["summary"]
+            print(f"  Significant layers (FDR): {summary['n_significant_fdr']}")
+            print(f"  Sign correct (pooled): {summary['n_sign_correct_pooled']}")
+            print(f"  Best layer: {summary['best_layer']} (slope={summary['best_slope']:.4f})")
+
+        # Incremental save after each position completes (crash protection)
+        model_short = get_model_short_name(MODEL)
+        base_output = f"{model_short}_{INPUT_BASE_NAME.split('_')[-1]}_steering_{META_TASK}_{METRIC}"
+        checkpoint_path = OUTPUT_DIR / f"{base_output}_checkpoint.json"
+        checkpoint_json = {
+            "config": {
+                "model": MODEL,
+                "input_base_name": INPUT_BASE_NAME,
+                "metric": METRIC,
+                "meta_task": META_TASK,
+                "num_questions": NUM_QUESTIONS,
+                "multipliers": STEERING_MULTIPLIERS,
+                "positions_completed": [p for p in PROBE_POSITIONS if all_analyses_by_position.get(p)],
+            },
+            "by_position": {},
+        }
+        for pos in PROBE_POSITIONS:
+            if all_analyses_by_position.get(pos):
+                checkpoint_json["by_position"][pos] = {}
+                for m, analysis in all_analyses_by_position[pos].items():
+                    checkpoint_json["by_position"][pos][m] = {
+                        "per_layer": analysis["per_layer"],
+                        "summary": analysis["summary"],
+                    }
+        with open(checkpoint_path, "w") as f:
+            json.dump(checkpoint_json, f, indent=2)
+        print(f"  Checkpoint saved: {checkpoint_path.name}")
 
     # Generate output filename
     model_short = get_model_short_name(MODEL)
@@ -1015,61 +1341,80 @@ def main():
             "metric": METRIC,
             "meta_task": META_TASK,
             "num_questions": NUM_QUESTIONS,
-            "num_controls": NUM_CONTROLS,
+            "num_controls_final": NUM_CONTROLS,
+            "num_controls_nonfinal": NUM_CONTROLS_NONFINAL,
+            "transfer_r2_threshold": TRANSFER_R2_THRESHOLD,
             "multipliers": STEERING_MULTIPLIERS,
-            "layers_tested": test_layers,
             "methods_tested": methods,
+            "positions_tested": PROBE_POSITIONS,
         },
     }
 
-    for method, analysis in all_analyses.items():
+    # Per-position results
+    for position in PROBE_POSITIONS:
+        output_json[position] = {}
+        for method, analysis in all_analyses_by_position[position].items():
+            output_json[position][method] = {
+                "per_layer": analysis["per_layer"],
+                "summary": analysis["summary"],
+            }
+
+    # Backward compatibility: keep "final" results at top level (if final was tested)
+    default_position = "final" if "final" in all_analyses_by_position else PROBE_POSITIONS[0]
+    for method, analysis in all_analyses_by_position[default_position].items():
         output_json[method] = {
             "per_layer": analysis["per_layer"],
             "summary": analysis["summary"],
         }
 
-    # Comparison summary
+    # Comparison summary (for default position, for backward compat)
     if len(methods) >= 2:
+        default_analyses = all_analyses_by_position[default_position]
         output_json["comparison"] = {
             method: {
-                "n_significant_pooled": all_analyses[method]["summary"]["n_significant_pooled"],
-                "n_significant_fdr": all_analyses[method]["summary"]["n_significant_fdr"],
-                "n_sign_correct_pooled": all_analyses[method]["summary"]["n_sign_correct_pooled"],
-                "n_sign_correct_fdr": all_analyses[method]["summary"]["n_sign_correct_fdr"],
-                "best_layer": all_analyses[method]["summary"]["best_layer"],
-                "best_slope": all_analyses[method]["summary"]["best_slope"],
+                "n_significant_pooled": default_analyses[method]["summary"]["n_significant_pooled"],
+                "n_significant_fdr": default_analyses[method]["summary"]["n_significant_fdr"],
+                "n_sign_correct_pooled": default_analyses[method]["summary"]["n_sign_correct_pooled"],
+                "n_sign_correct_fdr": default_analyses[method]["summary"]["n_sign_correct_fdr"],
+                "best_layer": default_analyses[method]["summary"]["best_layer"],
+                "best_slope": default_analyses[method]["summary"]["best_slope"],
             }
             for method in methods
         }
-        best_method = max(methods, key=lambda m: all_analyses[m]["summary"]["n_sign_correct_pooled"])
+        best_method = max(methods, key=lambda m: default_analyses[m]["summary"]["n_sign_correct_pooled"])
         output_json["comparison"]["method_with_more_sign_correct"] = best_method
 
     with open(results_path, "w") as f:
         json.dump(output_json, f, indent=2)
     print(f"  Saved {results_path}")
 
-    # Generate plots
+    # Generate plots for each position
     print("\nGenerating plots...")
-    for method in methods:
-        plot_path = OUTPUT_DIR / f"{base_output}_{method}.png"
-        plot_steering_results(all_analyses[method], method, plot_path)
+    for position in PROBE_POSITIONS:
+        for method in methods:
+            plot_path = OUTPUT_DIR / f"{base_output}_{position}_{method}.png"
+            plot_steering_results(all_analyses_by_position[position][method], method, plot_path)
 
-    if len(methods) >= 2:
-        comparison_path = OUTPUT_DIR / f"{base_output}_comparison.png"
-        plot_method_comparison(all_analyses, comparison_path)
+        if len(methods) >= 2:
+            comparison_path = OUTPUT_DIR / f"{base_output}_{position}_comparison.png"
+            plot_method_comparison(all_analyses_by_position[position], comparison_path)
 
-    # Print summary
-    print_summary(all_analyses)
+    # Print summary for each position
+    for position in PROBE_POSITIONS:
+        print(f"\n{'='*70}")
+        print(f"POSITION: {position}")
+        print_summary(all_analyses_by_position[position])
 
     print("\n" + "=" * 70)
     print("DONE")
     print("=" * 70)
     print(f"\nOutput files:")
     print(f"  {results_path.name}")
-    for method in methods:
-        print(f"  {base_output}_{method}.png")
-    if len(methods) >= 2:
-        print(f"  {base_output}_comparison.png")
+    for position in PROBE_POSITIONS:
+        for method in methods:
+            print(f"  {base_output}_{position}_{method}.png")
+        if len(methods) >= 2:
+            print(f"  {base_output}_{position}_comparison.png")
 
 
 if __name__ == "__main__":

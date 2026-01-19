@@ -28,7 +28,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
-from scipy.stats import pearsonr, spearmanr
+from scipy.stats import pearsonr, spearmanr, norm
 
 from core.model_utils import (
     load_model_and_tokenizer,
@@ -64,7 +64,7 @@ from tasks import (
 MODEL = "meta-llama/Llama-3.3-70B-Instruct"
 INPUT_BASE_NAME = "Llama-3.3-70B-Instruct_TriviaMC"
 METRIC = "top_logit"  # Which metric's directions to test
-META_TASK = "confidence"  # "confidence" or "delegate"
+META_TASK = "delegate"  # "confidence" or "delegate"
 
 # Experiment settings
 NUM_QUESTIONS = 100  # How many questions to test
@@ -78,17 +78,35 @@ SEED = 42
 # Higher values = better GPU utilization but more memory.
 # With NUM_CONTROLS=25 (26 total) and EXPANDED_BATCH_TARGET=52, base batch = 2, we do 26 in one pass.
 # Set to None to disable batched ablation (run each direction separately).
-EXPANDED_BATCH_TARGET = 52
+EXPANDED_BATCH_TARGET = 192
 
 # Optional: specify layers to test (None = all layers from directions file)
+# For non-final positions, layers are auto-selected based on transfer R² if None
 LAYERS = None  # e.g., [20, 25, 30] for quick testing
+
+# Optional: specify which direction methods to test (None = both probe and mean_diff)
+METHODS = ["mean_diff"]  # e.g., ["mean_diff"] or ["probe"] to test just one
 
 # Positions to test (multi-position extraction)
 # These are token positions within the meta-task prompt where we can ablate
-PROBE_POSITIONS = ["question_mark", "question_newline", "options_newline", "final"]
+PROBE_POSITIONS = ["options_newline"]  # ["question_mark", "question_newline", "options_newline", "final"]
+
+# Extra diagnostics: understand cases where transfer is strong but ablation has weak/odd corr effects
+PRINT_DELTA_DIAGNOSTICS = True
+DELTA_DIAGNOSTIC_TOPK = 5  # print this many layers for biggest +Δcorr and biggest -Δcorr
+
+# Layer selection from transfer results (for non-final positions)
+# When LAYERS is None and position != "final", auto-select layers with transfer R² >= threshold
+TRANSFER_R2_THRESHOLD = 0.3  # Layers with R² >= this are tested for non-final positions
+TRANSFER_RESULTS_PATH = None  # Auto-detect from INPUT_BASE_NAME if None
+
+# Control count for non-final positions (final uses NUM_CONTROLS)
+# Fewer controls = faster, but need enough for valid p-values
+# 10 controls × N layers gives pooled null with 10*N samples
+NUM_CONTROLS_NONFINAL = 10
 
 # Quantization (for large models)
-LOAD_IN_4BIT = False
+LOAD_IN_4BIT = True
 LOAD_IN_8BIT = False
 
 # Output directory
@@ -97,6 +115,82 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 
 np.random.seed(SEED)
 torch.manual_seed(SEED)
+
+
+# =============================================================================
+# TRANSFER RESULTS LOADING (for layer selection)
+# =============================================================================
+
+def load_transfer_results(base_name: str, meta_task: str) -> Optional[Dict]:
+    """
+    Load transfer results JSON to get per-layer R² values.
+
+    Returns None if file not found.
+    """
+    path = TRANSFER_RESULTS_PATH
+    if path is None:
+        path = OUTPUT_DIR / f"{base_name}_transfer_{meta_task}_results.json"
+    else:
+        path = Path(path)
+
+    if not path.exists():
+        return None
+
+    with open(path, "r") as f:
+        return json.load(f)
+
+
+def get_layers_from_transfer(
+    transfer_data: Dict,
+    metric: str,
+    position: str,
+    r2_threshold: float,
+    method: str = "probe",
+) -> List[int]:
+    """
+    Get layers with transfer R² >= threshold for a given metric and position.
+
+    Args:
+        transfer_data: Loaded transfer results JSON
+        metric: Which metric to check (e.g., "top_logit", "entropy")
+        position: Token position (e.g., "final", "question_mark")
+        r2_threshold: Minimum R² to include layer
+        method: Direction method - "probe" uses transfer_by_position, "mean_diff" uses mean_diff_by_position
+
+    Returns:
+        Sorted list of layer indices meeting threshold
+    """
+    # Select the appropriate section based on method
+    if method == "mean_diff":
+        section_key = "mean_diff_by_position"
+        legacy_key = None  # No legacy fallback for mean_diff
+    else:
+        section_key = "transfer_by_position"
+        legacy_key = "transfer"
+
+    # Try position-specific data first
+    if section_key in transfer_data and position in transfer_data[section_key]:
+        pos_data = transfer_data[section_key][position]
+    elif legacy_key and legacy_key in transfer_data:
+        # Fall back to legacy format (final position only, probe only)
+        pos_data = transfer_data[legacy_key]
+    else:
+        return []
+
+    if metric not in pos_data:
+        return []
+
+    metric_data = pos_data[metric]
+    per_layer = metric_data.get("per_layer", {})
+
+    selected = []
+    for layer_str, layer_data in per_layer.items():
+        # Check for centered R² (preferred) or d2m_centered_r2 (legacy)
+        r2 = layer_data.get("centered_r2") or layer_data.get("d2m_centered_r2", 0)
+        if r2 >= r2_threshold:
+            selected.append(int(layer_str))
+
+    return sorted(selected)
 
 
 # =============================================================================
@@ -210,7 +304,6 @@ def run_ablation_for_method(
     use_chat_template: bool,
     layers: Optional[List[int]] = None,
     position: str = "final",
-    method_name: str = "",
 ) -> Dict:
     """
     Run ablation experiment for a single direction method at a specific position.
@@ -272,10 +365,12 @@ def run_ablation_for_method(
         position_indices.append(pos_idx)
 
     # Warn if some positions weren't found (will fall back to final token)
-    n_valid = sum(1 for idx in position_indices if idx >= 0)
-    n_total = len(position_indices)
-    if n_valid < n_total:
-        print(f"  Warning: {position} position found for {n_valid}/{n_total} prompts (others fall back to final)")
+    # Note: "final" position is always -1 by design, so don't warn for it
+    if position != "final":
+        n_valid = sum(1 for idx in position_indices if idx >= 0)
+        n_total = len(position_indices)
+        if n_valid < n_total:
+            print(f"  Warning: {position} position found for {n_valid}/{n_total} prompts (others fall back to final)")
 
     cached_inputs = pretokenize_prompts(prompts, tokenizer, DEVICE)
     gpu_batches = build_padded_gpu_batches(cached_inputs, tokenizer, DEVICE, BATCH_SIZE)
@@ -662,6 +757,14 @@ def compute_correlation(confidences: np.ndarray, metric_values: np.ndarray) -> f
     return float(np.corrcoef(confidences, metric_values)[0, 1])
 
 
+def compute_spearman(x: np.ndarray, y: np.ndarray) -> float:
+    """Compute Spearman (rank) correlation."""
+    if len(x) < 2 or np.std(x) < 1e-10 or np.std(y) < 1e-10:
+        return 0.0
+    return float(spearmanr(x, y).correlation)
+
+
+
 def analyze_ablation_results(results: Dict, metric: str) -> Dict:
     """
     Compute ablation effect statistics with pooled null + FDR correction.
@@ -700,15 +803,69 @@ def analyze_ablation_results(results: Dict, metric: str) -> Dict:
         baseline_corr = compute_correlation(baseline_conf, baseline_metric)
         ablated_corr = compute_correlation(ablated_conf, ablated_metric)
 
-        # Control ablations
+        # Use signed metric for interpretation-consistent diagnostics
+        metric_signed = baseline_metric * metric_sign
+
+        # Control ablations (and Δconf diagnostics for controls)
         control_corrs = []
+        control_delta_corrs = []
+        control_delta_means = []
+
         for ctrl_key in lr["controls_ablated"]:
             ctrl_conf = np.array([r["confidence"] for r in lr["controls_ablated"][ctrl_key]])
             ctrl_metric = np.array([r["metric"] for r in lr["controls_ablated"][ctrl_key]])
             control_corrs.append(compute_correlation(ctrl_conf, ctrl_metric))
 
+            delta_ctrl = ctrl_conf - baseline_conf
+            control_delta_means.append(float(np.mean(delta_ctrl)))
+            control_delta_corrs.append(compute_correlation(delta_ctrl, metric_signed))
+
         corr_change = ablated_corr - baseline_corr
         control_corr_changes = [c - baseline_corr for c in control_corrs]
+
+        # -------- Δconf diagnostics --------
+        # 1) Is the change mostly a uniform shift/rescale?
+        delta_conf = ablated_conf - baseline_conf
+        delta_conf_mean = float(np.mean(delta_conf))
+        delta_conf_std = float(np.std(delta_conf))
+
+        # 2) Is the change metric-dependent?
+        delta_corr_metric = compute_correlation(delta_conf, metric_signed)
+        delta_spearman_metric = compute_spearman(delta_conf, metric_signed)
+
+        # Affine fit: ablated ≈ a * baseline + b
+        if np.std(baseline_conf) > 1e-10:
+            affine_slope, affine_intercept = np.polyfit(baseline_conf, ablated_conf, 1)
+        else:
+            affine_slope, affine_intercept = 0.0, float(np.mean(ablated_conf))
+
+        baseline_to_ablated_corr = compute_correlation(baseline_conf, ablated_conf)
+
+        # Residual after best affine transform: if this correlates with metric, it's not "just a shift/rescale"
+        resid = ablated_conf - (affine_slope * baseline_conf + affine_intercept)
+        residual_corr_metric = compute_correlation(resid, metric_signed)
+
+        # Pooled p-value for delta_corr_metric vs controls (two-tailed)
+        pooled_delta_corr = np.array(control_delta_corrs, dtype=np.float32)
+        if len(pooled_delta_corr) > 0:
+            n_worse = np.sum(np.abs(pooled_delta_corr) >= np.abs(delta_corr_metric))
+            p_value_delta_corr_pooled = float((n_worse + 1) / (len(pooled_delta_corr) + 1))
+        else:
+            p_value_delta_corr_pooled = 1.0
+
+        # Mean Δconf by metric decile (helps distinguish "bias shift" vs metric-targeted change)
+        if np.std(metric_signed) < 1e-10:
+            delta_by_decile = [None] * 10
+        else:
+            edges = np.quantile(metric_signed, np.linspace(0, 1, 11))
+            if np.unique(edges).size < 3:
+                delta_by_decile = [None] * 10
+            else:
+                bin_idx = np.digitize(metric_signed, edges[1:-1], right=True)  # 0..9
+                delta_by_decile = [
+                    float(np.mean(delta_conf[bin_idx == k])) if np.any(bin_idx == k) else None
+                    for k in range(10)
+                ]
 
         all_control_corr_changes.extend(control_corr_changes)
 
@@ -720,6 +877,20 @@ def analyze_ablation_results(results: Dict, metric: str) -> Dict:
             "corr_change": corr_change,
             "control_corrs": control_corrs,
             "control_corr_changes": control_corr_changes,
+
+            # Δconf diagnostics
+            "delta_conf_mean": delta_conf_mean,
+            "delta_conf_std": delta_conf_std,
+            "delta_conf_corr_metric": float(delta_corr_metric),
+            "delta_conf_spearman_metric": float(delta_spearman_metric),
+            "baseline_to_ablated_conf_corr": float(baseline_to_ablated_corr),
+            "affine_slope": float(affine_slope),
+            "affine_intercept": float(affine_intercept),
+            "residual_corr_metric": float(residual_corr_metric),
+            "control_delta_conf_corr_metric_mean": float(np.mean(control_delta_corrs)) if len(control_delta_corrs) else 0.0,
+            "control_delta_conf_corr_metric_std": float(np.std(control_delta_corrs)) if len(control_delta_corrs) else 0.0,
+            "p_value_delta_corr_pooled": float(p_value_delta_corr_pooled),
+            "delta_conf_mean_by_metric_decile": delta_by_decile,
         }
 
     # Convert pooled null to array
@@ -731,21 +902,40 @@ def analyze_ablation_results(results: Dict, metric: str) -> Dict:
     for layer in layers:
         ld = layer_data[layer]
 
-        # Per-layer statistics
-        ctrl_mean = float(np.mean(ld["control_corr_changes"]))
-        ctrl_std = float(np.std(ld["control_corr_changes"]))
+        # Per-layer statistics (handle empty controls)
+        if len(ld["control_corr_changes"]) > 0:
+            ctrl_mean = float(np.mean(ld["control_corr_changes"]))
+            ctrl_std = float(np.std(ld["control_corr_changes"]))
+        else:
+            ctrl_mean = 0.0
+            ctrl_std = 0.0
 
         # Pooled p-value: two-tailed test (how many controls have |effect| >= |ours|)
-        n_pooled_worse = np.sum(np.abs(pooled_null) >= np.abs(ld["corr_change"]))
-        p_value_pooled = (n_pooled_worse + 1) / (len(pooled_null) + 1)
+        if len(pooled_null) > 0:
+            n_pooled_worse = np.sum(np.abs(pooled_null) >= np.abs(ld["corr_change"]))
+            p_value_pooled = (n_pooled_worse + 1) / (len(pooled_null) + 1)
+        else:
+            # No controls - can't compute p-value
+            p_value_pooled = 1.0
 
         # Effect size (Z-score vs controls)
         if ctrl_std > 1e-10:
             effect_size_z = (ld["corr_change"] - ctrl_mean) / ctrl_std
+            # Parametric p-value from Z-score (two-tailed)
+            p_value_parametric = 2 * norm.sf(abs(effect_size_z))
         else:
             effect_size_z = 0.0
+            p_value_parametric = 1.0
 
         raw_p_values.append((layer, p_value_pooled))
+
+        # Handle case with no controls
+        if len(ld["control_corrs"]) > 0:
+            ctrl_corr_mean = float(np.mean(ld["control_corrs"]))
+            ctrl_corr_std = float(np.std(ld["control_corrs"]))
+        else:
+            ctrl_corr_mean = ld["baseline_corr"]  # No control = baseline as reference
+            ctrl_corr_std = 0.0
 
         analysis["per_layer"][layer] = {
             "baseline_correlation": ld["baseline_corr"],
@@ -753,12 +943,27 @@ def analyze_ablation_results(results: Dict, metric: str) -> Dict:
             "ablated_correlation": ld["ablated_corr"],
             "ablated_confidence_mean": ld["ablated_conf_mean"],
             "correlation_change": ld["corr_change"],
-            "control_correlation_mean": float(np.mean(ld["control_corrs"])),
-            "control_correlation_std": float(np.std(ld["control_corrs"])),
+            "control_correlation_mean": ctrl_corr_mean,
+            "control_correlation_std": ctrl_corr_std,
             "control_correlation_change_mean": ctrl_mean,
             "control_correlation_change_std": ctrl_std,
             "p_value_pooled": float(p_value_pooled),
+            "p_value_parametric": float(p_value_parametric),
             "effect_size_z": float(effect_size_z),
+
+            # Δconf diagnostics
+            "delta_conf_mean": ld["delta_conf_mean"],
+            "delta_conf_std": ld["delta_conf_std"],
+            "delta_conf_corr_metric": ld["delta_conf_corr_metric"],
+            "delta_conf_spearman_metric": ld["delta_conf_spearman_metric"],
+            "baseline_to_ablated_conf_corr": ld["baseline_to_ablated_conf_corr"],
+            "affine_slope": ld["affine_slope"],
+            "affine_intercept": ld["affine_intercept"],
+            "residual_corr_metric": ld["residual_corr_metric"],
+            "control_delta_conf_corr_metric_mean": ld["control_delta_conf_corr_metric_mean"],
+            "control_delta_conf_corr_metric_std": ld["control_delta_conf_corr_metric_std"],
+            "p_value_delta_corr_pooled": ld["p_value_delta_corr_pooled"],
+            "delta_conf_mean_by_metric_decile": ld["delta_conf_mean_by_metric_decile"],
         }
 
     # FDR correction (Benjamini-Hochberg)
@@ -783,6 +988,7 @@ def analyze_ablation_results(results: Dict, metric: str) -> Dict:
     # Summary
     significant_pooled = [l for l in layers if analysis["per_layer"][l]["p_value_pooled"] < 0.05]
     significant_fdr = [l for l in layers if analysis["per_layer"][l]["p_value_fdr"] < 0.05]
+    significant_parametric = [l for l in layers if analysis["per_layer"][l]["p_value_parametric"] < 0.05]
 
     # Best layer by effect size magnitude (most extreme effect in either direction)
     best_layer = max(layers, key=lambda l: abs(analysis["per_layer"][l]["effect_size_z"]))
@@ -791,11 +997,50 @@ def analyze_ablation_results(results: Dict, metric: str) -> Dict:
         "pooled_null_size": len(pooled_null),
         "significant_layers_pooled": significant_pooled,
         "significant_layers_fdr": significant_fdr,
+        "significant_layers_parametric": significant_parametric,
         "n_significant_pooled": len(significant_pooled),
         "n_significant_fdr": len(significant_fdr),
+        "n_significant_parametric": len(significant_parametric),
         "best_layer": best_layer,
         "best_effect_z": analysis["per_layer"][best_layer]["effect_size_z"],
     }
+
+
+    # Optional: print extra diagnostics for layers with biggest corr changes
+    if PRINT_DELTA_DIAGNOSTICS and len(layers) > 0:
+        per = analysis["per_layer"]
+
+        top_inc = sorted(layers, key=lambda l: per[l]["correlation_change"], reverse=True)[:DELTA_DIAGNOSTIC_TOPK]
+        top_dec = sorted(layers, key=lambda l: per[l]["correlation_change"])[:DELTA_DIAGNOSTIC_TOPK]
+
+        def _fmt_deciles(arr):
+            def _fmt_one(x):
+                if x is None:
+                    return "None"
+                try:
+                    if x != x:  # NaN
+                        return "nan"
+                except Exception:
+                    return "None"
+                return f"{x:+.3f}"
+
+            return "[" + ", ".join(_fmt_one(x) for x in arr) + "]"
+
+        def _print_layer(l):
+            d = per[l]
+            print(f"    L{l:>3}  corr {d['baseline_correlation']:+.3f} -> {d['ablated_correlation']:+.3f}  (Δ={d['correlation_change']:+.3f}, Z={d['effect_size_z']:+.2f}, FDR={d['p_value_fdr']:.3g})")
+            print(f"         conf mean {d['baseline_confidence_mean']:.3f} -> {d['ablated_confidence_mean']:.3f}  (Δmean={d['delta_conf_mean']:+.4f}, Δstd={d['delta_conf_std']:.4f})")
+            print(f"         corr(Δconf, metric*s) pearson={d['delta_conf_corr_metric']:+.3f} spearman={d['delta_conf_spearman_metric']:+.3f}  (ctrl mean={d['control_delta_conf_corr_metric_mean']:+.3f}±{d['control_delta_conf_corr_metric_std']:.3f}, p_pooled={d['p_value_delta_corr_pooled']:.3g})")
+            print(f"         ablated≈{d['affine_slope']:.3f}*baseline+{d['affine_intercept']:+.3f}  corr(baseline,ablated)={d['baseline_to_ablated_conf_corr']:.4f}  corr(resid, metric*s)={d['residual_corr_metric']:+.3f}")
+            print(f"         mean Δconf by metric decile: {_fmt_deciles(d['delta_conf_mean_by_metric_decile'])}")
+
+        print("\n  [Δconf diagnostics] Layers with biggest +Δcorr:")
+        for l in top_inc:
+            _print_layer(l)
+
+        print("\n  [Δconf diagnostics] Layers with biggest -Δcorr:")
+        for l in top_dec:
+            _print_layer(l)
 
     return analysis
 
@@ -843,11 +1088,13 @@ def plot_ablation_results(analysis: Dict, method: str, output_path: Path):
     ax1.legend(loc='best', fontsize=9)
     ax1.grid(True, alpha=0.3)
 
-    # Auto-zoom y-axis to data range with padding
+    # Auto-zoom y-axis to data range with padding (handle NaN/Inf)
     all_vals = np.concatenate([baseline_corrs, ablated_corrs, ctrl_corrs - ctrl_corr_stds, ctrl_corrs + ctrl_corr_stds])
-    ymin, ymax = np.min(all_vals), np.max(all_vals)
-    padding = (ymax - ymin) * 0.1
-    ax1.set_ylim(ymin - padding, ymax + padding)
+    all_vals = all_vals[np.isfinite(all_vals)]  # Filter out NaN/Inf
+    if len(all_vals) > 0:
+        ymin, ymax = np.min(all_vals), np.max(all_vals)
+        padding = (ymax - ymin) * 0.1 if ymax > ymin else 0.1
+        ax1.set_ylim(ymin - padding, ymax + padding)
 
     # Panel 2: Effect size with significance and CIs
     ax2 = axes[1]
@@ -1011,17 +1258,44 @@ def print_summary(analyses: Dict[str, Dict]):
     print("\n" + "=" * 70)
     print("ABLATION CAUSALITY TEST RESULTS")
     print("=" * 70)
+    print("\nKey question: Does ablating the direction HURT calibration?")
+    print("Expected: correlation should DECREASE (negative change)")
 
     for method, analysis in analyses.items():
-        summary = analysis["summary"]
-        print(f"\n{method.upper()} directions:")
-        print(f"  Layers tested: {len(analysis['layers'])}")
-        print(f"  Significant (pooled p<0.05): {summary['n_significant_pooled']}")
-        print(f"  Significant (FDR p<0.05): {summary['n_significant_fdr']}")
-        print(f"  Best layer: {summary['best_layer']} (Z={summary['best_effect_z']:.2f})")
+        layers = analysis['layers']
+        print(f"\n{method.upper()} directions ({len(layers)} layers):")
+        print("-" * 70)
+        print(f"{'Layer':>5}  {'Baseline':>8}  {'Ablated':>8}  {'Change':>8}  {'p-value':>8}  {'Hurt?':>6}")
+        print("-" * 70)
 
-        if summary['significant_layers_fdr']:
-            print(f"  FDR-significant layers: {summary['significant_layers_fdr']}")
+        # Sort by effect magnitude for easier reading
+        sorted_layers = sorted(layers, key=lambda l: analysis['per_layer'][l]['correlation_change'])
+
+        for layer in sorted_layers:
+            ld = analysis['per_layer'][layer]
+            baseline = ld['baseline_correlation']
+            ablated = ld['ablated_correlation']
+            change = ld['correlation_change']
+            p_val = ld['p_value_parametric']
+
+            # "Hurt" = significant decrease in correlation (ablation impaired calibration)
+            hurt = "YES" if (change < 0 and p_val < 0.05) else "no"
+            sig = "*" if p_val < 0.05 else ""
+
+            print(f"{layer:>5}  {baseline:>8.4f}  {ablated:>8.4f}  {change:>+8.4f}  {p_val:>8.2e}{sig:1}  {hurt:>6}")
+
+        # Summary
+        n_hurt = sum(1 for l in layers
+                     if analysis['per_layer'][l]['correlation_change'] < 0
+                     and analysis['per_layer'][l]['p_value_parametric'] < 0.05)
+        n_helped = sum(1 for l in layers
+                       if analysis['per_layer'][l]['correlation_change'] > 0
+                       and analysis['per_layer'][l]['p_value_parametric'] < 0.05)
+
+        print("-" * 70)
+        print(f"Summary: {n_hurt} layers where ablation HURT calibration (p<0.05)")
+        if n_helped > 0:
+            print(f"         {n_helped} layers where ablation HELPED calibration (unexpected)")
 
 
 # =============================================================================
@@ -1037,13 +1311,22 @@ def main():
     print(f"Metric: {METRIC}")
     print(f"Meta-task: {META_TASK}")
     print(f"Questions: {NUM_QUESTIONS}")
-    print(f"Controls per layer: {NUM_CONTROLS}")
+    print(f"Controls: {NUM_CONTROLS} (final), {NUM_CONTROLS_NONFINAL} (non-final)")
 
     # Load directions
     print("\nLoading directions...")
     all_directions = load_directions(INPUT_BASE_NAME, METRIC)
-    methods = list(all_directions.keys())
-    print(f"  Found methods: {methods}")
+    available_methods = list(all_directions.keys())
+    print(f"  Found methods: {available_methods}")
+
+    # Filter to requested methods
+    if METHODS is not None:
+        methods = [m for m in METHODS if m in available_methods]
+        if not methods:
+            raise ValueError(f"No matching methods found. Available: {available_methods}, requested: {METHODS}")
+        print(f"  Using methods: {methods}")
+    else:
+        methods = available_methods
 
     for method in methods:
         layers = sorted(all_directions[method].keys())
@@ -1060,13 +1343,39 @@ def main():
     print(f"  Questions: {len(questions)}")
     print(f"  {METRIC}: mean={metric_values.mean():.3f}, std={metric_values.std():.3f}")
 
-    # Determine layers to test
-    if LAYERS is not None:
-        test_layers = LAYERS
+    # Load transfer results for layer selection (non-final positions)
+    transfer_data = load_transfer_results(INPUT_BASE_NAME, META_TASK)
+    if transfer_data is not None:
+        print(f"\nLoaded transfer results for layer selection")
+        # Preview what layers would be selected FOR EACH (POSITION, METHOD) combination
+        for pos in PROBE_POSITIONS:
+            if pos == "final":
+                print(f"  {pos}: all layers (no R² filter)")
+            else:
+                for method in methods:
+                    pos_layers = get_layers_from_transfer(transfer_data, METRIC, pos, TRANSFER_R2_THRESHOLD, method)
+                    if pos_layers:
+                        print(f"  {pos}/{method}: {len(pos_layers)} layers with {METRIC} R²≥{TRANSFER_R2_THRESHOLD}: {pos_layers}")
+                    else:
+                        # Try fallback to final
+                        fallback_layers = get_layers_from_transfer(transfer_data, METRIC, "final", TRANSFER_R2_THRESHOLD, method)
+                        if fallback_layers:
+                            print(f"  {pos}/{method}: no position-specific data, using final: {len(fallback_layers)} layers")
+                        else:
+                            print(f"  {pos}/{method}: WARNING - no layers found, will use ALL layers")
     else:
-        # Use all layers from first method
-        test_layers = sorted(all_directions[methods[0]].keys())
-    print(f"\nLayers to test: {len(test_layers)}")
+        expected_path = OUTPUT_DIR / f"{INPUT_BASE_NAME}_transfer_{META_TASK}_results.json"
+        print(f"\nNo transfer results found - will use all layers for all positions")
+        print(f"  Expected: {expected_path}")
+
+    # Determine base layers (all available)
+    all_available_layers = sorted(all_directions[methods[0]].keys())
+
+    # Layer selection depends on position - will be set per-position below
+    if LAYERS is not None:
+        print(f"\nExplicit LAYERS override: {len(LAYERS)} layers")
+    else:
+        print(f"\nLayer selection: all layers for final, R²≥{TRANSFER_R2_THRESHOLD} for non-final")
 
     # Load model
     print("\nLoading model...")
@@ -1084,19 +1393,54 @@ def main():
     all_results_by_pos = {pos: {} for pos in PROBE_POSITIONS}
     all_analyses_by_pos = {pos: {} for pos in PROBE_POSITIONS}
 
-    # Crash-protection: optionally dump raw per-layer outputs after each ablation run
-    # so long-running forward passes aren't lost if a later analysis step errors.
-    SAVE_RAW_RESULTS = True
-
     for position in PROBE_POSITIONS:
         print(f"\n{'='*70}")
         print(f"POSITION: {position}")
         print(f"{'='*70}")
 
+        # Determine number of controls for this position
+        position_num_controls = NUM_CONTROLS if position == "final" else NUM_CONTROLS_NONFINAL
+
         for method in methods:
             print(f"\n{'='*60}")
             print(f"ABLATION EXPERIMENT: {method.upper()} @ {position}")
             print(f"{'='*60}")
+
+            # Determine layers for this position AND method
+            if LAYERS is not None:
+                # Explicit override applies to all positions/methods
+                method_layers = LAYERS
+            elif position == "final":
+                # Final position: use all layers
+                method_layers = all_available_layers
+            else:
+                # Non-final position: select based on transfer R² for THIS method
+                if transfer_data is not None:
+                    method_layers = get_layers_from_transfer(
+                        transfer_data, METRIC, position, TRANSFER_R2_THRESHOLD, method
+                    )
+                    if not method_layers:
+                        # Fall back to "final" position transfer data if position-specific not available
+                        method_layers = get_layers_from_transfer(
+                            transfer_data, METRIC, "final", TRANSFER_R2_THRESHOLD, method
+                        )
+                else:
+                    method_layers = all_available_layers
+
+                if not method_layers:
+                    print("\n" + "!"*70)
+                    print("!!! WARNING: FALLING BACK TO ALL LAYERS !!!")
+                    print(f"!!! No layers meet R²≥{TRANSFER_R2_THRESHOLD} threshold for {method}/{METRIC}")
+                    print(f"!!! This will test {len(all_available_layers)} layers instead of ~50")
+                    print(f"!!! Check that METRIC and method match transfer results")
+                    print("!"*70)
+                    print("Continuing in 3 seconds (Ctrl+C to abort)...")
+                    import time
+                    time.sleep(3)
+                    method_layers = all_available_layers
+
+            print(f"  Layers: {len(method_layers)} (range {min(method_layers)}-{max(method_layers)})")
+            print(f"  Controls: {position_num_controls}")
 
             results = run_ablation_for_method(
                 model=model,
@@ -1104,26 +1448,13 @@ def main():
                 questions=questions,
                 metric_values=metric_values,
                 directions=all_directions[method],
-                num_controls=NUM_CONTROLS,
+                num_controls=position_num_controls,
                 meta_task=META_TASK,
                 use_chat_template=use_chat_template,
-                layers=test_layers,
+                layers=method_layers,
                 position=position,
             )
             all_results_by_pos[position][method] = results
-
-            if SAVE_RAW_RESULTS:
-                try:
-                    model_short = get_model_short_name(MODEL)
-                    raw_path = OUTPUT_DIR / (
-                        f"{model_short}_{INPUT_BASE_NAME.split('_')[-1]}_ablation_{META_TASK}_{METRIC}"
-                        f"_cs-{CONFIDENCE_SIGNAL}_raw_{method}_{position}.json"
-                    )
-                    with open(raw_path, "w") as f:
-                        json.dump(results, f)
-                    print(f"  Raw results saved: {raw_path.name}")
-                except Exception as e:
-                    print(f"  [warn] Failed to save raw results for crash protection: {e}")
 
             # Analyze results
             print(f"\n  Analyzing results...")
@@ -1134,8 +1465,39 @@ def main():
             print(f"  Significant layers (FDR): {summary['n_significant_fdr']}")
             print(f"  Best layer: {summary['best_layer']} (Z={summary['best_effect_z']:.2f})")
 
-    # For backward compatibility, keep "final" as the default
-    all_analyses = all_analyses_by_pos["final"]
+        # Incremental save after each position completes (crash protection)
+        model_short = get_model_short_name(MODEL)
+        base_output = f"{model_short}_{INPUT_BASE_NAME.split('_')[-1]}_ablation_{META_TASK}_{METRIC}"
+        checkpoint_path = OUTPUT_DIR / f"{base_output}_checkpoint.json"
+        checkpoint_json = {
+            "config": {
+                "model": MODEL,
+                "input_base_name": INPUT_BASE_NAME,
+                "metric": METRIC,
+                "meta_task": META_TASK,
+                "num_questions": NUM_QUESTIONS,
+                "positions_completed": [p for p in PROBE_POSITIONS if all_analyses_by_pos[p]],
+            },
+            "by_position": {},
+        }
+        for pos in PROBE_POSITIONS:
+            if all_analyses_by_pos[pos]:
+                checkpoint_json["by_position"][pos] = {}
+                for m, analysis in all_analyses_by_pos[pos].items():
+                    checkpoint_json["by_position"][pos][m] = {
+                        "per_layer": analysis["per_layer"],
+                        "summary": analysis["summary"],
+                    }
+        with open(checkpoint_path, "w") as f:
+            json.dump(checkpoint_json, f, indent=2)
+        print(f"  Checkpoint saved: {checkpoint_path.name}")
+
+    # For backward compatibility, keep "final" as the default if it was tested
+    if "final" in all_analyses_by_pos:
+        all_analyses = all_analyses_by_pos["final"]
+    else:
+        # Use first available position
+        all_analyses = all_analyses_by_pos[PROBE_POSITIONS[0]]
 
     # Generate output filename
     model_short = get_model_short_name(MODEL)
@@ -1145,33 +1507,59 @@ def main():
     print("\nSaving results...")
     results_path = OUTPUT_DIR / f"{base_output}_results.json"
 
-    output_json = {
-        "config": {
-            "model": MODEL,
-            "input_base_name": INPUT_BASE_NAME,
-            "metric": METRIC,
-            "meta_task": META_TASK,
-            "num_questions": NUM_QUESTIONS,
-            "num_controls": NUM_CONTROLS,
-            "layers_tested": test_layers,
-            "methods_tested": methods,
-            "positions_tested": PROBE_POSITIONS,
-        },
-    }
-
-    # Legacy format: results for "final" position at top level
-    for method, analysis in all_analyses.items():
-        output_json[method] = {
-            "per_layer": analysis["per_layer"],
-            "summary": analysis["summary"],
+    # Load existing results if present, otherwise create new
+    if results_path.exists():
+        with open(results_path, "r") as f:
+            output_json = json.load(f)
+        print(f"  Merging with existing results: {results_path.name}")
+        # Ensure by_position exists (for older format files)
+        if "by_position" not in output_json:
+            output_json["by_position"] = {}
+    else:
+        output_json = {
+            "config": {
+                "model": MODEL,
+                "input_base_name": INPUT_BASE_NAME,
+                "metric": METRIC,
+                "meta_task": META_TASK,
+                "num_questions": NUM_QUESTIONS,
+                "num_controls_final": NUM_CONTROLS,
+                "num_controls_nonfinal": NUM_CONTROLS_NONFINAL,
+                "transfer_r2_threshold": TRANSFER_R2_THRESHOLD,
+                "methods_tested": [],
+                "positions_tested": [],
+            },
+            "by_position": {},
         }
 
-    # New format: results by position
-    output_json["by_position"] = {}
+    # Update config with current run's positions/methods (accumulate)
+    existing_positions = set(output_json["config"].get("positions_tested", []))
+    existing_methods = set(output_json["config"].get("methods_tested", []))
+    output_json["config"]["positions_tested"] = sorted(existing_positions | set(PROBE_POSITIONS))
+    output_json["config"]["methods_tested"] = sorted(existing_methods | set(methods))
+
+    # Legacy format: only update top-level keys when "final" position was tested
+    if "final" in PROBE_POSITIONS:
+        for method, analysis in all_analyses.items():
+            output_json[method] = {
+                "layers": analysis["layers"],
+                "num_questions": analysis["num_questions"],
+                "num_controls": analysis["num_controls"],
+                "metric": analysis["metric"],
+                "per_layer": analysis["per_layer"],
+                "summary": analysis["summary"],
+            }
+
+    # Merge new results into by_position (overwrites same position/method)
     for position in PROBE_POSITIONS:
-        output_json["by_position"][position] = {}
+        if position not in output_json["by_position"]:
+            output_json["by_position"][position] = {}
         for method, analysis in all_analyses_by_pos[position].items():
             output_json["by_position"][position][method] = {
+                "layers": analysis["layers"],
+                "num_questions": analysis["num_questions"],
+                "num_controls": analysis["num_controls"],
+                "metric": analysis["metric"],
                 "per_layer": analysis["per_layer"],
                 "summary": analysis["summary"],
             }

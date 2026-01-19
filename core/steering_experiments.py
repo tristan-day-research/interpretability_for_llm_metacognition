@@ -151,15 +151,25 @@ class BatchSteeringHook:
     This is designed for "multiplier sweep in one pass" by expanding the batch:
     each prompt is duplicated for each multiplier, and this hook adds a different
     delta vector for each expanded example.
+
+    intervention_position can be:
+        - "last": Only intervene at the final token (compatible with KV cache)
+        - "all": Intervene at all token positions
+        - "indexed": Use position_indices tensor for per-example positions
     """
 
     def __init__(self, delta_bh: Optional[torch.Tensor] = None, intervention_position: str = "last"):
         self.delta_bh = delta_bh  # (batch, hidden)
         self.handle = None
         self.intervention_position = intervention_position
+        self.position_indices = None  # Optional: per-example position indices
 
     def set_delta(self, delta_bh: torch.Tensor):
         self.delta_bh = delta_bh
+
+    def set_position_indices(self, indices: torch.Tensor):
+        """Set per-example position indices for intervention."""
+        self.position_indices = indices
 
     def __call__(self, module, input, output):
         if self.delta_bh is None:
@@ -171,7 +181,14 @@ class BatchSteeringHook:
         if self.intervention_position == "last":
             hs = hs.clone()
             hs[:, -1, :] = hs[:, -1, :] + delta
+        elif self.intervention_position == "indexed" and self.position_indices is not None:
+            # Per-example position indices
+            hs = hs.clone()
+            batch_indices = torch.arange(hs.shape[0], device=hs.device)
+            pos_indices = self.position_indices.to(device=hs.device)
+            hs[batch_indices, pos_indices, :] = hs[batch_indices, pos_indices, :] + delta
         else:
+            # "all" positions
             hs = hs + delta[:, None, :]
 
         if isinstance(output, tuple):
@@ -192,17 +209,27 @@ class BatchAblationHook:
 
     For batched ablation: each prompt is duplicated for each direction,
     and this hook removes a different direction for each expanded example.
+
+    intervention_position can be:
+        - "last": Only intervene at the final token (compatible with KV cache)
+        - "all": Intervene at all token positions
+        - "indexed": Use position_indices tensor for per-example positions
     """
 
     def __init__(self, directions_bh: Optional[torch.Tensor] = None, intervention_position: str = "last"):
         self.directions_bh = directions_bh
         self.handle = None
         self.intervention_position = intervention_position
+        self.position_indices = None  # Optional: per-example position indices
         self._diag_printed = False
 
     def set_directions(self, directions_bh: torch.Tensor):
         self.directions_bh = directions_bh
         self._diag_printed = False
+
+    def set_position_indices(self, indices: torch.Tensor):
+        """Set per-example position indices for intervention."""
+        self.position_indices = indices
 
     def __call__(self, module, input, output):
         if self.directions_bh is None:
@@ -217,7 +244,17 @@ class BatchAblationHook:
             dots = torch.einsum('bh,bh->b', last_token, dirs)
             proj = dots.unsqueeze(-1) * dirs
             hs[:, -1, :] = last_token - proj
+        elif self.intervention_position == "indexed" and self.position_indices is not None:
+            # Per-example position indices
+            hs = hs.clone()
+            batch_indices = torch.arange(hs.shape[0], device=hs.device)
+            pos_indices = self.position_indices.to(device=hs.device)
+            target_tokens = hs[batch_indices, pos_indices, :]  # (batch, hidden)
+            dots = torch.einsum('bh,bh->b', target_tokens, dirs)
+            proj = dots.unsqueeze(-1) * dirs
+            hs[batch_indices, pos_indices, :] = target_tokens - proj
         else:
+            # "all" positions
             dots = torch.einsum('bsh,bh->bs', hs, dirs)
             proj = dots.unsqueeze(-1) * dirs.unsqueeze(1)
             hs = hs - proj
@@ -252,7 +289,8 @@ def pretokenize_prompts(prompts: List[str], tokenizer, device: str) -> Dict:
     tokenized = tokenizer(
         prompts,
         padding=False,
-        truncation=True,
+        truncation=False,  # Don't truncate - breaks position finding
+        add_special_tokens=False,  # Prompts already have special tokens from chat template
         return_attention_mask=True
     )
 

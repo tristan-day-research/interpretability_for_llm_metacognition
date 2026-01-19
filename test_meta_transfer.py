@@ -378,7 +378,7 @@ def plot_transfer_results(
 
     # For display only: prevent a few extreme negative R² values from blowing out the y-axis.
     # Raw values are still saved to JSON/NPZ.
-    R2_PLOT_FLOOR = -5.0
+    R2_PLOT_FLOOR = -0.5
     def _clip_r2_for_plot(arr: np.ndarray) -> np.ndarray:
         arr = np.asarray(arr, dtype=float)
         arr = np.where(np.isfinite(arr), arr, np.nan)
@@ -560,6 +560,212 @@ def plot_transfer_results(
     print(f"  Saved: {output_path}")
 
 
+def plot_mean_diff_transfer_results(
+    transfer_results: dict,
+    direct_r2: dict,
+    direct_r2_std: dict,
+    behavioral: dict,
+    num_layers: int,
+    output_path: Path,
+    meta_task: str,
+    title_prefix: str = "Mean-diff Transfer",
+):
+    """
+    Plot mean-diff transfer R² across layers for all metrics.
+
+    2x2 grid format (same as probe plots):
+    - Panel 1: Transferred predictions → stated confidence
+    - Panel 2: Centered Scaler (R² geometry check)
+    - Panel 3: Pearson Correlation (Shift-Invariant)
+    - Panel 4: Normalized timecourse comparison
+
+    Mean-diff only has "centered" results (no "separate").
+    """
+    metrics = list(transfer_results.keys())
+    if not metrics:
+        print("  No metrics for mean-diff plot")
+        return
+
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    fig.suptitle(f"{title_prefix}: {meta_task}", fontsize=14, fontweight='bold')
+
+    layers = list(range(num_layers))
+    colors = {'entropy': 'tab:blue', 'top_logit': 'tab:orange', 'logit_gap': 'tab:green'}
+
+    R2_PLOT_FLOOR = -0.5
+    def _clip_r2_for_plot(arr: np.ndarray) -> np.ndarray:
+        arr = np.asarray(arr, dtype=float)
+        arr = np.where(np.isfinite(arr), arr, np.nan)
+        return np.clip(arr, R2_PLOT_FLOOR, 1.0)
+
+    # Panel 1: Transferred signal → stated confidence
+    ax1 = axes[0, 0]
+    ax1.set_title("Method 1: Transferred signal → stated confidence\nPearson r(sign·ŷ(meta), confidence)", fontsize=10)
+
+    for metric in metrics:
+        color = colors.get(metric, 'tab:gray')
+        if metric not in transfer_results:
+            continue
+
+        vals = np.array(
+            [transfer_results[metric].get(l, {}).get("centered", {}).get("pred_conf_pearson", np.nan) for l in layers],
+            dtype=float,
+        )
+
+        finite = np.isfinite(vals)
+        if finite.any():
+            best_layer = int(np.argmax(np.abs(vals[finite])))
+            best_layer = int(np.array(layers)[finite][best_layer])
+            best_r = float(vals[best_layer])
+        else:
+            best_layer = 0
+            best_r = float("nan")
+
+        ax1.plot(layers, vals, '-',
+                 label=f'{metric} (best L{best_layer}: {best_r:.3f})' if np.isfinite(best_r) else f'{metric}',
+                 color=color, linewidth=2)
+
+        stds = np.array(
+            [transfer_results[metric].get(l, {}).get("centered", {}).get("pred_conf_pearson_std", 0.0) for l in layers],
+            dtype=float,
+        )
+        if np.any(stds > 0):
+            ax1.fill_between(layers, vals - stds, vals + stds, color=color, alpha=0.15, linewidth=0)
+
+    ax1.set_xlabel('Layer Index')
+    ax1.set_ylabel('Corr with confidence (r)')
+    ax1.legend(loc='upper left', fontsize=7)
+    ax1.grid(True, alpha=0.3)
+
+    # Panel 2: Centered R² (Rigorous)
+    ax2 = axes[0, 1]
+    ax2.set_title("Method 2: Centered Scaler (Rigorous)\n(Geometry Check)", fontsize=10)
+
+    for metric in metrics:
+        color = colors.get(metric, 'tab:gray')
+
+        # D→D
+        if metric in direct_r2:
+            d2d_r2 = _clip_r2_for_plot(np.array([direct_r2[metric].get(l, 0) for l in layers]))
+            ax2.plot(layers, d2d_r2, '-', label=f'{metric} D→D', color=color, linewidth=2, alpha=0.4)
+            if metric in direct_r2_std:
+                d2d_std = np.array([direct_r2_std[metric].get(l, 0) for l in layers])
+                ax2.fill_between(layers, _clip_r2_for_plot(d2d_r2 - d2d_std), _clip_r2_for_plot(d2d_r2 + d2d_std),
+                                 color=color, alpha=0.18)
+
+        # D→M centered
+        centered_r2 = np.array([transfer_results[metric].get(l, {}).get("centered", {}).get("r2", np.nan) for l in layers], dtype=float)
+        centered_std = np.array([transfer_results[metric].get(l, {}).get("centered", {}).get("r2_std", 0) for l in layers])
+
+        finite = np.isfinite(centered_r2)
+        if finite.any():
+            best_layer = int(np.argmax(np.where(finite, centered_r2, -np.inf)))
+            best_r2 = centered_r2[best_layer]
+        else:
+            best_layer = 0
+            best_r2 = np.nan
+
+        ax2.plot(layers, _clip_r2_for_plot(centered_r2), '-',
+                 label=f'{metric} D→M (best L{best_layer}: {best_r2:.3f})' if np.isfinite(best_r2) else f'{metric} D→M',
+                 color=color, linewidth=2)
+        if np.any(centered_std > 0):
+            ax2.fill_between(layers, _clip_r2_for_plot(centered_r2 - centered_std), _clip_r2_for_plot(centered_r2 + centered_std),
+                             color=color, alpha=0.2)
+
+    ax2.axhline(y=0, color='gray', linestyle=':', alpha=0.5, label='Chance')
+    ax2.set_xlabel('Layer Index')
+    ax2.set_ylabel('R² (out-of-sample)')
+    ax2.legend(loc='upper left', fontsize=7)
+    ax2.grid(True, alpha=0.3)
+
+    # Panel 3: Pearson Correlation (Shift Invariant)
+    ax3 = axes[1, 0]
+    ax3.set_title("Method 3: Pearson Correlation\n(Shift Invariant Signal Check)", fontsize=10)
+
+    for metric in metrics:
+        color = colors.get(metric, 'tab:gray')
+
+        # D→D Pearson (sqrt of R²)
+        if metric in direct_r2:
+            d2d_corr = [np.sqrt(max(direct_r2[metric].get(l, 0), 0.0)) for l in layers]
+            ax3.plot(layers, d2d_corr, '-', label=f'{metric} D→D', color=color, linewidth=2, alpha=0.4)
+
+        # D→M Pearson
+        pearson_r = np.array([transfer_results[metric].get(l, {}).get("centered", {}).get("pearson", np.nan) for l in layers], dtype=float)
+
+        finite = np.isfinite(pearson_r)
+        if finite.any():
+            best_layer = int(np.argmax(np.abs(pearson_r[finite])))
+            best_layer = int(np.array(layers)[finite][best_layer])
+            best_corr = pearson_r[best_layer]
+        else:
+            best_layer = 0
+            best_corr = np.nan
+
+        ax3.plot(layers, pearson_r, '-',
+                 label=f'{metric} D→M (best L{best_layer}: {best_corr:.3f})' if np.isfinite(best_corr) else f'{metric} D→M',
+                 color=color, linewidth=2)
+
+    ax3.axhline(y=0, color='gray', linestyle=':', alpha=0.5)
+    ax3.set_xlabel('Layer Index')
+    ax3.set_ylabel('Correlation (r)')
+    ax3.legend(loc='upper left', fontsize=7)
+    ax3.grid(True, alpha=0.3)
+
+    # Panel 4: Signal Emergence (Normalized timecourse)
+    ax4 = axes[1, 1]
+    ax4.set_title("Signal Emergence (Min-Max Scaled)\nCheck: Do lines rise together?", fontsize=10)
+
+    for metric in metrics:
+        color = colors.get(metric, 'tab:gray')
+
+        # D→D normalized
+        if metric in direct_r2:
+            d2d_r2 = _clip_r2_for_plot(np.array([direct_r2[metric].get(l, 0) for l in layers]))
+            if d2d_r2.max() > d2d_r2.min():
+                d2d_norm = (d2d_r2 - d2d_r2.min()) / (d2d_r2.max() - d2d_r2.min())
+            else:
+                d2d_norm = np.zeros_like(d2d_r2)
+            ax4.plot(layers, d2d_norm, '-', label=f'{metric} D→D', color=color, linewidth=2, alpha=0.4)
+
+        # D→M normalized
+        centered_r2 = np.array([transfer_results[metric].get(l, {}).get("centered", {}).get("r2", np.nan) for l in layers], dtype=float)
+        centered_r2_plot = _clip_r2_for_plot(centered_r2)
+        if np.nanmax(centered_r2) > np.nanmin(centered_r2):
+            normalized = (centered_r2 - np.nanmin(centered_r2)) / (np.nanmax(centered_r2) - np.nanmin(centered_r2))
+        else:
+            normalized = np.zeros_like(centered_r2)
+        ax4.plot(layers, normalized, '-', label=f'{metric} D→M', color=color, linewidth=2)
+
+    ax4.set_xlabel('Layer Index')
+    ax4.set_ylabel('Normalized R² (0-1)')
+    ax4.legend(loc='upper left', fontsize=7)
+    ax4.grid(True, alpha=0.3)
+
+    # Add behavioral correlation text box
+    behav_text = "Metric ↔ Confidence (full dataset):\n"
+    for metric in metrics:
+        sign = metric_sign_for_confidence(metric)
+        sign_str = " (inv)" if sign < 0 else ""
+        behav_r = behavioral.get(metric, {}).get("pearson_r", float("nan"))
+        behav_text += f"  {metric}{sign_str}: r={behav_r:.3f}\n"
+
+    behav_text += "\nMetric ↔ Confidence (test set):\n"
+    for metric in metrics:
+        sign = metric_sign_for_confidence(metric)
+        sign_str = " (inv)" if sign < 0 else ""
+        test_r = behavioral.get(metric, {}).get("test_pearson_r", float("nan"))
+        behav_text += f"  {metric}{sign_str}: r={test_r:.3f}\n"
+
+    fig.text(0.02, 0.02, behav_text, fontsize=8, family='monospace',
+             bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"  Saved: {output_path}")
+
+
 def plot_position_comparison(
     transfer_results_by_pos: dict,
     mean_diff_transfer_by_pos: dict,
@@ -576,6 +782,15 @@ def plot_position_comparison(
 
     Each panel shows one metric with lines for each position.
     """
+    # Clip extreme negative R² values for display (same floor as other plots)
+    R2_PLOT_FLOOR = -0.5  # Tighter floor for position comparison since we care about positive values
+    R2_PLOT_CEIL = 1.0
+
+    def _clip_r2(arr: np.ndarray) -> np.ndarray:
+        arr = np.asarray(arr, dtype=float)
+        arr = np.where(np.isfinite(arr), arr, np.nan)
+        return np.clip(arr, R2_PLOT_FLOOR, R2_PLOT_CEIL)
+
     metrics = set()
     for pos_data in transfer_results_by_pos.values():
         metrics.update(pos_data.keys())
@@ -591,6 +806,13 @@ def plot_position_comparison(
         "question_newline": "tab:cyan",
         "options_newline": "tab:green",
         "final": "tab:red",
+    }
+    # More readable position labels
+    pos_labels = {
+        "question_mark": "question ?",
+        "question_newline": "question \\n",
+        "options_newline": "options \\n",
+        "final": "final",
     }
 
     # Use 2 rows x N cols where N = number of metrics
@@ -610,6 +832,7 @@ def plot_position_comparison(
             if metric not in transfer_results_by_pos.get(pos, {}):
                 continue
             color = pos_colors.get(pos, "tab:gray")
+            display_name = pos_labels.get(pos, pos)
 
             r2_vals = []
             for l in layers:
@@ -619,19 +842,23 @@ def plot_position_comparison(
                     r2_vals.append(np.nan)
             r2_vals = np.array(r2_vals, dtype=float)
 
+            # Find best layer BEFORE clipping (use true values)
             finite = np.isfinite(r2_vals)
             if finite.any():
                 best_layer = int(np.argmax(np.where(finite, r2_vals, -np.inf)))
                 best_r2 = r2_vals[best_layer]
-                label = f"{pos} (L{best_layer}: {best_r2:.3f})"
+                label = f"{display_name} (L{best_layer}: {best_r2:.3f})"
             else:
-                label = pos
+                label = display_name
 
-            ax.plot(layers, r2_vals, '-', label=label, color=color, linewidth=2)
+            # Clip for plotting
+            r2_vals_clipped = _clip_r2(r2_vals)
+            ax.plot(layers, r2_vals_clipped, '-', label=label, color=color, linewidth=2)
 
         ax.set_xlabel('Layer Index')
         ax.set_ylabel('R²')
-        ax.legend(loc='upper left', fontsize=7)
+        ax.set_ylim(R2_PLOT_FLOOR, R2_PLOT_CEIL)
+        ax.legend(loc='upper left', fontsize=9)
         ax.grid(True, alpha=0.3)
 
     # Bottom row: mean-diff
@@ -644,6 +871,7 @@ def plot_position_comparison(
             if metric not in mean_diff_transfer_by_pos.get(pos, {}):
                 continue
             color = pos_colors.get(pos, "tab:gray")
+            display_name = pos_labels.get(pos, pos)
 
             r2_vals = []
             for l in layers:
@@ -653,19 +881,23 @@ def plot_position_comparison(
                     r2_vals.append(np.nan)
             r2_vals = np.array(r2_vals, dtype=float)
 
+            # Find best layer BEFORE clipping (use true values)
             finite = np.isfinite(r2_vals)
             if finite.any():
                 best_layer = int(np.argmax(np.where(finite, r2_vals, -np.inf)))
                 best_r2 = r2_vals[best_layer]
-                label = f"{pos} (L{best_layer}: {best_r2:.3f})"
+                label = f"{display_name} (L{best_layer}: {best_r2:.3f})"
             else:
-                label = pos
+                label = display_name
 
-            ax.plot(layers, r2_vals, '-', label=label, color=color, linewidth=2)
+            # Clip for plotting
+            r2_vals_clipped = _clip_r2(r2_vals)
+            ax.plot(layers, r2_vals_clipped, '-', label=label, color=color, linewidth=2)
 
         ax.set_xlabel('Layer Index')
         ax.set_ylabel('R²')
-        ax.legend(loc='upper left', fontsize=7)
+        ax.set_ylim(R2_PLOT_FLOOR, R2_PLOT_CEIL)
+        ax.legend(loc='upper left', fontsize=9)
         ax.grid(True, alpha=0.3)
 
     plt.tight_layout()
@@ -1116,15 +1348,19 @@ def main():
         corr, p_value = pearsonr(direct_values * sign, confidences)
         spearman_corr, spearman_p = spearmanr(direct_values * sign, confidences)
 
+        # Bootstrap CI for full dataset correlation
+        full_std = _bootstrap_corr_std(direct_values * sign, confidences, n_boot=N_BOOTSTRAP, seed=SEED)
+
         behavioral[metric] = {
             "pearson_r": float(corr),
             "pearson_p": float(p_value),
+            "pearson_r_std": float(full_std),
             "spearman_r": float(spearman_corr),
             "spearman_p": float(spearman_p),
         }
 
         sign_str = "(inverted)" if sign < 0 else ""
-        print(f"  {metric} {sign_str}: r={corr:.3f} (p={p_value:.2e}), ρ={spearman_corr:.3f}")
+        print(f"  {metric} {sign_str}: r={corr:.3f}±{full_std:.3f} (p={p_value:.2e}), ρ={spearman_corr:.3f}")
 
 
     # Test-set baseline: correlation between (signed) raw metric values and meta-task target
@@ -1137,13 +1373,17 @@ def main():
         test_r, test_p = pearsonr(direct_test * sign, conf_test)
         test_rs, test_rs_p = spearmanr(direct_test * sign, conf_test)
 
+        # Bootstrap CI for test set correlation
+        test_std = _bootstrap_corr_std(direct_test * sign, conf_test, n_boot=N_BOOTSTRAP, seed=SEED)
+
         behavioral[metric]["test_pearson_r"] = float(test_r)
         behavioral[metric]["test_pearson_p"] = float(test_p)
+        behavioral[metric]["test_pearson_r_std"] = float(test_std)
         behavioral[metric]["test_spearman_r"] = float(test_rs)
         behavioral[metric]["test_spearman_p"] = float(test_rs_p)
 
         sign_str = "(inverted)" if sign < 0 else ""
-        print(f"  {metric} {sign_str} test-set: r={test_r:.3f}, ρ={test_rs:.3f}")
+        print(f"  {metric} {sign_str} test-set: r={test_r:.3f}±{test_std:.3f}, ρ={test_rs:.3f}")
 
     # =============================================================================
     # MEAN-DIFF TRANSFER (precomputed directions)
@@ -1301,28 +1541,46 @@ def main():
             best_r2 = mean_diff_transfer_by_pos[pos][metric][best_layer]["centered"]["r2"]
             print(f"    {pos}: R²={best_r2:.3f} (L{best_layer})")
 
-    # For backward compatibility, use "final" position
+    # For backward compatibility, use "final" position for legacy plots
     mean_diff_transfer_results = mean_diff_transfer_by_pos.get("final", mean_diff_transfer_by_pos.get(positions_available[0], {}))
 
-    # Plot mean-diff results (same 4-panel layout)
-    if len(mean_diff_transfer_results) > 0:
-        print("\nPlotting mean-diff transfer results...")
+    # Plot probe transfer results - one 4-panel plot per position
+    print(f"\nPlotting probe transfer results (per position)...")
+    for pos in positions_available:
+        if not transfer_results_by_pos[pos]:
+            print(f"  Skipping {pos} (no data)")
+            continue
+        pos_plot_path = plot_path.with_name(f"{plot_path.stem}_{pos}.png")
         plot_transfer_results(
-            mean_diff_transfer_results,
-            mean_diff_direct_r2,
-            mean_diff_direct_r2_std,
-            behavioral,
-            num_layers,
-            plot_path_mean_diff,
-            META_TASK,
-            title_prefix="Mean-diff Transfer Analysis",
+            transfer_results=transfer_results_by_pos[pos],
+            direct_r2=direct_r2,
+            direct_r2_std=direct_r2_std,
+            behavioral=behavioral,
+            num_layers=num_layers,
+            output_path=pos_plot_path,
+            meta_task=META_TASK,
+            title_prefix=f"Probe Transfer ({pos})",
         )
 
-    # Plot results
-    print(f"\nPlotting transfer results...")
-    plot_transfer_results(transfer_results, direct_r2, direct_r2_std, behavioral, num_layers, plot_path, META_TASK, title_prefix="Probe Transfer Analysis")
+    # Plot mean-diff transfer results - one 4-panel plot per position
+    print(f"\nPlotting mean-diff transfer results (per position)...")
+    for pos in positions_available:
+        if not mean_diff_transfer_by_pos[pos]:
+            print(f"  Skipping mean-diff {pos} (no data)")
+            continue
+        pos_plot_path = plot_path_mean_diff.with_name(f"{plot_path_mean_diff.stem}_{pos}.png")
+        plot_mean_diff_transfer_results(
+            transfer_results=mean_diff_transfer_by_pos[pos],
+            direct_r2=mean_diff_direct_r2,
+            direct_r2_std=mean_diff_direct_r2_std,
+            behavioral=behavioral,
+            num_layers=num_layers,
+            output_path=pos_plot_path,
+            meta_task=META_TASK,
+            title_prefix=f"Mean-diff Transfer ({pos})",
+        )
 
-    # Plot position comparison
+    # Plot position comparison (overlay view)
     print(f"\nPlotting position comparison...")
     plot_position_comparison(
         transfer_results_by_pos,
@@ -1426,6 +1684,7 @@ def main():
                         "centered_r2_std": transfer_results_by_pos[pos][metric][l]["centered"].get("r2_std", 0.0),
                         "centered_pearson": transfer_results_by_pos[pos][metric][l]["centered"]["pearson"],
                         "centered_pred_conf_pearson": transfer_results_by_pos[pos][metric][l]["centered"].get("pred_conf_pearson"),
+                        "centered_pred_conf_pearson_std": transfer_results_by_pos[pos][metric][l]["centered"].get("pred_conf_pearson_std", 0.0),
                         "separate_r2": transfer_results_by_pos[pos][metric][l]["separate"]["r2"],
                         "separate_r2_std": transfer_results_by_pos[pos][metric][l]["separate"].get("r2_std", 0.0),
                         "separate_pearson": transfer_results_by_pos[pos][metric][l]["separate"]["pearson"],
@@ -1454,10 +1713,26 @@ def main():
                         "centered_r2_std": mean_diff_transfer_by_pos[pos][metric][l]["centered"].get("r2_std", 0.0),
                         "centered_pearson": mean_diff_transfer_by_pos[pos][metric][l]["centered"]["pearson"],
                         "centered_pred_conf_pearson": mean_diff_transfer_by_pos[pos][metric][l]["centered"].get("pred_conf_pearson"),
+                        "centered_pred_conf_pearson_std": mean_diff_transfer_by_pos[pos][metric][l]["centered"].get("pred_conf_pearson_std", 0.0),
                     }
                     for l in layers_available
                 },
             }
+
+    # Add per-question paired data for easy verification of correlations
+    # This mirrors what run_introspection_experiment.py saves in _paired_data.json
+    results_json["per_question"] = []
+    for i, q in enumerate(dataset["questions"]):
+        item = {
+            "question": q.get("question", ""),
+            "correct_answer": q.get("correct_answer", ""),
+            "stated_confidence": float(confidences[i]),
+        }
+        # Add all metric values from the MC dataset
+        for metric in metrics_tested:
+            if metric in dataset["metric_values"]:
+                item[metric] = float(dataset["metric_values"][metric][i])
+        results_json["per_question"].append(item)
 
     with open(results_json_path, "w") as f:
         json.dump(results_json, f, indent=2)
