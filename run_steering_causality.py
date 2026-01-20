@@ -32,6 +32,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
+from sklearn.model_selection import train_test_split
 
 from core.model_utils import (
     load_model_and_tokenizer,
@@ -70,10 +71,16 @@ META_TASK = "confidence"  # "confidence" or "delegate"
 
 # Experiment settings
 STEERING_MULTIPLIERS = [-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]
-NUM_QUESTIONS = 100  # How many questions to test
+NUM_QUESTIONS = 100  # How many questions to test (ignored if USE_TRANSFER_SPLIT=True)
 NUM_CONTROLS = 25    # Random orthogonal directions per layer for null distribution
 BATCH_SIZE = 8
 SEED = 42
+
+# Use same train/test split as transfer analysis (recommended for apples-to-apples comparison)
+# When True: uses the test set from 80/20 split with SEED, ignoring NUM_QUESTIONS
+# When False: uses first NUM_QUESTIONS from dataset (legacy behavior)
+USE_TRANSFER_SPLIT = True
+TRAIN_SPLIT = 0.8  # Must match test_meta_transfer.py
 
 # Expanded batch target for batched steering.
 # When steering with k multipliers (excluding 0), we expand each base batch by k.
@@ -1165,7 +1172,22 @@ def main():
     # Load dataset
     print("\nLoading dataset...")
     dataset = load_dataset(INPUT_BASE_NAME)
-    data_items = dataset["data"][:NUM_QUESTIONS]
+    all_data = dataset["data"]
+
+    if USE_TRANSFER_SPLIT:
+        # Use same 80/20 split as transfer analysis for apples-to-apples comparison
+        n_total = len(all_data)
+        indices = np.arange(n_total)
+        train_idx, test_idx = train_test_split(
+            indices, train_size=TRAIN_SPLIT, random_state=SEED
+        )
+        data_items = [all_data[i] for i in test_idx]
+        print(f"  Using transfer test split: {len(data_items)} questions (from {n_total} total, seed={SEED})")
+    else:
+        # Legacy behavior: first NUM_QUESTIONS
+        data_items = all_data[:NUM_QUESTIONS]
+        print(f"  Using first {len(data_items)} questions (legacy mode)")
+
     questions = data_items
     metric_values = np.array([item[METRIC] for item in data_items])
     print(f"  Questions: {len(questions)}")
@@ -1308,7 +1330,8 @@ def main():
                 "input_base_name": INPUT_BASE_NAME,
                 "metric": METRIC,
                 "meta_task": META_TASK,
-                "num_questions": NUM_QUESTIONS,
+                "num_questions": len(questions),
+                "use_transfer_split": USE_TRANSFER_SPLIT,
                 "multipliers": STEERING_MULTIPLIERS,
                 "positions_completed": [p for p in PROBE_POSITIONS if all_analyses_by_position.get(p)],
             },
@@ -1340,7 +1363,8 @@ def main():
             "input_base_name": INPUT_BASE_NAME,
             "metric": METRIC,
             "meta_task": META_TASK,
-            "num_questions": NUM_QUESTIONS,
+            "num_questions": len(questions),
+            "use_transfer_split": USE_TRANSFER_SPLIT,
             "num_controls_final": NUM_CONTROLS,
             "num_controls_nonfinal": NUM_CONTROLS_NONFINAL,
             "transfer_r2_threshold": TRANSFER_R2_THRESHOLD,

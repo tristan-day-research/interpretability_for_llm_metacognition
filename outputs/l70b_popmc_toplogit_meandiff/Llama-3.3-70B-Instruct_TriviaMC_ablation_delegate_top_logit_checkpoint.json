@@ -1,0 +1,659 @@
+{
+  "config": {
+    "model": "meta-llama/Llama-3.3-70B-Instruct",
+    "input_base_name": "Llama-3.3-70B-Instruct_TriviaMC",
+    "metric": "top_logit",
+    "meta_task": "delegate",
+    "num_questions": 100,
+    "positions_completed": [
+      "final"
+    ]
+  },
+  "by_position": {
+    "final": {
+      "mean_diff": {
+        "per_layer": {
+          "28": {
+            "baseline_correlation": 0.6086559663245822,
+            "ablated_correlation": 0.6016418243828211,
+            "correlation_change": -0.007014141941761087,
+            "baseline_corr_ci95": [
+              0.47424423694610596,
+              0.7323603630065918
+            ],
+            "ablated_corr_ci95": [
+              0.4663025140762329,
+              0.7298344969749451
+            ],
+            "delta_corr_ci95": [
+              -0.012432264164090157,
+              -0.000889489077962935
+            ],
+            "p_value_bootstrap_delta": 0.023,
+            "p_value_bootstrap_fdr": 0.069,
+            "control_correlation_mean": 0.6086559663245822,
+            "control_correlation_std": 0.0,
+            "control_correlation_change_mean": 0.0,
+            "control_correlation_change_std": 0.0,
+            "p_value_pooled": 1.0,
+            "p_value_fdr": 1.0,
+            "p_value_parametric": 1.0,
+            "effect_size_z": 0.0,
+            "baseline_confidence_mean": 14.040937423706055,
+            "ablated_confidence_mean": 14.140155792236328,
+            "delta_conf_mean": 0.09921874850988388,
+            "delta_conf_std": 0.09404575079679489,
+            "delta_conf_corr_metric": -0.4075952822501217,
+            "delta_conf_spearman_metric": -0.39935641777444814,
+            "baseline_to_ablated_conf_corr": 0.9995190385605803,
+            "affine_slope": 0.9891248406620922,
+            "affine_intercept": 0.2519161825661106,
+            "residual_corr_metric": -0.21674144414683316,
+            "control_delta_conf_corr_metric_mean": 0.0,
+            "control_delta_conf_corr_metric_std": 0.0,
+            "p_value_delta_corr_pooled": 1.0,
+            "delta_conf_mean_by_metric_decile": [
+              0.17499999701976776,
+              0.16249999403953552,
+              0.13906249403953552,
+              0.06562499701976776,
+              0.10000000149011612,
+              0.09375,
+              0.03551136329770088,
+              0.0815972238779068,
+              0.078125,
+              0.06562499701976776
+            ]
+          },
+          "29": {
+            "baseline_correlation": 0.6086559663245822,
+            "ablated_correlation": 0.6034873348937636,
+            "correlation_change": -0.005168631430818582,
+            "baseline_corr_ci95": [
+              0.47424423694610596,
+              0.7323603630065918
+            ],
+            "ablated_corr_ci95": [
+              0.46842506527900696,
+              0.7299785614013672
+            ],
+            "delta_corr_ci95": [
+              -0.010041209869086742,
+              5.344003511709161e-05
+            ],
+            "p_value_bootstrap_delta": 0.051,
+            "p_value_bootstrap_fdr": 0.1224,
+            "control_correlation_mean": 0.6086559663245822,
+            "control_correlation_std": 0.0,
+            "control_correlation_change_mean": 0.0,
+            "control_correlation_change_std": 0.0,
+            "p_value_pooled": 1.0,
+            "p_value_fdr": 1.0,
+            "p_value_parametric": 1.0,
+            "effect_size_z": 0.0,
+            "baseline_confidence_mean": 14.040937423706055,
+            "ablated_confidence_mean": 14.176718711853027,
+            "delta_conf_mean": 0.13578124344348907,
+            "delta_conf_std": 0.09521497786045074,
+            "delta_conf_corr_metric": -0.41223473207241246,
+            "delta_conf_spearman_metric": -0.3511807875962833,
+            "baseline_to_ablated_conf_corr": 0.9995477301662888,
+            "affine_slope": 0.9856017592068483,
+            "affine_intercept": 0.337946049086598,
+            "residual_corr_metric": -0.1627203983041119,
+            "control_delta_conf_corr_metric_mean": 0.0,
+            "control_delta_conf_corr_metric_std": 0.0,
+            "p_value_delta_corr_pooled": 1.0,
+            "delta_conf_mean_by_metric_decile": [
+              0.21250000596046448,
+              0.18906250596046448,
+              0.1953125,
+              0.11406250298023224,
+              0.1171875,
+              0.11406250298023224,
+              0.07670454680919647,
+              0.1180555522441864,
+              0.12187500298023224,
+              0.10312499850988388
+            ]
+          },
+          "30": {
+            "baseline_correlation": 0.6086559663245822,
+            "ablated_correlation": 0.5991221206424759,
+            "correlation_change": -0.009533845682106246,
+            "baseline_corr_ci95": [
+              0.47424423694610596,
+              0.7323603630065918
+            ],
+            "ablated_corr_ci95": [
+              0.46511802077293396,
+              0.7258020043373108
+            ],
+            "delta_corr_ci95": [
+              -0.014051711186766624,
+              -0.00508178910240531
+            ],
+            "p_value_bootstrap_delta": 0.0,
+            "p_value_bootstrap_fdr": 0.0,
+            "control_correlation_mean": 0.6086559663245822,
+            "control_correlation_std": 0.0,
+            "control_correlation_change_mean": 0.0,
+            "control_correlation_change_std": 0.0,
+            "p_value_pooled": 1.0,
+            "p_value_fdr": 1.0,
+            "p_value_parametric": 1.0,
+            "effect_size_z": 0.0,
+            "baseline_confidence_mean": 14.040937423706055,
+            "ablated_confidence_mean": 14.262656211853027,
+            "delta_conf_mean": 0.22171874344348907,
+            "delta_conf_std": 0.08958712965250015,
+            "delta_conf_corr_metric": -0.44959107160080397,
+            "delta_conf_spearman_metric": -0.4079354985101338,
+            "baseline_to_ablated_conf_corr": 0.9995427613811364,
+            "affine_slope": 0.9921849618583324,
+            "affine_intercept": 0.3314492121072784,
+            "residual_corr_metric": -0.3061013048395981,
+            "control_delta_conf_corr_metric_mean": 0.0,
+            "control_delta_conf_corr_metric_std": 0.0,
+            "p_value_delta_corr_pooled": 1.0,
+            "delta_conf_mean_by_metric_decile": [
+              0.29374998807907104,
+              0.3140625059604645,
+              0.23593750596046448,
+              0.21562500298023224,
+              0.19687500596046448,
+              0.19218750298023224,
+              0.19602273404598236,
+              0.2048611044883728,
+              0.1796875,
+              0.18906250596046448
+            ]
+          },
+          "31": {
+            "baseline_correlation": 0.6086559663245822,
+            "ablated_correlation": 0.5913589236917081,
+            "correlation_change": -0.017297042632874127,
+            "baseline_corr_ci95": [
+              0.47424423694610596,
+              0.7323603630065918
+            ],
+            "ablated_corr_ci95": [
+              0.4567348062992096,
+              0.7211960554122925
+            ],
+            "delta_corr_ci95": [
+              -0.02452351152896881,
+              -0.009749533608555794
+            ],
+            "p_value_bootstrap_delta": 0.0,
+            "p_value_bootstrap_fdr": 0.0,
+            "control_correlation_mean": 0.6086559663245822,
+            "control_correlation_std": 0.0,
+            "control_correlation_change_mean": 0.0,
+            "control_correlation_change_std": 0.0,
+            "p_value_pooled": 1.0,
+            "p_value_fdr": 1.0,
+            "p_value_parametric": 1.0,
+            "effect_size_z": 0.0,
+            "baseline_confidence_mean": 14.040937423706055,
+            "ablated_confidence_mean": 14.339219093322754,
+            "delta_conf_mean": 0.2982812523841858,
+            "delta_conf_std": 0.1360200047492981,
+            "delta_conf_corr_metric": -0.4724506165187814,
+            "delta_conf_spearman_metric": -0.4222725019570347,
+            "baseline_to_ablated_conf_corr": 0.9989172406370714,
+            "affine_slope": 0.9905545818897336,
+            "affine_intercept": 0.4309037753476267,
+            "residual_corr_metric": -0.35763344195756347,
+            "control_delta_conf_corr_metric_mean": 0.0,
+            "control_delta_conf_corr_metric_std": 0.0,
+            "p_value_delta_corr_pooled": 1.0,
+            "delta_conf_mean_by_metric_decile": [
+              0.41093748807907104,
+              0.4468750059604645,
+              0.3203125,
+              0.2734375,
+              0.26093751192092896,
+              0.26875001192092896,
+              0.23863635957241058,
+              0.2569444477558136,
+              0.2593750059604645,
+              0.24843749403953552
+            ]
+          },
+          "32": {
+            "baseline_correlation": 0.6086559663245822,
+            "ablated_correlation": 0.5986973633251601,
+            "correlation_change": -0.009958602999422084,
+            "baseline_corr_ci95": [
+              0.47424423694610596,
+              0.7323603630065918
+            ],
+            "ablated_corr_ci95": [
+              0.46277979016304016,
+              0.7276817560195923
+            ],
+            "delta_corr_ci95": [
+              -0.017057912424206734,
+              -0.002423864556476474
+            ],
+            "p_value_bootstrap_delta": 0.006,
+            "p_value_bootstrap_fdr": 0.024000000000000004,
+            "control_correlation_mean": 0.6086559663245822,
+            "control_correlation_std": 0.0,
+            "control_correlation_change_mean": 0.0,
+            "control_correlation_change_std": 0.0,
+            "p_value_pooled": 1.0,
+            "p_value_fdr": 1.0,
+            "p_value_parametric": 1.0,
+            "effect_size_z": 0.0,
+            "baseline_confidence_mean": 14.040937423706055,
+            "ablated_confidence_mean": 14.2904691696167,
+            "delta_conf_mean": 0.24953125417232513,
+            "delta_conf_std": 0.17645122110843658,
+            "delta_conf_corr_metric": -0.4898038179697474,
+            "delta_conf_spearman_metric": -0.5381729834154492,
+            "baseline_to_ablated_conf_corr": 0.998644852781851,
+            "affine_slope": 0.965347288841215,
+            "affine_intercept": 0.7360878015860602,
+            "residual_corr_metric": -0.17550508738895923,
+            "control_delta_conf_corr_metric_mean": 0.0,
+            "control_delta_conf_corr_metric_std": 0.0,
+            "p_value_delta_corr_pooled": 1.0,
+            "delta_conf_mean_by_metric_decile": [
+              0.39375001192092896,
+              0.37031251192092896,
+              0.3828125,
+              0.24687500298023224,
+              0.22499999403953552,
+              0.2671875059604645,
+              0.171875,
+              0.140625,
+              0.125,
+              0.16875000298023224
+            ]
+          },
+          "33": {
+            "baseline_correlation": 0.6086559663245822,
+            "ablated_correlation": 0.5970672488047465,
+            "correlation_change": -0.0115887175198357,
+            "baseline_corr_ci95": [
+              0.47424423694610596,
+              0.7323603630065918
+            ],
+            "ablated_corr_ci95": [
+              0.45057690143585205,
+              0.731351912021637
+            ],
+            "delta_corr_ci95": [
+              -0.03240049257874489,
+              0.008388559333980083
+            ],
+            "p_value_bootstrap_delta": 0.247,
+            "p_value_bootstrap_fdr": 0.494,
+            "control_correlation_mean": 0.6086559663245822,
+            "control_correlation_std": 0.0,
+            "control_correlation_change_mean": 0.0,
+            "control_correlation_change_std": 0.0,
+            "p_value_pooled": 1.0,
+            "p_value_fdr": 1.0,
+            "p_value_parametric": 1.0,
+            "effect_size_z": 0.0,
+            "baseline_confidence_mean": 14.040937423706055,
+            "ablated_confidence_mean": 13.6303129196167,
+            "delta_conf_mean": -0.41062501072883606,
+            "delta_conf_std": 0.44230109453201294,
+            "delta_conf_corr_metric": -0.4519640112861253,
+            "delta_conf_spearman_metric": -0.5987386891314088,
+            "baseline_to_ablated_conf_corr": 0.9921778929861526,
+            "affine_slope": 0.8964309771655633,
+            "affine_intercept": 1.043581176554409,
+            "residual_corr_metric": -0.05469547326820257,
+            "control_delta_conf_corr_metric_mean": 0.0,
+            "control_delta_conf_corr_metric_std": 0.0,
+            "p_value_delta_corr_pooled": 1.0,
+            "delta_conf_mean_by_metric_decile": [
+              -0.13437500596046448,
+              -0.14687499403953552,
+              -0.06875000149011612,
+              -0.35468751192092896,
+              -0.2874999940395355,
+              -0.2734375,
+              -0.5426136255264282,
+              -0.7881944179534912,
+              -0.846875011920929,
+              -0.6875
+            ]
+          },
+          "34": {
+            "baseline_correlation": 0.6086559663245822,
+            "ablated_correlation": 0.5939259510256281,
+            "correlation_change": -0.014730015298954124,
+            "baseline_corr_ci95": [
+              0.47424423694610596,
+              0.7323603630065918
+            ],
+            "ablated_corr_ci95": [
+              0.44316452741622925,
+              0.7324130535125732
+            ],
+            "delta_corr_ci95": [
+              -0.04566439241170883,
+              0.014564985409379005
+            ],
+            "p_value_bootstrap_delta": 0.325,
+            "p_value_bootstrap_fdr": 0.5571428571428572,
+            "control_correlation_mean": 0.6086559663245822,
+            "control_correlation_std": 0.0,
+            "control_correlation_change_mean": 0.0,
+            "control_correlation_change_std": 0.0,
+            "p_value_pooled": 1.0,
+            "p_value_fdr": 1.0,
+            "p_value_parametric": 1.0,
+            "effect_size_z": 0.0,
+            "baseline_confidence_mean": 14.040937423706055,
+            "ablated_confidence_mean": 13.38687515258789,
+            "delta_conf_mean": -0.6540625095367432,
+            "delta_conf_std": 0.5910878777503967,
+            "delta_conf_corr_metric": -0.40719606173687967,
+            "delta_conf_spearman_metric": -0.557807149902308,
+            "baseline_to_ablated_conf_corr": 0.9838690175699459,
+            "affine_slope": 0.8702356828685478,
+            "affine_intercept": 1.1679501665729066,
+            "residual_corr_metric": -0.02745702426852301,
+            "control_delta_conf_corr_metric_mean": 0.0,
+            "control_delta_conf_corr_metric_std": 0.0,
+            "p_value_delta_corr_pooled": 1.0,
+            "delta_conf_mean_by_metric_decile": [
+              -0.34687501192092896,
+              -0.3265624940395355,
+              -0.234375,
+              -0.5562499761581421,
+              -0.47968751192092896,
+              -0.46406251192092896,
+              -0.8125,
+              -1.1475694179534912,
+              -1.1687500476837158,
+              -1.037500023841858
+            ]
+          },
+          "35": {
+            "baseline_correlation": 0.6086559663245822,
+            "ablated_correlation": 0.6087700389598631,
+            "correlation_change": 0.00011407263528095957,
+            "baseline_corr_ci95": [
+              0.47424423694610596,
+              0.7323603630065918
+            ],
+            "ablated_corr_ci95": [
+              0.4638809263706207,
+              0.7411829829216003
+            ],
+            "delta_corr_ci95": [
+              -0.023647908121347427,
+              0.024821387603878975
+            ],
+            "p_value_bootstrap_delta": 0.969,
+            "p_value_bootstrap_fdr": 1.0,
+            "control_correlation_mean": 0.6086559663245822,
+            "control_correlation_std": 0.0,
+            "control_correlation_change_mean": 0.0,
+            "control_correlation_change_std": 0.0,
+            "p_value_pooled": 1.0,
+            "p_value_fdr": 1.0,
+            "p_value_parametric": 1.0,
+            "effect_size_z": 0.0,
+            "baseline_confidence_mean": 14.040937423706055,
+            "ablated_confidence_mean": 13.031874656677246,
+            "delta_conf_mean": -1.0090625286102295,
+            "delta_conf_std": 0.5424741506576538,
+            "delta_conf_corr_metric": -0.46682458129150056,
+            "delta_conf_spearman_metric": -0.5929490440283905,
+            "baseline_to_ablated_conf_corr": 0.991542219203392,
+            "affine_slope": 0.8485599921598502,
+            "affine_intercept": 1.1172971850830595,
+            "residual_corr_metric": 0.0405437447899913,
+            "control_delta_conf_corr_metric_mean": 0.0,
+            "control_delta_conf_corr_metric_std": 0.0,
+            "p_value_delta_corr_pooled": 1.0,
+            "delta_conf_mean_by_metric_decile": [
+              -0.6890624761581421,
+              -0.7250000238418579,
+              -0.4046874940395355,
+              -0.940625011920929,
+              -0.9156249761581421,
+              -0.909375011920929,
+              -1.298295497894287,
+              -1.4982638359069824,
+              -1.328125,
+              -1.4015624523162842
+            ]
+          },
+          "36": {
+            "baseline_correlation": 0.6086559663245822,
+            "ablated_correlation": 0.6075348512867229,
+            "correlation_change": -0.0011211150378592771,
+            "baseline_corr_ci95": [
+              0.47424423694610596,
+              0.7323603630065918
+            ],
+            "ablated_corr_ci95": [
+              0.45772433280944824,
+              0.742958664894104
+            ],
+            "delta_corr_ci95": [
+              -0.034713972359895706,
+              0.033245254307985306
+            ],
+            "p_value_bootstrap_delta": 0.894,
+            "p_value_bootstrap_fdr": 1.0,
+            "control_correlation_mean": 0.6086559663245822,
+            "control_correlation_std": 0.0,
+            "control_correlation_change_mean": 0.0,
+            "control_correlation_change_std": 0.0,
+            "p_value_pooled": 1.0,
+            "p_value_fdr": 1.0,
+            "p_value_parametric": 1.0,
+            "effect_size_z": 0.0,
+            "baseline_confidence_mean": 14.040937423706055,
+            "ablated_confidence_mean": 12.737030982971191,
+            "delta_conf_mean": -1.3039062023162842,
+            "delta_conf_std": 0.6958140134811401,
+            "delta_conf_corr_metric": -0.44775373338451807,
+            "delta_conf_spearman_metric": -0.580635678492646,
+            "baseline_to_ablated_conf_corr": 0.9835250686972398,
+            "affine_slope": 0.8107283590102429,
+            "affine_intercept": 1.3536450316596245,
+            "residual_corr_metric": 0.04926902757069847,
+            "control_delta_conf_corr_metric_mean": 0.0,
+            "control_delta_conf_corr_metric_std": 0.0,
+            "p_value_delta_corr_pooled": 1.0,
+            "delta_conf_mean_by_metric_decile": [
+              -0.9359375238418579,
+              -0.925000011920929,
+              -0.573437511920929,
+              -1.189062476158142,
+              -1.149999976158142,
+              -1.1843750476837158,
+              -1.65625,
+              -1.9184027910232544,
+              -1.7109375,
+              -1.821874976158142
+            ]
+          },
+          "37": {
+            "baseline_correlation": 0.6086559663245822,
+            "ablated_correlation": 0.6065602698586391,
+            "correlation_change": -0.0020956964659430977,
+            "baseline_corr_ci95": [
+              0.47424423694610596,
+              0.7323603630065918
+            ],
+            "ablated_corr_ci95": [
+              0.4499950110912323,
+              0.7438536286354065
+            ],
+            "delta_corr_ci95": [
+              -0.04644639045000076,
+              0.04352273419499397
+            ],
+            "p_value_bootstrap_delta": 0.868,
+            "p_value_bootstrap_fdr": 1.0,
+            "control_correlation_mean": 0.6086559663245822,
+            "control_correlation_std": 0.0,
+            "control_correlation_change_mean": 0.0,
+            "control_correlation_change_std": 0.0,
+            "p_value_pooled": 1.0,
+            "p_value_fdr": 1.0,
+            "p_value_parametric": 1.0,
+            "effect_size_z": 0.0,
+            "baseline_confidence_mean": 14.040937423706055,
+            "ablated_confidence_mean": 12.30453109741211,
+            "delta_conf_mean": -1.7364062070846558,
+            "delta_conf_std": 0.8324141502380371,
+            "delta_conf_corr_metric": -0.4028579177145949,
+            "delta_conf_spearman_metric": -0.553212048829802,
+            "baseline_to_ablated_conf_corr": 0.9706146905141185,
+            "affine_slope": 0.7881916610058776,
+            "affine_intercept": 1.237581399795292,
+            "residual_corr_metric": 0.0656163309381375,
+            "control_delta_conf_corr_metric_mean": 0.0,
+            "control_delta_conf_corr_metric_std": 0.0,
+            "p_value_delta_corr_pooled": 1.0,
+            "delta_conf_mean_by_metric_decile": [
+              -1.3984375,
+              -1.290624976158142,
+              -0.918749988079071,
+              -1.5656249523162842,
+              -1.5359375476837158,
+              -1.560937523841858,
+              -2.1136362552642822,
+              -2.487847328186035,
+              -2.239062547683716,
+              -2.2906250953674316
+            ]
+          },
+          "38": {
+            "baseline_correlation": 0.6086559663245822,
+            "ablated_correlation": 0.5890807943096664,
+            "correlation_change": -0.019575172014915765,
+            "baseline_corr_ci95": [
+              0.47424423694610596,
+              0.7323603630065918
+            ],
+            "ablated_corr_ci95": [
+              0.41283488273620605,
+              0.7357697486877441
+            ],
+            "delta_corr_ci95": [
+              -0.08753596246242523,
+              0.04462505131959915
+            ],
+            "p_value_bootstrap_delta": 0.527,
+            "p_value_bootstrap_fdr": 0.7905,
+            "control_correlation_mean": 0.6086559663245822,
+            "control_correlation_std": 0.0,
+            "control_correlation_change_mean": 0.0,
+            "control_correlation_change_std": 0.0,
+            "p_value_pooled": 1.0,
+            "p_value_fdr": 1.0,
+            "p_value_parametric": 1.0,
+            "effect_size_z": 0.0,
+            "baseline_confidence_mean": 14.040937423706055,
+            "ablated_confidence_mean": 12.121874809265137,
+            "delta_conf_mean": -1.9190624952316284,
+            "delta_conf_std": 1.1176984310150146,
+            "delta_conf_corr_metric": -0.3826988708562606,
+            "delta_conf_spearman_metric": -0.5576972706061445,
+            "baseline_to_ablated_conf_corr": 0.9346818929050656,
+            "affine_slope": 0.7307795032790135,
+            "affine_intercept": 1.8610456681783318,
+            "residual_corr_metric": 0.05677052391971399,
+            "control_delta_conf_corr_metric_mean": 0.0,
+            "control_delta_conf_corr_metric_std": 0.0,
+            "p_value_delta_corr_pooled": 1.0,
+            "delta_conf_mean_by_metric_decile": [
+              -1.4718749523162842,
+              -1.326562523841858,
+              -0.973437488079071,
+              -1.681249976158142,
+              -1.576562523841858,
+              -1.662500023841858,
+              -2.329545497894287,
+              -2.890625,
+              -2.645312547683716,
+              -2.6890625953674316
+            ]
+          },
+          "39": {
+            "baseline_correlation": 0.6086559663245822,
+            "ablated_correlation": 0.5980261264261512,
+            "correlation_change": -0.010629839898431026,
+            "baseline_corr_ci95": [
+              0.47424423694610596,
+              0.7323603630065918
+            ],
+            "ablated_corr_ci95": [
+              0.4252234399318695,
+              0.7424948811531067
+            ],
+            "delta_corr_ci95": [
+              -0.07163488864898682,
+              0.049323130398988724
+            ],
+            "p_value_bootstrap_delta": 0.673,
+            "p_value_bootstrap_fdr": 0.8973333333333334,
+            "control_correlation_mean": 0.6086559663245822,
+            "control_correlation_std": 0.0,
+            "control_correlation_change_mean": 0.0,
+            "control_correlation_change_std": 0.0,
+            "p_value_pooled": 1.0,
+            "p_value_fdr": 1.0,
+            "p_value_parametric": 1.0,
+            "effect_size_z": 0.0,
+            "baseline_confidence_mean": 14.040937423706055,
+            "ablated_confidence_mean": 12.151874542236328,
+            "delta_conf_mean": -1.889062523841858,
+            "delta_conf_std": 1.0309884548187256,
+            "delta_conf_corr_metric": -0.38122397335327113,
+            "delta_conf_spearman_metric": -0.5617633316821563,
+            "baseline_to_ablated_conf_corr": 0.9472315705969788,
+            "affine_slope": 0.7485440143308175,
+            "affine_intercept": 1.6416152787818958,
+            "residual_corr_metric": 0.06703470394811835,
+            "control_delta_conf_corr_metric_mean": 0.0,
+            "control_delta_conf_corr_metric_std": 0.0,
+            "p_value_delta_corr_pooled": 1.0,
+            "delta_conf_mean_by_metric_decile": [
+              -1.4874999523162842,
+              -1.3546874523162842,
+              -0.96875,
+              -1.6875,
+              -1.5703125,
+              -1.6687500476837158,
+              -2.2386362552642822,
+              -2.805555582046509,
+              -2.5562500953674316,
+              -2.609375
+            ]
+          }
+        },
+        "summary": {
+          "pooled_null_size": 0,
+          "significant_layers_fdr": [],
+          "n_significant_fdr": 0,
+          "significant_layers_bootstrap_fdr": [
+            30,
+            31,
+            32
+          ],
+          "n_significant_bootstrap_fdr": 3,
+          "best_layer": 28,
+          "best_effect_z": 0.0,
+          "best_layer_abs_delta": 38,
+          "best_abs_delta": -0.019575172014915765
+        }
+      }
+    }
+  }
+}
