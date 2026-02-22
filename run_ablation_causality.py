@@ -62,10 +62,13 @@ from tasks import (
 # CONFIGURATION
 # =============================================================================
 
-MODEL = "meta-llama/Llama-3.3-70B-Instruct"
-INPUT_BASE_NAME = "Llama-3.3-70B-Instruct_TriviaMC"
-METRIC = "top_logit"  # Which metric's directions to test
+MODEL = "meta-llama/Llama-3.1-8B-Instruct"
+# ADAPTER = "Tristan-Day/ect_20251222_215412_v0uei7y1_2000"
+ADAPTER = None
+INPUT_BASE_NAME = "Llama-3.1-8B-Instruct_TriviaMC"
+METRIC = "entropy"  # Which metric's directions to test
 META_TASK = "delegate"  # "confidence" or "delegate"
+
 
 # Confidence signal used as the meta-task output target.
 # - For META_TASK=delegate:
@@ -100,11 +103,11 @@ EXPANDED_BATCH_TARGET = 192
 LAYERS = None  # e.g., [20, 25, 30] for quick testing
 
 # Optional: specify which direction methods to test (None = both probe and mean_diff)
-METHODS = ["mean_diff"]  # e.g., ["mean_diff"] or ["probe"] to test just one
+METHODS = ["mean_diff", "probe"]  # e.g., ["mean_diff"] or ["probe"] to test just one
 
 # Positions to test (multi-position extraction)
 # These are token positions within the meta-task prompt where we can ablate
-PROBE_POSITIONS = ["options_newline"]  # ["question_mark", "question_newline", "options_newline", "final"]
+PROBE_POSITIONS = ["final"]  # ["question_mark", "question_newline", "options_newline", "final"]
 
 # Extra diagnostics: understand cases where transfer is strong but ablation has weak/odd corr effects
 PRINT_DELTA_DIAGNOSTICS = True
@@ -128,7 +131,7 @@ TRANSFER_RESULTS_PATH = None  # Auto-detect from INPUT_BASE_NAME if None
 NUM_CONTROLS_NONFINAL = 10
 
 # Quantization (for large models)
-LOAD_IN_4BIT = True
+LOAD_IN_4BIT = False
 LOAD_IN_8BIT = False
 
 # Output directory
@@ -395,6 +398,7 @@ def run_ablation_for_method(
     use_chat_template: bool,
     layers: Optional[List[int]] = None,
     position: str = "final",
+    original_indices: Optional[np.ndarray] = None,
 ) -> Dict:
     """
     Run ablation experiment for a single direction method at a specific position.
@@ -411,6 +415,9 @@ def run_ablation_for_method(
             - "question_mark": Token after "?" in question
             - "question_newline": Newline after question
             - "options_newline": Newline after MC options
+        original_indices: Original dataset indices for each question. Used for
+            trial_index in delegate task to match prompt formatting with
+            test_meta_transfer.py. If None, uses local indices (legacy behavior).
 
     Returns dict with per-layer results including baseline, ablated, and controls.
     """
@@ -442,8 +449,11 @@ def run_ablation_for_method(
     mappings = []
     position_indices = []  # Per-prompt token index for intervention
     for q_idx, question in enumerate(questions):
+        # Use original dataset index for trial_index to match test_meta_transfer.py
+        # This ensures the delegate task uses consistent Answer/Delegate mapping
+        trial_idx = int(original_indices[q_idx]) if original_indices is not None else q_idx
         if meta_task == "delegate":
-            prompt, _, mapping = format_fn(question, tokenizer, trial_index=q_idx, use_chat_template=use_chat_template)
+            prompt, _, mapping = format_fn(question, tokenizer, trial_index=trial_idx, use_chat_template=use_chat_template)
         else:
             prompt, _ = format_fn(question, tokenizer, use_chat_template=use_chat_template)
             mapping = None
@@ -1546,6 +1556,7 @@ def main():
     print("ABLATION CAUSALITY TEST")
     print("=" * 70)
     print(f"\nModel: {MODEL}")
+    print(f"Adapter: {ADAPTER}")
     print(f"Input: {INPUT_BASE_NAME}")
     print(f"Metric: {METRIC}")
     print(f"Meta-task: {META_TASK}")
@@ -1585,10 +1596,14 @@ def main():
             indices, train_size=TRAIN_SPLIT, random_state=SEED
         )
         data_items = [all_data[i] for i in test_idx]
+        # Keep original indices for trial_index in delegate prompt formatting
+        original_indices = test_idx
         print(f"  Using transfer test split: {len(data_items)} questions (from {n_total} total, seed={SEED})")
     else:
         # Legacy behavior: first NUM_QUESTIONS
         data_items = all_data[:NUM_QUESTIONS]
+        # Original indices are just 0..NUM_QUESTIONS-1
+        original_indices = np.arange(len(data_items))
         print(f"  Using first {len(data_items)} questions (legacy mode)")
 
     # Extract questions (each item has question, options, correct_answer, etc.)
@@ -1636,6 +1651,7 @@ def main():
     print("\nLoading model...")
     model, tokenizer, num_layers = load_model_and_tokenizer(
         MODEL,
+        adapter_path=ADAPTER,
         load_in_4bit=LOAD_IN_4BIT,
         load_in_8bit=LOAD_IN_8BIT,
     )
@@ -1708,6 +1724,7 @@ def main():
                 use_chat_template=use_chat_template,
                 layers=method_layers,
                 position=position,
+                original_indices=original_indices,
             )
             all_results_by_pos[position][method] = results
 
@@ -1730,6 +1747,7 @@ def main():
         checkpoint_json = {
             "config": {
                 "model": MODEL,
+                "adapter": ADAPTER,
                 "input_base_name": INPUT_BASE_NAME,
                 "metric": METRIC,
                 "meta_task": META_TASK,
@@ -1778,6 +1796,7 @@ def main():
         output_json = {
             "config": {
                 "model": MODEL,
+                "adapter": ADAPTER,
                 "input_base_name": INPUT_BASE_NAME,
                 "metric": METRIC,
                 "meta_task": META_TASK,

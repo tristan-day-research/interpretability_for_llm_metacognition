@@ -10,6 +10,7 @@ Modules:
 - questions: Question loading, hashing, consistency verification
 - steering: Steering and ablation hooks for activation intervention
 - steering_experiments: Experiment runners and statistical analysis
+- logit_lens: Logit lens for unembedding residual stream to vocabulary
 """
 
 from .model_utils import (
@@ -109,6 +110,20 @@ from .steering_experiments import (
     print_ablation_summary,
 )
 
+from .logit_lens import (
+    LogitLensConfig,
+    LogitLensAnalyzer,
+    # Core utilities
+    get_unembedding_matrix,
+    get_final_layernorm,
+    unembed_vector_to_logits,
+    unembed_direction_to_delta_logits,
+    topk_tokens,
+    select_token_position,
+    auto_select_layers,
+    print_logit_lens_summary,
+)
+
 __all__ = [
     # model_utils
     "DEVICE",
@@ -184,4 +199,15 @@ __all__ = [
     "analyze_ablation_results",
     "print_steering_summary",
     "print_ablation_summary",
+    # logit_lens
+    "LogitLensConfig",
+    "LogitLensAnalyzer",
+    "get_unembedding_matrix",
+    "get_final_layernorm",
+    "unembed_vector_to_logits",
+    "unembed_direction_to_delta_logits",
+    "topk_tokens",
+    "select_token_position",
+    "auto_select_layers",
+    "print_logit_lens_summary",
 ]

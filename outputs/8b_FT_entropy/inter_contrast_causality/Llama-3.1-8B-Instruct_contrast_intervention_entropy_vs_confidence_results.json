@@ -1,0 +1,792 @@
+{
+  "config": {
+    "model": "meta-llama/Llama-3.1-8B-Instruct",
+    "adapter": null,
+    "direction_a_path": "outputs/8b_FT_entropy/confidence_contrast/Llama-3.1-8B-Instruct_adapter-ect_20251222_215412_v0uei7y1_2000_TriviaMC_entropy_contrast_directions.pt",
+    "direction_b_path": "outputs/8b_FT_entropy/confidence_contrast/Llama-3.1-8B-Instruct_adapter-ect_20251222_215412_v0uei7y1_2000_TriviaMC_confidence_contrast_directions.pt",
+    "direction_a_name": "entropy",
+    "direction_b_name": "confidence",
+    "dataset_path": "data/TriviaMC.jsonl",
+    "num_questions": 100,
+    "num_controls": 3,
+    "multipliers": [
+      -3.0,
+      0.0,
+      3.0
+    ],
+    "layers": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31
+    ]
+  },
+  "steering": {
+    "intervention_type": "steering",
+    "layers": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31
+    ],
+    "num_questions": 100,
+    "direction_names": [
+      "entropy",
+      "confidence"
+    ],
+    "per_layer": {
+      "0": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": -0.00439626532885844,
+        "entropy_direction_conf_slope": 0.002058158521850877,
+        "confidence_direction_mc_entropy_slope": 0.003816373113086237,
+        "confidence_direction_conf_slope": -0.001698584166665835,
+        "random_direction_mc_entropy_slope": -0.006867011734364801,
+        "random_direction_conf_slope": 0.0008247934455672674
+      },
+      "1": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": -0.01030593395224665,
+        "entropy_direction_conf_slope": -0.00018786272903286106,
+        "confidence_direction_mc_entropy_slope": 0.0014997553858787228,
+        "confidence_direction_conf_slope": 0.0018454379389683418,
+        "random_direction_mc_entropy_slope": -0.00046471836893336534,
+        "random_direction_conf_slope": 0.000198359334634349
+      },
+      "2": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": -0.001752116003265949,
+        "entropy_direction_conf_slope": 0.006515996364255759,
+        "confidence_direction_mc_entropy_slope": 0.0014381021142086572,
+        "confidence_direction_conf_slope": 0.0010011669397354379,
+        "random_direction_mc_entropy_slope": 0.001226010555054325,
+        "random_direction_conf_slope": 0.0002891897451546198
+      },
+      "3": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": -0.0021722655876556004,
+        "entropy_direction_conf_slope": 0.004250149498383211,
+        "confidence_direction_mc_entropy_slope": 0.0009632680833889754,
+        "confidence_direction_conf_slope": -0.004493961582581195,
+        "random_direction_mc_entropy_slope": -0.0005388300848547474,
+        "random_direction_conf_slope": -0.0009878422642747903
+      },
+      "4": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": -0.0034633972706478674,
+        "entropy_direction_conf_slope": 0.006582754254341126,
+        "confidence_direction_mc_entropy_slope": 0.004528268618551005,
+        "confidence_direction_conf_slope": -0.007726019620895407,
+        "random_direction_mc_entropy_slope": 2.9043615623871846e-05,
+        "random_direction_conf_slope": 0.0010777497034933797
+      },
+      "5": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": -0.0012805423252802942,
+        "entropy_direction_conf_slope": 0.001724592419962092,
+        "confidence_direction_mc_entropy_slope": 0.0034425855322585148,
+        "confidence_direction_conf_slope": -0.003022403111060451,
+        "random_direction_mc_entropy_slope": -0.00028447497102309017,
+        "random_direction_conf_slope": -0.001351394737760232
+      },
+      "6": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": -0.001461687823437683,
+        "entropy_direction_conf_slope": 0.001082787401974208,
+        "confidence_direction_mc_entropy_slope": 0.0030428815216934466,
+        "confidence_direction_conf_slope": -0.006718721248209447,
+        "random_direction_mc_entropy_slope": 0.0017169706215150297,
+        "random_direction_conf_slope": 0.0016039839511116259
+      },
+      "7": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": -2.8628484258961525e-05,
+        "entropy_direction_conf_slope": 0.006016651645302787,
+        "confidence_direction_mc_entropy_slope": 0.0015233871252439825,
+        "confidence_direction_conf_slope": -0.003548744315902398,
+        "random_direction_mc_entropy_slope": 0.0009001066731838695,
+        "random_direction_conf_slope": -0.0016386493121584
+      },
+      "8": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": -0.004808252379052641,
+        "entropy_direction_conf_slope": 0.007821008950471884,
+        "confidence_direction_mc_entropy_slope": 0.006724165012983569,
+        "confidence_direction_conf_slope": -0.001530135951936215,
+        "random_direction_mc_entropy_slope": -0.0015381612080616527,
+        "random_direction_conf_slope": -0.002183675169116901
+      },
+      "9": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": 0.0018773648755389648,
+        "entropy_direction_conf_slope": 0.007452338101963211,
+        "confidence_direction_mc_entropy_slope": 0.004517791243326124,
+        "confidence_direction_conf_slope": -0.004549042021234822,
+        "random_direction_mc_entropy_slope": -0.001508494611793538,
+        "random_direction_conf_slope": -0.0025892884648508504
+      },
+      "10": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": 0.00044295476916583304,
+        "entropy_direction_conf_slope": 0.01418055554976067,
+        "confidence_direction_mc_entropy_slope": 0.005320765986014824,
+        "confidence_direction_conf_slope": -0.004246863904098674,
+        "random_direction_mc_entropy_slope": -0.00012499258271670823,
+        "random_direction_conf_slope": -0.0004075723033812188
+      },
+      "11": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": 0.0018643542333302314,
+        "entropy_direction_conf_slope": 0.010180822548766911,
+        "confidence_direction_mc_entropy_slope": 0.007848630563606388,
+        "confidence_direction_conf_slope": -0.005883872210979488,
+        "random_direction_mc_entropy_slope": 0.0012427957035288342,
+        "random_direction_conf_slope": 9.949977944291343e-05
+      },
+      "12": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": 0.03966884674854176,
+        "entropy_direction_conf_slope": -0.016413973987102492,
+        "confidence_direction_mc_entropy_slope": -0.004402645744609495,
+        "confidence_direction_conf_slope": 0.024574289212624254,
+        "random_direction_mc_entropy_slope": 0.001031030879409323,
+        "random_direction_conf_slope": 0.003804939276642277
+      },
+      "13": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": 0.04017535637801225,
+        "entropy_direction_conf_slope": -0.026934667381147543,
+        "confidence_direction_mc_entropy_slope": -0.03245591398569443,
+        "confidence_direction_conf_slope": 0.04367070641368629,
+        "random_direction_mc_entropy_slope": -0.00039652065758269503,
+        "random_direction_conf_slope": -0.0022140312211381165
+      },
+      "14": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": 0.048288833023774194,
+        "entropy_direction_conf_slope": -0.05107023305445903,
+        "confidence_direction_mc_entropy_slope": -0.0426894203131019,
+        "confidence_direction_conf_slope": 0.06645682307084398,
+        "random_direction_mc_entropy_slope": -0.004169623534556999,
+        "random_direction_conf_slope": -0.0026894376294479944
+      },
+      "15": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": 0.0697921142800867,
+        "entropy_direction_conf_slope": -0.05171072912712889,
+        "confidence_direction_mc_entropy_slope": -0.06935619552116008,
+        "confidence_direction_conf_slope": 0.09902859811484811,
+        "random_direction_mc_entropy_slope": 0.0004679667476059439,
+        "random_direction_conf_slope": -0.003033066550890586
+      },
+      "16": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": 0.06046192299616468,
+        "entropy_direction_conf_slope": -0.03990497155735886,
+        "confidence_direction_mc_entropy_slope": -0.06084269766732582,
+        "confidence_direction_conf_slope": 0.08742518107593053,
+        "random_direction_mc_entropy_slope": -0.0006954911422616752,
+        "random_direction_conf_slope": -0.003440473284158484
+      },
+      "17": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": 0.049632377266933564,
+        "entropy_direction_conf_slope": -0.020226984771589455,
+        "confidence_direction_mc_entropy_slope": -0.02776898439732444,
+        "confidence_direction_conf_slope": 0.0797274401734273,
+        "random_direction_mc_entropy_slope": 0.0003348430435309892,
+        "random_direction_conf_slope": -0.00374264458980826
+      },
+      "18": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": 0.055919275419989214,
+        "entropy_direction_conf_slope": -0.012051358893513681,
+        "confidence_direction_mc_entropy_slope": -0.029823393158594055,
+        "confidence_direction_conf_slope": 0.07055860629181068,
+        "random_direction_mc_entropy_slope": 0.002384851548178337,
+        "random_direction_conf_slope": 0.0032841878591312406
+      },
+      "19": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": 0.05132619573532962,
+        "entropy_direction_conf_slope": -0.00844293859352668,
+        "confidence_direction_mc_entropy_slope": -0.03180943623754661,
+        "confidence_direction_conf_slope": 0.06047913163900371,
+        "random_direction_mc_entropy_slope": -0.0003776434984976983,
+        "random_direction_conf_slope": -0.0034817213167746934
+      },
+      "20": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": 0.04473495118127991,
+        "entropy_direction_conf_slope": -0.007922311767935728,
+        "confidence_direction_mc_entropy_slope": -0.02869367487280162,
+        "confidence_direction_conf_slope": 0.06023531538993124,
+        "random_direction_mc_entropy_slope": 2.9413158207121653e-05,
+        "random_direction_conf_slope": -0.0025256669479939344
+      },
+      "21": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": 0.040119188593725305,
+        "entropy_direction_conf_slope": -0.005662599451839908,
+        "confidence_direction_mc_entropy_slope": -0.026018954836632417,
+        "confidence_direction_conf_slope": 0.04966157095382609,
+        "random_direction_mc_entropy_slope": 0.001005117812135518,
+        "random_direction_conf_slope": 0.0005111404615971881
+      },
+      "22": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": 0.0368733656899488,
+        "entropy_direction_conf_slope": -0.004997484592100008,
+        "confidence_direction_mc_entropy_slope": -0.024631873465595488,
+        "confidence_direction_conf_slope": 0.04760307317972181,
+        "random_direction_mc_entropy_slope": -1.89234035118063e-05,
+        "random_direction_conf_slope": 0.00013846185306706896
+      },
+      "23": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": 0.03393569028532026,
+        "entropy_direction_conf_slope": -0.004306545245150729,
+        "confidence_direction_mc_entropy_slope": -0.02284525309713464,
+        "confidence_direction_conf_slope": 0.04487806567798058,
+        "random_direction_mc_entropy_slope": 5.8139767953526244e-05,
+        "random_direction_conf_slope": 5.954131318463807e-05
+      },
+      "24": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": 0.029887458963795476,
+        "entropy_direction_conf_slope": 0.0003855179448922473,
+        "confidence_direction_mc_entropy_slope": -0.018783828535346728,
+        "confidence_direction_conf_slope": 0.039169384829699984,
+        "random_direction_mc_entropy_slope": 0.0007077424292886766,
+        "random_direction_conf_slope": -0.0006638445142242732
+      },
+      "25": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": 0.027093293697216473,
+        "entropy_direction_conf_slope": 0.0009834672088424616,
+        "confidence_direction_mc_entropy_slope": -0.018130980342078464,
+        "confidence_direction_conf_slope": 0.037572863047321645,
+        "random_direction_mc_entropy_slope": -0.0004714915299465798,
+        "random_direction_conf_slope": 0.0009470838117930589
+      },
+      "26": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": 0.022691499507151977,
+        "entropy_direction_conf_slope": 0.0004303504352768684,
+        "confidence_direction_mc_entropy_slope": -0.014417486184634067,
+        "confidence_direction_conf_slope": 0.03294407401978972,
+        "random_direction_mc_entropy_slope": 0.0008402088496905023,
+        "random_direction_conf_slope": 0.0020708123726977494
+      },
+      "27": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": 0.020031607291403197,
+        "entropy_direction_conf_slope": 0.0010937991514802148,
+        "confidence_direction_mc_entropy_slope": -0.012079032985722415,
+        "confidence_direction_conf_slope": 0.028835838591059017,
+        "random_direction_mc_entropy_slope": -0.0001253195560442001,
+        "random_direction_conf_slope": -0.00024128758245041247
+      },
+      "28": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": 0.018170840977593628,
+        "entropy_direction_conf_slope": -0.00039531875401737493,
+        "confidence_direction_mc_entropy_slope": -0.009587152024756358,
+        "confidence_direction_conf_slope": 0.027398087476690643,
+        "random_direction_mc_entropy_slope": -0.00017467394297405604,
+        "random_direction_conf_slope": 0.00024697185721662366
+      },
+      "29": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": 0.015436013906547042,
+        "entropy_direction_conf_slope": 5.7409862677273955e-05,
+        "confidence_direction_mc_entropy_slope": -0.007538915388928824,
+        "confidence_direction_conf_slope": 0.022646962669988432,
+        "random_direction_mc_entropy_slope": -0.00017564609725367864,
+        "random_direction_conf_slope": -0.0007082958403560632
+      },
+      "30": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": 0.01121038215675525,
+        "entropy_direction_conf_slope": -0.0009728343387444745,
+        "confidence_direction_mc_entropy_slope": -0.003358404757121507,
+        "confidence_direction_conf_slope": 0.01752607169747352,
+        "random_direction_mc_entropy_slope": -0.0002660769952904595,
+        "random_direction_conf_slope": -0.00019958529124656837
+      },
+      "31": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_slope": 0.002554174065033594,
+        "entropy_direction_conf_slope": 0.001105783673624215,
+        "confidence_direction_mc_entropy_slope": -0.0017925664611902837,
+        "confidence_direction_conf_slope": 0.011913731018702184,
+        "random_direction_mc_entropy_slope": 0.00017921706166716575,
+        "random_direction_conf_slope": -0.00023171023527781374
+      }
+    },
+    "summary": {
+      "best_entropy_cross_effect_layer": 15,
+      "best_entropy_cross_effect": -0.05171072912712889,
+      "best_confidence_cross_effect_layer": 15,
+      "best_confidence_cross_effect": -0.06935619552116008
+    },
+    "multipliers": [
+      -3.0,
+      0.0,
+      3.0
+    ]
+  },
+  "ablation": {
+    "intervention_type": "ablation",
+    "layers": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31
+    ],
+    "num_questions": 100,
+    "direction_names": [
+      "entropy",
+      "confidence"
+    ],
+    "per_layer": {
+      "0": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": 0.00012024810775074224,
+        "entropy_direction_conf_delta": 0.00042190326750279894,
+        "confidence_direction_mc_entropy_delta": -0.00020196719171511335,
+        "confidence_direction_conf_delta": 0.00013040311634537893,
+        "random_direction_mc_entropy_delta": -8.257055352262066e-05,
+        "random_direction_conf_delta": 1.7643287777979744e-05
+      },
+      "1": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": 0.00022834417283773556,
+        "entropy_direction_conf_delta": -0.0010372276902198552,
+        "confidence_direction_mc_entropy_delta": 1.8879666840776466e-05,
+        "confidence_direction_conf_delta": 6.184390187269351e-05,
+        "random_direction_mc_entropy_delta": 8.06361762745178e-06,
+        "random_direction_conf_delta": -1.1502375205418858e-05
+      },
+      "2": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": -0.00016937267417233004,
+        "entropy_direction_conf_delta": 0.00021191756427285657,
+        "confidence_direction_mc_entropy_delta": -0.001155284967180703,
+        "confidence_direction_conf_delta": 0.0005829734206198589,
+        "random_direction_mc_entropy_delta": -7.924329164482602e-05,
+        "random_direction_conf_delta": -5.01955300569179e-05
+      },
+      "3": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": -0.000200474752391544,
+        "entropy_direction_conf_delta": 0.00024074231088155873,
+        "confidence_direction_mc_entropy_delta": -0.0008243199453863981,
+        "confidence_direction_conf_delta": 0.0009875337034463971,
+        "random_direction_mc_entropy_delta": 3.856679124197848e-05,
+        "random_direction_conf_delta": 9.283341467369866e-05
+      },
+      "4": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": 0.0007603618065877282,
+        "entropy_direction_conf_delta": -0.0013425471037626924,
+        "confidence_direction_mc_entropy_delta": -0.0011827702444588972,
+        "confidence_direction_conf_delta": 0.0016754002124070855,
+        "random_direction_mc_entropy_delta": -0.00013505066674646127,
+        "random_direction_conf_delta": -2.9800782602729115e-06
+      },
+      "5": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": -0.0009238986466152954,
+        "entropy_direction_conf_delta": 0.002373810559511136,
+        "confidence_direction_mc_entropy_delta": -0.00045741647091745996,
+        "confidence_direction_conf_delta": 0.0016601879894734273,
+        "random_direction_mc_entropy_delta": 0.0001256399328909974,
+        "random_direction_conf_delta": 0.0003053577244281902
+      },
+      "6": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": -0.000122028967207366,
+        "entropy_direction_conf_delta": 0.00030617390573028924,
+        "confidence_direction_mc_entropy_delta": 0.0009283539985062705,
+        "confidence_direction_conf_delta": 0.0010646894872188284,
+        "random_direction_mc_entropy_delta": -2.423929188805074e-05,
+        "random_direction_conf_delta": 4.2784065008127925e-05
+      },
+      "7": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": -0.0008529759850898766,
+        "entropy_direction_conf_delta": 0.0023040020465850963,
+        "confidence_direction_mc_entropy_delta": 0.001111435355715007,
+        "confidence_direction_conf_delta": 0.0001586904376744691,
+        "random_direction_mc_entropy_delta": -0.0002182927095751852,
+        "random_direction_conf_delta": 0.00041136795779073143
+      },
+      "8": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": -0.0015828223548669529,
+        "entropy_direction_conf_delta": 0.004067553400993407,
+        "confidence_direction_mc_entropy_delta": -0.0017987508944316,
+        "confidence_direction_conf_delta": -0.0033493835031985775,
+        "random_direction_mc_entropy_delta": -5.558233441360638e-05,
+        "random_direction_conf_delta": 1.5823205312126554e-05
+      },
+      "9": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": 0.00014679852805782323,
+        "entropy_direction_conf_delta": 0.00420718118548391,
+        "confidence_direction_mc_entropy_delta": 0.0033621354766455447,
+        "confidence_direction_conf_delta": -0.0007693146765230807,
+        "random_direction_mc_entropy_delta": -0.0001769034660264457,
+        "random_direction_conf_delta": 2.1278421084014454e-05
+      },
+      "10": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": -0.0006509971203649823,
+        "entropy_direction_conf_delta": 0.006018364205956583,
+        "confidence_direction_mc_entropy_delta": 0.00046427004977883657,
+        "confidence_direction_conf_delta": 0.00010440117120746883,
+        "random_direction_mc_entropy_delta": 0.0003511552216089453,
+        "random_direction_conf_delta": 0.0010153377056121293
+      },
+      "11": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": -0.0007180935911219599,
+        "entropy_direction_conf_delta": 0.0010659198909998002,
+        "confidence_direction_mc_entropy_delta": 0.004566069346601587,
+        "confidence_direction_conf_delta": -0.0022874746173621174,
+        "random_direction_mc_entropy_delta": 6.759010995660564e-05,
+        "random_direction_conf_delta": 6.276336312305286e-05
+      },
+      "12": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": -0.00964736618055212,
+        "entropy_direction_conf_delta": 0.00438239289820197,
+        "confidence_direction_mc_entropy_delta": -0.0016594954448828636,
+        "confidence_direction_conf_delta": 0.027380396142601904,
+        "random_direction_mc_entropy_delta": -0.0003898743074053912,
+        "random_direction_conf_delta": -0.0001515373140573706
+      },
+      "13": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": 0.0045396822642123635,
+        "entropy_direction_conf_delta": 0.003237213566899211,
+        "confidence_direction_mc_entropy_delta": 0.0027071794688799944,
+        "confidence_direction_conf_delta": 0.026273273199796665,
+        "random_direction_mc_entropy_delta": -0.0002778107258988305,
+        "random_direction_conf_delta": -3.92379363389761e-06
+      },
+      "14": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": -0.02806357776281404,
+        "entropy_direction_conf_delta": 0.04708627706766133,
+        "confidence_direction_mc_entropy_delta": -0.004341919915650583,
+        "confidence_direction_conf_delta": 0.07767020028829563,
+        "random_direction_mc_entropy_delta": 0.00032346836303376314,
+        "random_direction_conf_delta": 0.0009894894162814083
+      },
+      "15": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": -0.05539102832089157,
+        "entropy_direction_conf_delta": 0.031792905956506634,
+        "confidence_direction_mc_entropy_delta": -0.010235389071431233,
+        "confidence_direction_conf_delta": 0.07920106084644785,
+        "random_direction_mc_entropy_delta": -0.00014264771347066718,
+        "random_direction_conf_delta": -0.000160951167345047
+      },
+      "16": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": 0.007257655346756986,
+        "entropy_direction_conf_delta": -0.016588022157549953,
+        "confidence_direction_mc_entropy_delta": -0.009409355870602654,
+        "confidence_direction_conf_delta": 0.0613023457378149,
+        "random_direction_mc_entropy_delta": -3.324299646922935e-05,
+        "random_direction_conf_delta": -8.659538626665242e-05
+      },
+      "17": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": -0.046263827738594054,
+        "entropy_direction_conf_delta": 0.006027974277734827,
+        "confidence_direction_mc_entropy_delta": -0.022251700302222177,
+        "confidence_direction_conf_delta": 0.11311604143679133,
+        "random_direction_mc_entropy_delta": -0.00012534359634019943,
+        "random_direction_conf_delta": -4.893318315357664e-05
+      },
+      "18": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": -0.0726063032343609,
+        "entropy_direction_conf_delta": 0.002174293056130483,
+        "confidence_direction_mc_entropy_delta": -0.03304356253733204,
+        "confidence_direction_conf_delta": 0.15686032012104956,
+        "random_direction_mc_entropy_delta": 0.0001905970751673869,
+        "random_direction_conf_delta": 0.000567331274350491
+      },
+      "19": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": -0.0588935284339914,
+        "entropy_direction_conf_delta": 0.0007397979348897632,
+        "confidence_direction_mc_entropy_delta": -0.03444963208933588,
+        "confidence_direction_conf_delta": 0.16706878697872174,
+        "random_direction_mc_entropy_delta": -3.9313555863507155e-06,
+        "random_direction_conf_delta": -0.00018264199793338598
+      },
+      "20": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": -0.054914890143563766,
+        "entropy_direction_conf_delta": 0.002495410725474323,
+        "confidence_direction_mc_entropy_delta": -0.025968830254487346,
+        "confidence_direction_conf_delta": 0.17523070411384123,
+        "random_direction_mc_entropy_delta": -0.00024856938964451514,
+        "random_direction_conf_delta": -0.0001610023329655652
+      },
+      "21": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": -0.0803351324563937,
+        "entropy_direction_conf_delta": 0.004199470609426492,
+        "confidence_direction_mc_entropy_delta": -0.036483830572533404,
+        "confidence_direction_conf_delta": 0.19209261295199387,
+        "random_direction_mc_entropy_delta": -2.7327597417747818e-05,
+        "random_direction_conf_delta": 0.0002865013430515262
+      },
+      "22": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": -0.11434426626249661,
+        "entropy_direction_conf_delta": 0.007474321499466918,
+        "confidence_direction_mc_entropy_delta": -0.038508851073465855,
+        "confidence_direction_conf_delta": 0.22918157500028602,
+        "random_direction_mc_entropy_delta": 0.00011075303791274749,
+        "random_direction_conf_delta": -7.406686743038904e-06
+      },
+      "23": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": -0.12953736121272413,
+        "entropy_direction_conf_delta": 0.010519269600510639,
+        "confidence_direction_mc_entropy_delta": -0.048862725959479575,
+        "confidence_direction_conf_delta": 0.28029674860835085,
+        "random_direction_mc_entropy_delta": -0.00023179297492798012,
+        "random_direction_conf_delta": 0.00013365194698167215
+      },
+      "24": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": -0.13162720217777862,
+        "entropy_direction_conf_delta": -0.012320498272776592,
+        "confidence_direction_mc_entropy_delta": -0.05183418221410194,
+        "confidence_direction_conf_delta": 0.3064635732471943,
+        "random_direction_mc_entropy_delta": -3.516046757495728e-05,
+        "random_direction_conf_delta": -0.00010065288841720754
+      },
+      "25": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": -0.11785213149735682,
+        "entropy_direction_conf_delta": -0.010588142752647411,
+        "confidence_direction_mc_entropy_delta": -0.028953849521158204,
+        "confidence_direction_conf_delta": 0.25627021124959004,
+        "random_direction_mc_entropy_delta": -6.141794833336434e-05,
+        "random_direction_conf_delta": 3.944779932496534e-05
+      },
+      "26": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": -0.1343628202196942,
+        "entropy_direction_conf_delta": -0.013512890443205805,
+        "confidence_direction_mc_entropy_delta": -0.04121150613462307,
+        "confidence_direction_conf_delta": 0.31363613305985916,
+        "random_direction_mc_entropy_delta": -0.00012239303110928024,
+        "random_direction_conf_delta": -0.0008133012652397076
+      },
+      "27": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": -0.14079331411660861,
+        "entropy_direction_conf_delta": -0.022616235733032175,
+        "confidence_direction_mc_entropy_delta": -0.027491426342994618,
+        "confidence_direction_conf_delta": 0.28951668792963037,
+        "random_direction_mc_entropy_delta": 3.581899194615712e-05,
+        "random_direction_conf_delta": 3.2325694958368345e-05
+      },
+      "28": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": -0.1112313370363063,
+        "entropy_direction_conf_delta": -0.006208985105156772,
+        "confidence_direction_mc_entropy_delta": -0.016726909501567244,
+        "confidence_direction_conf_delta": 0.2517457640320062,
+        "random_direction_mc_entropy_delta": -0.00022844083446216246,
+        "random_direction_conf_delta": 0.00010628019273284384
+      },
+      "29": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": -0.10413830185193548,
+        "entropy_direction_conf_delta": -0.009999192848801686,
+        "confidence_direction_mc_entropy_delta": 0.011771147570207141,
+        "confidence_direction_conf_delta": 0.10952168767154202,
+        "random_direction_mc_entropy_delta": 0.00012440937340518765,
+        "random_direction_conf_delta": -0.0002852200617392553
+      },
+      "30": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": -0.09818434300105766,
+        "entropy_direction_conf_delta": 0.0035969026535749293,
+        "confidence_direction_mc_entropy_delta": 0.00838724957377962,
+        "confidence_direction_conf_delta": 0.19576534076035013,
+        "random_direction_mc_entropy_delta": 6.378238952792215e-05,
+        "random_direction_conf_delta": -0.00019077912966414257
+      },
+      "31": {
+        "baseline_mc_entropy": 0.2741408771229999,
+        "baseline_conf_signal": 0.5902884202003479,
+        "entropy_direction_mc_entropy_delta": -0.1066378208418928,
+        "entropy_direction_conf_delta": -0.045599018782377265,
+        "confidence_direction_mc_entropy_delta": -0.04429651616640967,
+        "confidence_direction_conf_delta": 0.35844551809132097,
+        "random_direction_mc_entropy_delta": 9.46376094057566e-06,
+        "random_direction_conf_delta": -0.0006041757116714841
+      }
+    },
+    "summary": {}
+  }
+}

@@ -41,9 +41,10 @@ from tasks import format_direct_prompt
 # =============================================================================
 
 MODEL = "meta-llama/Llama-3.1-8B-Instruct"
-ADAPTER = None  # Optional: path to PEFT/LoRA adapter
-DATASET = "SimpleMC"
-METRICS = ["entropy", "logit_gap"]  # Which metrics to analyze
+# ADAPTER = "Tristan-Day/ect_20251222_215412_v0uei7y1_2000"
+ADAPTER = None
+DATASET = "TriviaMC"
+METRICS = ["entropy"]  # Which metrics to analyze
 NUM_QUESTIONS = 500
 SEED = 42
 BATCH_SIZE = 8

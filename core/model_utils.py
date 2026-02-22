@@ -15,7 +15,9 @@ load_dotenv()
 HF_TOKEN = os.environ.get("HF_TOKEN")
 
 # Device detection
-DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+# Note: MPS disabled due to segfault issues with Llama 3.1 models
+# DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 def is_base_model(model_name: str) -> bool:
@@ -120,15 +122,24 @@ def load_model_and_tokenizer(
         Tuple of (model, tokenizer, num_layers)
     """
     if torch_dtype is None:
-        torch_dtype = torch.float16 if DEVICE == "cuda" else torch.float32
+        # Force float32 on CPU to avoid segfaults
+        torch_dtype = torch.float32 if DEVICE == "cpu" else torch.float16 if DEVICE == "cuda" else torch.float32
 
     print(f"Loading model: {base_model_name}")
 
-    model_kwargs = {
-        "torch_dtype": torch_dtype,
-        "device_map": device_map,
-        "token": HF_TOKEN
-    }
+    # On CPU (macOS), use minimal kwargs to avoid segfaults from accelerate
+    if DEVICE == "cpu":
+        model_kwargs = {
+            "torch_dtype": torch_dtype,
+            "token": HF_TOKEN,
+            "low_cpu_mem_usage": False,  # Disable accelerate-based loading
+        }
+    else:
+        model_kwargs = {
+            "torch_dtype": torch_dtype,
+            "device_map": device_map,
+            "token": HF_TOKEN
+        }
 
     # Build quantization config if requested
     quantization_config = None

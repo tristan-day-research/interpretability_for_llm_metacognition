@@ -15,6 +15,80 @@ Each task config provides:
 
 from typing import Dict, List, Tuple, Optional
 import numpy as np
+import random
+
+def sample_random_few_shot_examples(pool: List[Dict], n: int = 3, stratified: bool = True) -> List[Dict]:
+    """
+    Sample n random examples from the pool.
+    
+    Args:
+        pool: List of example dicts with keys: question, options, mc_answer, confidence
+        n: Number of examples to sample
+        stratified: If True and n=3, sample from different confidence regions to avoid bias.
+                   For n=3: samples one low (S-U), one mid (V-W), one high (X-Z).
+                   For n=8: tries to get one example per confidence level S-Z.
+    
+    Returns:
+        List of example dicts
+    """
+    if len(pool) < n:
+        # If we don't have enough, just sample what we can
+        n = len(pool)
+    
+    if not stratified:
+        # Simple random sampling
+        return random.sample(pool, n)
+    
+    if n == 3:
+        # Stratified sampling for n=3: one from each confidence region
+        low_conf = [ex for ex in pool if ex["confidence"] in ["S", "T", "U"]]
+        mid_conf = [ex for ex in pool if ex["confidence"] in ["V", "W"]]
+        high_conf = [ex for ex in pool if ex["confidence"] in ["X", "Y", "Z"]]
+        
+        examples = []
+        if low_conf:
+            examples.append(random.choice(low_conf))
+        if mid_conf:
+            examples.append(random.choice(mid_conf))
+        if high_conf:
+            examples.append(random.choice(high_conf))
+        
+        # If we don't have enough from stratified sampling, fill with random
+        if len(examples) < n:
+            remaining = [ex for ex in pool if ex not in examples]
+            if remaining:
+                examples.extend(random.sample(remaining, min(n - len(examples), len(remaining))))
+        
+        # Shuffle to avoid position bias
+        random.shuffle(examples)
+        return examples
+    
+    elif n == 8:
+        # Try to get one example for each confidence level S-Z
+        conf_order = ["S", "T", "U", "V", "W", "X", "Y", "Z"]
+        examples_by_conf = {conf: [] for conf in conf_order}
+        
+        for ex in pool:
+            conf = ex["confidence"]
+            if conf in examples_by_conf:
+                examples_by_conf[conf].append(ex)
+        
+        examples = []
+        for conf in conf_order:
+            if examples_by_conf[conf]:
+                examples.append(random.choice(examples_by_conf[conf]))
+        
+        # If we don't have 8, fill with random
+        if len(examples) < n:
+            remaining = [ex for ex in pool if ex not in examples]
+            if remaining:
+                examples.extend(random.sample(remaining, min(n - len(examples), len(remaining))))
+        
+        return examples
+    
+    else:
+        # For other n, just do random sampling
+        return random.sample(pool, n)
 
 
 # ============================================================================
@@ -538,6 +612,281 @@ format_delegate_prompt = format_answer_or_delegate_prompt
 # Aliases for other-confidence task
 OTHER_CONFIDENCE_OPTION_DICT = OTHER_CONFIDENCE_OPTIONS
 format_other_confidence = format_other_confidence_prompt
+
+
+# ============================================================================
+# BASE MODEL PROMPT FORMATTING (Few-shot pattern completion)
+# ============================================================================
+
+# Base models (non-instruct) don't follow instructions reliably. Instead, we
+# use few-shot examples to establish the expected input/output pattern, then
+# let the model continue the pattern via next-token prediction.
+
+BASE_MC_FEW_SHOT = """The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+"""
+
+def _build_mc_few_shot_prefix(mode: str = "fixed", pool: Optional[List[Dict]] = None) -> str:
+    """Build the few-shot prefix for MC questions based on mode.
+    
+    Args:
+        mode: "none", "fixed", "random", "balanced", "deceptive_examples", or "scale_only"
+        pool: Pool of examples for random/balanced/deceptive_examples modes
+    """
+    if mode == "none":
+        return ""
+    elif mode == "fixed":
+        return BASE_MC_FEW_SHOT
+    elif mode == "random" or mode == "balanced" or mode == "deceptive_examples":
+        # For MC, these modes all use same logic (no spectrum to balance/flip)
+        # "deceptive_examples" applies to confidence labels, not MC answers
+        if pool is None:
+            raise ValueError(f"Pool required for {mode} mode")
+        examples = sample_random_few_shot_examples(pool, 3, stratified=True)
+        prefix = "The following are multiple choice questions with answers.\n\n"
+        for ex in examples:
+            prefix += "Question: " + ex["question"] + "\n"
+            for key, value in ex["options"].items():
+                prefix += f"  {key}: {value}\n"
+            prefix += "Answer: " + ex["mc_answer"] + "\n\n"
+        return prefix
+    else:
+        raise ValueError(f"Unknown mode: {mode}")
+
+
+def format_direct_prompt_base(
+    question: Dict,
+    mode: str = "fixed",
+    pool: Optional[List[Dict]] = None,
+) -> Tuple[str, List[str]]:
+    """
+    Format a direct MC question prompt for base (non-instruct) models.
+
+    Uses few-shot pattern completion format instead of instructions.
+    No tokenizer needed since we don't apply chat template.
+
+    Args:
+        question: Question dict with 'question' and 'options'
+        mode: Few-shot mode ("none", "fixed", "random", etc.)
+        pool: Pool of examples for random/balanced modes
+
+    Returns:
+        Tuple of (full_prompt, option_keys)
+    """
+    options = list(question["options"].keys())
+
+    prompt = _build_mc_few_shot_prefix(mode, pool)
+    prompt += "Question: " + question["question"] + "\n"
+    for key, value in question["options"].items():
+        prompt += f"  {key}: {value}\n"
+    prompt += "Answer:"
+
+    return prompt, options
+
+
+BASE_CONFIDENCE_FEW_SHOT = """For each question, rate your confidence that you know the correct answer.
+S: <5%, T: 5-10%, U: 10-20%, V: 20-40%, W: 40-60%, X: 60-80%, Y: 80-90%, Z: >90%
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Confidence: Z
+
+Question: What is the 21 trillionth digit of pi?
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+Confidence: S
+
+Question: Who wrote the novel 'War and Peace'?
+  A: Charles Dickens
+  B: Leo Tolstoy
+  C: Mark Twain
+  D: Jane Austen
+Confidence: Y
+
+"""
+
+
+def _flip_confidence_to_opposite(conf: str) -> str:
+    """
+    Flip a confidence label to its opposite for deceptive examples.
+    
+    Maps high confidence to low and vice versa:
+    S <-> Z, T <-> Y, U <-> X, V <-> W
+    """
+    flip_map = {
+        "S": "Z", "Z": "S",
+        "T": "Y", "Y": "T",
+        "U": "X", "X": "U",
+        "V": "W", "W": "V",
+    }
+    return flip_map.get(conf, conf)
+
+
+def _build_confidence_few_shot_prefix(mode: str = "fixed", pool: Optional[List[Dict]] = None) -> str:
+    """Build the few-shot prefix for confidence questions based on mode.
+    
+    Args:
+        mode: "none", "fixed", "random", "balanced", or "scale_only"
+        pool: Pool of examples for random/balanced modes
+    """
+    if mode == "none":
+        # Show the scale but no examples - helps model understand valid outputs
+        return "For each question, rate your confidence that you know the correct answer.\nS: <5%, T: 5-10%, U: 10-20%, V: 20-40%, W: 40-60%, X: 60-80%, Y: 80-90%, Z: >90%\n\n"
+    
+    elif mode == "scale_only":
+        # Minimal context - just show valid tokens
+        return "Rate your confidence (S/T/U/V/W/X/Y/Z):\n\n"
+    
+    elif mode == "fixed":
+        return BASE_CONFIDENCE_FEW_SHOT
+    
+    elif mode == "balanced":
+        if pool is None:
+            raise ValueError("Pool required for balanced mode")
+        
+        # GOAL: Show exactly one example for each confidence level S-Z
+        # If a level is missing from pool, use nearby level as substitute
+        conf_order = ["S", "T", "U", "V", "W", "X", "Y", "Z"]
+        
+        # Group pool by confidence level
+        examples_by_conf = {conf: [] for conf in conf_order}
+        for ex in pool:
+            conf = ex["confidence"]
+            if conf in examples_by_conf:
+                examples_by_conf[conf].append(ex)
+        
+        # For each level, pick an example (or substitute from nearby level)
+        examples_to_show = []
+        for target_conf in conf_order:
+            if examples_by_conf[target_conf]:
+                # Have examples for this level - use one
+                ex = random.choice(examples_by_conf[target_conf])
+            else:
+                # No examples for this level - find nearest substitute
+                # Search nearby confidence levels (prefer adjacent, then expand)
+                idx = conf_order.index(target_conf)
+                search_offsets = [1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6, 7, -7]
+                ex = None
+                for offset in search_offsets:
+                    neighbor_idx = idx + offset
+                    if 0 <= neighbor_idx < len(conf_order):
+                        neighbor_conf = conf_order[neighbor_idx]
+                        if examples_by_conf[neighbor_conf]:
+                            ex = random.choice(examples_by_conf[neighbor_conf])
+                            break
+                
+                if ex is None:
+                    # Pool is empty or has no valid examples - skip this level
+                    continue
+            
+            # Add (target_conf, example) - we'll label it with target_conf even if substituted
+            examples_to_show.append((target_conf, ex))
+        
+        # SHUFFLE to avoid positional bias - different order for each question
+        random.shuffle(examples_to_show)
+        
+        # Build prefix
+        prefix = "For each question, rate your confidence that you know the correct answer.\n"
+        prefix += "S: <5%, T: 5-10%, U: 10-20%, V: 20-40%, W: 40-60%, X: 60-80%, Y: 80-90%, Z: >90%\n\n"
+        
+        for conf, ex in examples_to_show:
+            prefix += "Question: " + ex["question"] + "\n"
+            for key, value in ex["options"].items():
+                prefix += f"  {key}: {value}\n"
+            # Use target conf (not the original ex's confidence)
+            prefix += "Confidence: " + conf + "\n\n"
+        
+        return prefix
+    
+    elif mode == "random":
+        if pool is None:
+            raise ValueError("Pool required for random mode")
+        examples = sample_random_few_shot_examples(pool, 3, stratified=True)
+        prefix = "For each question, rate your confidence that you know the correct answer.\n"
+        prefix += "S: <5%, T: 5-10%, U: 10-20%, V: 20-40%, W: 40-60%, X: 60-80%, Y: 80-90%, Z: >90%\n\n"
+        for ex in examples:
+            prefix += "Question: " + ex["question"] + "\n"
+            for key, value in ex["options"].items():
+                prefix += f"  {key}: {value}\n"
+            prefix += "Confidence: " + ex["confidence"] + "\n\n"
+        return prefix
+    
+    elif mode == "deceptive_examples":
+        if pool is None:
+            raise ValueError("Pool required for deceptive_examples mode")
+        # Sample 3 examples but FLIP their confidence labels to opposites
+        # High confidence (X/Y/Z) becomes low (U/T/S) and vice versa
+        # This tests if the model copies examples or does real introspection
+        examples = sample_random_few_shot_examples(pool, 3, stratified=True)
+        prefix = "For each question, rate your confidence that you know the correct answer.\n"
+        prefix += "S: <5%, T: 5-10%, U: 10-20%, V: 20-40%, W: 40-60%, X: 60-80%, Y: 80-90%, Z: >90%\n\n"
+        for ex in examples:
+            prefix += "Question: " + ex["question"] + "\n"
+            for key, value in ex["options"].items():
+                prefix += f"  {key}: {value}\n"
+            # FLIP the confidence to opposite (Z->S, Y->T, X->U, W->V, etc.)
+            flipped_conf = _flip_confidence_to_opposite(ex["confidence"])
+            prefix += "Confidence: " + flipped_conf + "\n\n"
+        return prefix
+    
+    else:
+        raise ValueError(f"Unknown mode: {mode}")
+
+
+def format_stated_confidence_prompt_base(
+    question: Dict,
+    mode: str = "fixed",
+    pool: Optional[List[Dict]] = None,
+) -> Tuple[str, List[str]]:
+    """
+    Format a stated confidence meta-question for base (non-instruct) models.
+
+    Uses few-shot pattern completion format instead of instructions.
+    No tokenizer needed since we don't apply chat template.
+
+    Args:
+        question: Question dict with 'question' and 'options'
+        mode: Few-shot mode ("none", "fixed", "random", "balanced", "scale_only")
+        pool: Pool of examples for random/balanced modes
+
+    Returns:
+        Tuple of (full_prompt, option_keys)
+    """
+    options = list(STATED_CONFIDENCE_OPTIONS.keys())
+
+    prompt = _build_confidence_few_shot_prefix(mode, pool)
+    prompt += "Question: " + question["question"] + "\n"
+    for key, value in question["options"].items():
+        prompt += f"  {key}: {value}\n"
+    prompt += "Confidence:"
+
+    return prompt, options
 
 
 # ============================================================================

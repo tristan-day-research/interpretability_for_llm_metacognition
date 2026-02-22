@@ -64,10 +64,14 @@ from tasks import (
 # CONFIGURATION
 # =============================================================================
 
-MODEL = "meta-llama/Llama-3.3-70B-Instruct"
-INPUT_BASE_NAME = "Llama-3.3-70B-Instruct_TriviaMC"
+
+MODEL = "meta-llama/Llama-3.1-8B-Instruct"
+# ADAPTER = "Tristan-Day/ect_20251222_215412_v0uei7y1_2000"
+ADAPTER = None
+INPUT_BASE_NAME = "Llama-3.1-8B-Instruct_TriviaMC"
 METRIC = "entropy"  # Which metric's directions to test
-META_TASK = "confidence"  # "confidence" or "delegate"
+META_TASK = "delegate"  # "confidence" or "delegate"
+
 
 # Experiment settings
 STEERING_MULTIPLIERS = [-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]
@@ -94,7 +98,7 @@ LAYERS = None  # e.g., [20, 25, 30] for quick testing
 METHODS = None  # e.g., ["mean_diff"] or ["probe"] to test just one
 
 # Token positions to test (matching test_meta_transfer.py)
-PROBE_POSITIONS = ["question_mark", "question_newline", "options_newline", "final"]
+PROBE_POSITIONS = ["final"] # "question_mark", "question_newline", "options_newline", "final
 
 # Layer selection from transfer results (for non-final positions)
 # When LAYERS is None and position != "final", auto-select layers with transfer R² >= threshold
@@ -1142,6 +1146,7 @@ def main():
     print("STEERING CAUSALITY TEST")
     print("=" * 70)
     print(f"\nModel: {MODEL}")
+    print(f"Adapter: {ADAPTER}")
     print(f"Input: {INPUT_BASE_NAME}")
     print(f"Metric: {METRIC}")
     print(f"Meta-task: {META_TASK}")
@@ -1231,6 +1236,7 @@ def main():
     print("\nLoading model...")
     model, tokenizer, num_layers = load_model_and_tokenizer(
         MODEL,
+        adapter_path=ADAPTER,
         load_in_4bit=LOAD_IN_4BIT,
         load_in_8bit=LOAD_IN_8BIT,
     )
@@ -1327,6 +1333,7 @@ def main():
         checkpoint_json = {
             "config": {
                 "model": MODEL,
+                "adapter": ADAPTER,
                 "input_base_name": INPUT_BASE_NAME,
                 "metric": METRIC,
                 "meta_task": META_TASK,
@@ -1360,6 +1367,7 @@ def main():
     output_json = {
         "config": {
             "model": MODEL,
+            "adapter": ADAPTER,
             "input_base_name": INPUT_BASE_NAME,
             "metric": METRIC,
             "meta_task": META_TASK,

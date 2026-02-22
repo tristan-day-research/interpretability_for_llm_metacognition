@@ -60,13 +60,14 @@ from tasks import (
 # Base name for input files from identify_mc_correlate.py
 # Will load: {INPUT_BASE_NAME}_mc_{metric}_probes.joblib and {INPUT_BASE_NAME}_mc_dataset.json
 # The model is inferred from the dataset JSON, so no need to specify MODEL separately.
-INPUT_BASE_NAME = "Llama-3.3-70B-Instruct_TriviaMC"
+INPUT_BASE_NAME = "Llama-3.1-8B-Instruct_TriviaMC"
 
 # Which metrics to test transfer for
-METRICS = ["entropy", "top_logit"]
+METRICS = ["entropy"]
 
 # Optional adapter (must match identify step if used)
 ADAPTER = None
+# ADAPTER = "Tristan-Day/ect_20251222_215412_v0uei7y1_2000"
 
 # Meta task to test: "confidence" or "delegate"
 META_TASK = "delegate"
@@ -914,8 +915,25 @@ def plot_position_comparison(
 def main():
     OUTPUT_DIR.mkdir(exist_ok=True)
 
+    # Compute the correct base name for input files
+    # If ADAPTER is specified, files from identify_mc_correlate.py include the adapter name
+    if ADAPTER:
+        # Parse INPUT_BASE_NAME to extract model and dataset
+        # Format: {model}_{dataset}
+        parts = INPUT_BASE_NAME.rsplit('_', 1)
+        if len(parts) == 2:
+            model_part, dataset_part = parts
+            adapter_short = get_model_short_name(ADAPTER)
+            input_base_with_adapter = f"{model_part}_adapter-{adapter_short}_{dataset_part}"
+        else:
+            # Fallback: couldn't parse, try with adapter appended
+            adapter_short = get_model_short_name(ADAPTER)
+            input_base_with_adapter = f"{INPUT_BASE_NAME}_adapter-{adapter_short}"
+    else:
+        input_base_with_adapter = INPUT_BASE_NAME
+    
     # Load dataset first to get model info
-    dataset_path = OUTPUT_DIR / f"{INPUT_BASE_NAME}_mc_dataset.json"
+    dataset_path = OUTPUT_DIR / f"{input_base_with_adapter}_mc_dataset.json"
     print(f"Loading dataset from {dataset_path}...")
     dataset = load_dataset(dataset_path)
 
@@ -929,7 +947,7 @@ def main():
     print(f"  Metrics available: {list(dataset['metric_values'].keys())}")
 
     # Load direct activations (needed to train probes with proper train/test split)
-    direct_activations_path = OUTPUT_DIR / f"{INPUT_BASE_NAME}_mc_activations.npz"
+    direct_activations_path = OUTPUT_DIR / f"{input_base_with_adapter}_mc_activations.npz"
     if not direct_activations_path.exists():
         raise ValueError(f"Direct activations not found: {direct_activations_path}\n"
                         f"Run identify_mc_correlate.py first.")
@@ -1403,7 +1421,7 @@ def main():
         print(f"\n--- {metric.upper()} (mean-diff) ---")
         # Locate and load directions file for this metric
         try:
-            directions_path = _find_directions_npz(INPUT_BASE_NAME, metric, OUTPUT_DIR)
+            directions_path = _find_directions_npz(input_base_with_adapter, metric, OUTPUT_DIR)
         except FileNotFoundError as e:
             print(f"  Warning: {e}")
             continue

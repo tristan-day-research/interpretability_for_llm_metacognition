@@ -15,16 +15,18 @@ from pathlib import Path
 from typing import Dict, Any, List
 
 # Configuration
-INPUT_DIR = Path("outputs/top_logit_mean_diff")
-OUTPUT_DIR = Path("outputs/top_logit_mean_diff")
+INPUT_DIR = Path("outputs/v3_8b_base_entropy_no_quantization")
+OUTPUT_DIR = INPUT_DIR
 
 # Transfer results are in main outputs dir
-TRANSFER_CONFIDENCE_PATH = Path("outputs/Llama-3.3-70B-Instruct_TriviaMC_transfer_confidence_results.json")
-TRANSFER_DELEGATE_PATH = Path("outputs/Llama-3.3-70B-Instruct_TriviaMC_transfer_delegate_results.json")
+TRANSFER_CONFIDENCE_PATH = Path("outputs/v3_8b_base_entropy_no_quantization/Llama-3.1-8B-Instruct_TriviaMC_transfer_confidence_results.json")
+TRANSFER_DELEGATE_PATH = Path("outputs/v3_8b_base_entropy_no_quantization/Llama-3.1-8B-Instruct_TriviaMC_transfer_delegate_results.json")
 
-MODEL = "Llama-3.3-70B-Instruct"
+MODEL = "Llama-3.1-8B-Instruct"
+# ADAPTER = "Tristan-Day/ect_20251222_215412_v0uei7y1_2000"
+ADAPTER = None
 DATASET = "TriviaMC"
-METRIC = "top_logit"
+METRIC = "entropy"
 METHOD = "mean_diff"
 
 
@@ -48,10 +50,10 @@ def extract_mc_results(data: Dict) -> Dict[int, Dict]:
     return results
 
 
-def extract_transfer_results(data: Dict) -> Dict[int, Dict]:
-    """Extract top_logit transfer R² by layer."""
+def extract_transfer_results(data: Dict, metric: str = "entropy") -> Dict[int, Dict]:
+    """Extract transfer R² by layer for the specified metric."""
     results = {}
-    per_layer = data.get("transfer", {}).get("top_logit", {}).get("per_layer", {})
+    per_layer = data.get("transfer", {}).get(metric, {}).get("per_layer", {})
     for layer_str, layer_data in per_layer.items():
         layer = int(layer_str)
         results[layer] = {
@@ -171,21 +173,40 @@ def generate_report(
     mc_config: Dict,
     ablation_config: Dict,
     steering_config: Dict,
+    adapter_with_prefix: str = "",
 ) -> str:
     """Generate the markdown report."""
+    # Build file prefix (handles both with/without adapter)
+    file_prefix = f"{MODEL}_{adapter_with_prefix}_" if adapter_with_prefix else f"{MODEL}_"
 
     # Find key results
     passing_layers = find_passing_layers(ablation_conf, ablation_del, steering_conf, steering_del)
 
-    # Find spike in encoding (early 30s)
-    spike_layer_mc = find_spike_layer(mc_results, 30, 40)
+    # Determine layer range dynamically based on available data
+    all_layers = sorted(mc_results.keys())
+    max_layer = max(all_layers)
+    # For spike detection, use roughly the top third of layers
+    spike_start = max(0, int(max_layer * 0.67))
+    spike_end = max_layer + 1
+    
+    # Find spike in encoding
+    spike_layer_mc = find_spike_layer(mc_results, spike_start, spike_end)
     spike_r2_mc = mc_results[spike_layer_mc]["r2"]
 
-    # Find spike in transfer
-    spike_layer_conf = find_spike_layer(transfer_conf, 30, 40)
-    spike_r2_conf = transfer_conf[spike_layer_conf]["r2"]
-    spike_layer_del = find_spike_layer(transfer_del, 30, 40)
-    spike_r2_del = transfer_del[spike_layer_del]["r2"]
+    # Find spike in transfer (use available layers)
+    if transfer_conf:
+        spike_layer_conf = find_spike_layer(transfer_conf, spike_start, min(spike_end, max(transfer_conf.keys()) + 1))
+        spike_r2_conf = transfer_conf[spike_layer_conf]["r2"]
+    else:
+        spike_layer_conf = spike_layer_mc
+        spike_r2_conf = 0.0
+    
+    if transfer_del:
+        spike_layer_del = find_spike_layer(transfer_del, spike_start, min(spike_end, max(transfer_del.keys()) + 1))
+        spike_r2_del = transfer_del[spike_layer_del]["r2"]
+    else:
+        spike_layer_del = spike_layer_mc
+        spike_r2_del = 0.0
 
     # Determine passing layers text
     if passing_layers:
@@ -197,13 +218,13 @@ def generate_report(
 
 ## Executive Summary
 
-This report documents evidence that **{MODEL}** has internal representations of its own output uncertainty. Using the **top_logit** metric and **mean_diff** direction-finding method, we find:
+This report documents evidence that **{MODEL}** has internal representations of its own output uncertainty. Using the **{METRIC}** metric and **{METHOD}** direction-finding method, we find:
 
 1. **Identification**: Activations encode output uncertainty, with R² = {spike_r2_mc:.3f} at layer {spike_layer_mc}
 2. **Transfer**: These representations transfer to meta-judgment tasks (R² = {spike_r2_conf:.3f} for confidence)
 3. **Causality**: Steering demonstrates the direction is sufficient to influence confidence, but ablation results are mixed
 
-Encoding **peaks in layers 33-39**: transfer tasks peak at layer 33, while MC identification continues to rise through layer 39.
+Encoding **peaks in later layers**: transfer tasks peak at layer {spike_layer_conf}, while MC identification continues to rise through layer {spike_layer_mc}.
 
 **Key finding**: {passing_text}
 
@@ -215,17 +236,15 @@ Encoding **peaks in layers 33-39**: transfer tasks peak at layer 33, while MC id
 
 Do LLMs have genuine internal representations of their own uncertainty, or do they rely on surface-level pattern matching when reporting confidence?
 
-### 1.2 Uncertainty Metric: top_logit
+### 1.2 Uncertainty Metric: {METRIC}
 
-We use **top_logit** = z(top) - mean(z), where z(top) is the highest logit and mean(z) is the mean across all logits. This measures how much the model's top prediction "stands out" from the rest.
+The **{METRIC}** metric measures the model's internal uncertainty in its predictions.
 
-We chose top_logit over entropy because it showed stronger identification and transfer for this model on these tasks.
+### 1.3 Direction-Finding Method: {METHOD}
 
-### 1.3 Direction-Finding Method: mean_diff
-
-The **mean_diff** method computes the difference between activation centroids:
-- High-certainty centroid: mean of activations in top 25% by top_logit
-- Low-certainty centroid: mean of activations in bottom 25% by top_logit
+The **{METHOD}** method computes the difference between activation centroids:
+- High-certainty centroid: mean of activations in top 25% by {METRIC}
+- Low-certainty centroid: mean of activations in bottom 25% by {METRIC}
 - Direction = high_centroid - low_centroid
 
 This simple approach captures the dominant axis along which certainty varies in activation space.
@@ -243,9 +262,10 @@ This simple approach captures the dominant axis along which certainty varies in 
 ### 2.1 Task Setup
 
 - **Model**: {MODEL}
+- **Adapter**: {ADAPTER}
 - **Dataset**: {DATASET} ({mc_config.get('train_split', 0.8)*100:.0f}% train, {(1-mc_config.get('train_split', 0.8))*100:.0f}% test)
-- **Metric**: top_logit
-- **Method**: mean_diff (top/bottom {mc_config.get('mean_diff_quantile', 0.25)*100:.0f}% quantiles)
+- **Metric**: {METRIC}
+- **Method**: {METHOD} (top/bottom {mc_config.get('mean_diff_quantile', 0.25)*100:.0f}% quantiles)
 
 ### 2.2 Results
 
@@ -253,11 +273,12 @@ Encoding spikes in the early 30s layers:
 
 """
 
-    # Add compact R² listing for layers 28-40
+    # Add compact R² listing for later layers (last ~40% of layers)
+    display_start = max(0, int(max_layer * 0.6))
     report += "```\n"
     report += "Layer   R²      Corr\n"
     report += "-" * 24 + "\n"
-    for layer in range(28, 41):
+    for layer in range(display_start, max_layer + 1):
         if layer in mc_results:
             r = mc_results[layer]
             marker = " <-- spike" if layer == spike_layer_mc else ""
@@ -277,7 +298,7 @@ Encoding spikes in the early 30s layers:
 
 ### 3.2 Transfer Results
 
-The MC-derived uncertainty direction is applied to activations during meta-task inference. Transfer R² also peaks in layers 32-34:
+The MC-derived uncertainty direction is applied to activations during meta-task inference. Transfer R² peaks in later layers:
 
 **Confidence Task** (peak: layer {spike_layer_conf}, R² = {spike_r2_conf:.3f}):
 
@@ -287,7 +308,7 @@ The MC-derived uncertainty direction is applied to activations during meta-task 
     report += "```\n"
     report += "Layer   R²      Pearson\n"
     report += "-" * 26 + "\n"
-    for layer in range(28, 41):
+    for layer in range(display_start, max_layer + 1):
         if layer in transfer_conf:
             r = transfer_conf[layer]
             marker = " <--" if layer == spike_layer_conf else ""
@@ -303,19 +324,19 @@ The MC-derived uncertainty direction is applied to activations during meta-task 
     report += "```\n"
     report += "Layer   R²      Pearson\n"
     report += "-" * 26 + "\n"
-    for layer in range(28, 41):
+    for layer in range(display_start, max_layer + 1):
         if layer in transfer_del:
             r = transfer_del[layer]
             marker = " <--" if layer == spike_layer_del else ""
             report += f"  {layer}    {r['r2']:.3f}   {r['pearson']:.3f}{marker}\n"
     report += "```\n"
 
-    report += """
+    report += f"""
 ### 3.3 Transfer Figures
 
-![Confidence Task Transfer](Llama-3.3-70B-Instruct_TriviaMC_transfer_confidence_mean_diff_results.png)
+![Confidence Task Transfer]({file_prefix}{DATASET}_transfer_confidence_mean_diff_results_final.png)
 
-![Delegation Task Transfer](Llama-3.3-70B-Instruct_TriviaMC_transfer_delegate_mean_diff_results.png)
+![Delegation Task Transfer]({file_prefix}{DATASET}_transfer_delegate_mean_diff_results_final.png)
 
 ---
 
@@ -327,7 +348,7 @@ The MC-derived uncertainty direction is applied to activations during meta-task 
 
 **Statistical approach**: Compare ablated correlation change to 25 random orthogonal control directions. Report p-value from pooled null distribution.
 
-**Confidence Task Ablation** (layers 30-40):
+**Confidence Task Ablation**:
 
 """
 
@@ -337,7 +358,7 @@ The MC-derived uncertainty direction is applied to activations during meta-task 
     report += "```\n"
     report += "Layer  Baseline  Ablated  Change   p-value   Sign OK\n"
     report += "-" * 54 + "\n"
-    for layer in range(30, 41):
+    for layer in range(display_start, max_layer + 1):
         if layer in ablation_conf:
             r = ablation_conf[layer]
             sig = "*" if r['p_value'] < 0.05 else " "
@@ -346,7 +367,7 @@ The MC-derived uncertainty direction is applied to activations during meta-task 
     report += "```\n"
 
     report += """
-**Delegation Task Ablation** (layers 30-40):
+**Delegation Task Ablation**:
 
 """
 
@@ -354,7 +375,7 @@ The MC-derived uncertainty direction is applied to activations during meta-task 
     report += "```\n"
     report += "Layer  Baseline  Ablated  Change   p-value   Sign OK\n"
     report += "-" * 54 + "\n"
-    for layer in range(30, 41):
+    for layer in range(display_start, max_layer + 1):
         if layer in ablation_del:
             r = ablation_del[layer]
             sig = "*" if r['p_value'] < 0.05 else " "
@@ -362,12 +383,12 @@ The MC-derived uncertainty direction is applied to activations during meta-task 
             report += f"  {layer}    {r['baseline_corr']:.3f}    {r['ablated_corr']:.3f}   {r['correlation_change']:+.3f}   {r['p_value']:.4f} {sig}   {sign_ok}\n"
     report += "```\n"
 
-    report += """
+    report += f"""
 ### 4.2 Ablation Figures
 
-![Confidence Ablation](Llama-3.3-70B-Instruct_TriviaMC_ablation_confidence_top_logit_mean_diff.png)
+![Confidence Ablation]({MODEL}_{DATASET}_ablation_confidence_{METRIC}_mean_diff_final.png)
 
-![Delegation Ablation](Llama-3.3-70B-Instruct_TriviaMC_ablation_delegate_top_logit_mean_diff.png)
+![Delegation Ablation]({MODEL}_{DATASET}_ablation_delegate_{METRIC}_mean_diff_final.png)
 
 ### 4.3 Steering Experiments
 
@@ -375,7 +396,7 @@ The MC-derived uncertainty direction is applied to activations during meta-task 
 
 **Expected sign**: Adding the high-certainty direction (positive multiplier) should increase stated confidence.
 
-**Confidence Task Steering** (layers 30-40):
+**Confidence Task Steering**:
 
 """
 
@@ -383,7 +404,7 @@ The MC-derived uncertainty direction is applied to activations during meta-task 
     report += "```\n"
     report += "Layer   Slope      Z      p-value   Sign OK\n"
     report += "-" * 46 + "\n"
-    for layer in range(30, 41):
+    for layer in range(display_start, max_layer + 1):
         if layer in steering_conf:
             r = steering_conf[layer]
             sig = "*" if r['p_value'] < 0.05 else " "
@@ -392,7 +413,7 @@ The MC-derived uncertainty direction is applied to activations during meta-task 
     report += "```\n"
 
     report += """
-**Delegation Task Steering** (layers 30-40):
+**Delegation Task Steering**:
 
 """
 
@@ -400,7 +421,7 @@ The MC-derived uncertainty direction is applied to activations during meta-task 
     report += "```\n"
     report += "Layer   Slope      Z      p-value   Sign OK\n"
     report += "-" * 46 + "\n"
-    for layer in range(30, 41):
+    for layer in range(display_start, max_layer + 1):
         if layer in steering_del:
             r = steering_del[layer]
             sig = "*" if r['p_value'] < 0.05 else " "
@@ -408,12 +429,12 @@ The MC-derived uncertainty direction is applied to activations during meta-task 
             report += f"  {layer}    {r['slope']:+.4f}   {r['effect_z']:+.2f}   {r['p_value']:.4f} {sig}   {sign}\n"
     report += "```\n"
 
-    report += """
+    report += f"""
 ### 4.4 Steering Figures
 
-![Confidence Steering](Llama-3.3-70B-Instruct_TriviaMC_steering_confidence_top_logit_mean_diff.png)
+![Confidence Steering]({MODEL}_{DATASET}_steering_confidence_{METRIC}_final_mean_diff.png)
 
-![Delegation Steering](Llama-3.3-70B-Instruct_TriviaMC_steering_delegate_top_logit_mean_diff.png)
+![Delegation Steering]({MODEL}_{DATASET}_steering_delegate_{METRIC}_final_mean_diff.png)
 
 ---
 
@@ -429,7 +450,7 @@ A layer "passes" if it has BOTH:
     report += "```\n"
     report += "Layer  Abl-C p   Abl-C Sign  Abl-D p   Abl-D Sign  Str-C p   Str-D p   Pass?\n"
     report += "-" * 80 + "\n"
-    for layer in range(30, 41):
+    for layer in range(display_start, max_layer + 1):
         if layer in ablation_conf and layer in ablation_del and layer in steering_conf and layer in steering_del:
             ac = ablation_conf[layer]
             ad = ablation_del[layer]
@@ -453,7 +474,7 @@ A layer "passes" if it has BOTH:
 
 ### 6.1 Summary of Evidence
 
-1. **The representation exists**: Activations encode top_logit with R² up to {spike_r2_mc:.3f} at layer {spike_layer_mc}
+1. **The representation exists**: Activations encode {METRIC} with R² up to {spike_r2_mc:.3f} at layer {spike_layer_mc}
 2. **It transfers**: The same direction predicts confidence during meta-judgment tasks (R² = {spike_r2_conf:.3f})
 3. **Steering shows sufficiency**: Adding the direction increases stated confidence (positive slope), as expected
 4. **Ablation results are mixed**: Ablation shows significant effects but often in the *opposite* direction from expected (correlation increases instead of decreases)
@@ -471,8 +492,9 @@ Note that confidence ablation effects are small in absolute magnitude (~0.003-0.
 ### 6.3 Limitations
 
 - Single model ({MODEL})
+- Single adapter ({ADAPTER})
 - Single dataset ({DATASET})
-- mean_diff method may capture correlated features alongside uncertainty
+- {METHOD} method may capture correlated features alongside uncertainty
 - Ablation effects are small for confidence task
 
 ---
@@ -512,8 +534,14 @@ Control directions: {steering_config.get('num_controls', 'N/A')}
 def main():
     print("Loading data...")
 
-    # Load MC probe results
-    mc_path = INPUT_DIR / f"{MODEL}_{DATASET}_mc_{METRIC}_results.json"
+    # Extract adapter name from ADAPTER constant and format with "adapter-" prefix
+    if ADAPTER:
+        adapter_short = ADAPTER.split('/')[-1] if '/' in ADAPTER else ADAPTER
+        adapter_with_prefix = f"adapter-{adapter_short}"
+        mc_path = INPUT_DIR / f"{MODEL}_{adapter_with_prefix}_{DATASET}_mc_{METRIC}_results.json"
+    else:
+        adapter_with_prefix = ""
+        mc_path = INPUT_DIR / f"{MODEL}_{DATASET}_mc_{METRIC}_results.json"
     mc_data = load_json(mc_path)
     mc_results = extract_mc_results(mc_data)
     mc_config = mc_data.get("config", {})
@@ -521,10 +549,10 @@ def main():
     # Load transfer results (from main outputs dir)
     transfer_conf_data = load_json(TRANSFER_CONFIDENCE_PATH)
     transfer_del_data = load_json(TRANSFER_DELEGATE_PATH)
-    transfer_conf = extract_transfer_results(transfer_conf_data)
-    transfer_del = extract_transfer_results(transfer_del_data)
+    transfer_conf = extract_transfer_results(transfer_conf_data, METRIC)
+    transfer_del = extract_transfer_results(transfer_del_data, METRIC)
 
-    # Load ablation results
+    # Load ablation results (no adapter name in filename)
     ablation_conf_path = INPUT_DIR / f"{MODEL}_{DATASET}_ablation_confidence_{METRIC}_results.json"
     ablation_del_path = INPUT_DIR / f"{MODEL}_{DATASET}_ablation_delegate_{METRIC}_results.json"
     ablation_conf_data = load_json(ablation_conf_path)
@@ -533,7 +561,7 @@ def main():
     ablation_del = extract_ablation_results(ablation_del_data)
     ablation_config = ablation_conf_data.get("config", {})
 
-    # Load steering results
+    # Load steering results (no adapter name in filename)
     steering_conf_path = INPUT_DIR / f"{MODEL}_{DATASET}_steering_confidence_{METRIC}_results.json"
     steering_del_path = INPUT_DIR / f"{MODEL}_{DATASET}_steering_delegate_{METRIC}_results.json"
     steering_conf_data = load_json(steering_conf_path)
@@ -554,6 +582,7 @@ def main():
         mc_config=mc_config,
         ablation_config=ablation_config,
         steering_config=steering_config,
+        adapter_with_prefix=adapter_with_prefix,
     )
 
     # Write report
