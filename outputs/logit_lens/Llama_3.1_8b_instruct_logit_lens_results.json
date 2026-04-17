@@ -1,0 +1,7315 @@
+{
+  "prompt": "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nCutting Knowledge Date: December 2023\nToday Date: 26 Jul 2024\n\n<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nI'm going to show you a question, and I want you to tell me your level of confidence that you know the correct answer to this question. Respond only with the letter corresponding to the percentage range you choose; do NOT output any other text.\n\n------------------------------\nHow confident are you that you know the correct answer to this question?\n----------\nWhat is the capital of France?\n  A: New York\n  B: Tokyo\n  C: Paris\n  D: Denver\n----------\n  S: <5%\n  T: 5-10%\n  U: 10-20%\n  V: 20-40%\n  W: 40-60%\n  X: 60-80%\n  Y: 80-90%\n  Z: >90%\n------------------------------\nYour choice (S, T, U, V, W, X, Y, or Z):<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n",
+  "config": {
+    "activation_stream": "resid_post",
+    "ln_mode": "final_ln",
+    "token_position": "last",
+    "top_k": 20
+  },
+  "input_tokens": [
+    "'<|begin_of_text|>'",
+    "'<|begin_of_text|>'",
+    "'<|start_header_id|>'",
+    "'system'",
+    "'<|end_header_id|>'",
+    "'\\n\\n'",
+    "'Cut'",
+    "'ting'",
+    "' Knowledge'",
+    "' Date'",
+    "':'",
+    "' December'",
+    "' '",
+    "'202'",
+    "'3'",
+    "'\\n'",
+    "'Today'",
+    "' Date'",
+    "':'",
+    "' '",
+    "'26'",
+    "' Jul'",
+    "' '",
+    "'202'",
+    "'4'",
+    "'\\n\\n'",
+    "'<|eot_id|>'",
+    "'<|start_header_id|>'",
+    "'user'",
+    "'<|end_header_id|>'",
+    "'\\n\\n'",
+    "'I'",
+    "\"'m\"",
+    "' going'",
+    "' to'",
+    "' show'",
+    "' you'",
+    "' a'",
+    "' question'",
+    "','",
+    "' and'",
+    "' I'",
+    "' want'",
+    "' you'",
+    "' to'",
+    "' tell'",
+    "' me'",
+    "' your'",
+    "' level'",
+    "' of'",
+    "' confidence'",
+    "' that'",
+    "' you'",
+    "' know'",
+    "' the'",
+    "' correct'",
+    "' answer'",
+    "' to'",
+    "' this'",
+    "' question'",
+    "'.'",
+    "' Respond'",
+    "' only'",
+    "' with'",
+    "' the'",
+    "' letter'",
+    "' corresponding'",
+    "' to'",
+    "' the'",
+    "' percentage'",
+    "' range'",
+    "' you'",
+    "' choose'",
+    "';'",
+    "' do'",
+    "' NOT'",
+    "' output'",
+    "' any'",
+    "' other'",
+    "' text'",
+    "'.\\n\\n'",
+    "'----------------------------'",
+    "'--\\n'",
+    "'How'",
+    "' confident'",
+    "' are'",
+    "' you'",
+    "' that'",
+    "' you'",
+    "' know'",
+    "' the'",
+    "' correct'",
+    "' answer'",
+    "' to'",
+    "' this'",
+    "' question'",
+    "'?\\n'",
+    "'----------\\n'",
+    "'What'",
+    "' is'",
+    "' the'",
+    "' capital'",
+    "' of'",
+    "' France'",
+    "'?\\n'",
+    "' '",
+    "' A'",
+    "':'",
+    "' New'",
+    "' York'",
+    "'\\n'",
+    "' '",
+    "' B'",
+    "':'",
+    "' Tokyo'",
+    "'\\n'",
+    "' '",
+    "' C'",
+    "':'",
+    "' Paris'",
+    "'\\n'",
+    "' '",
+    "' D'",
+    "':'",
+    "' Denver'",
+    "'\\n'",
+    "'----------\\n'",
+    "' '",
+    "' S'",
+    "':'",
+    "' <'",
+    "'5'",
+    "'%\\n'",
+    "' '",
+    "' T'",
+    "':'",
+    "' '",
+    "'5'",
+    "'-'",
+    "'10'",
+    "'%\\n'",
+    "' '",
+    "' U'",
+    "':'",
+    "' '",
+    "'10'",
+    "'-'",
+    "'20'",
+    "'%\\n'",
+    "' '",
+    "' V'",
+    "':'",
+    "' '",
+    "'20'",
+    "'-'",
+    "'40'",
+    "'%\\n'",
+    "' '",
+    "' W'",
+    "':'",
+    "' '",
+    "'40'",
+    "'-'",
+    "'60'",
+    "'%\\n'",
+    "' '",
+    "' X'",
+    "':'",
+    "' '",
+    "'60'",
+    "'-'",
+    "'80'",
+    "'%\\n'",
+    "' '",
+    "' Y'",
+    "':'",
+    "' '",
+    "'80'",
+    "'-'",
+    "'90'",
+    "'%\\n'",
+    "' '",
+    "' Z'",
+    "':'",
+    "' >'",
+    "'90'",
+    "'%\\n'",
+    "'----------------------------'",
+    "'--\\n'",
+    "'Your'",
+    "' choice'",
+    "' ('",
+    "'S'",
+    "','",
+    "' T'",
+    "','",
+    "' U'",
+    "','",
+    "' V'",
+    "','",
+    "' W'",
+    "','",
+    "' X'",
+    "','",
+    "' Y'",
+    "','",
+    "' or'",
+    "' Z'",
+    "'):'",
+    "'<|eot_id|>'",
+    "'<|start_header_id|>'",
+    "'assistant'",
+    "'<|end_header_id|>'",
+    "'\\n\\n'"
+  ],
+  "num_tokens": 214,
+  "layers_analyzed": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31
+  ],
+  "layer_results": {
+    "0": {
+      "layer": 0,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "' setBackgroundImage'",
+            "token_id": 96366,
+            "logit": 7.80078125
+          },
+          {
+            "token_str": "'chod'",
+            "token_id": 103844,
+            "logit": 7.67578125
+          },
+          {
+            "token_str": "'cheng'",
+            "token_id": 68284,
+            "logit": 7.6484375
+          },
+          {
+            "token_str": "'\u0633\u062a\u06cc'",
+            "token_id": 111039,
+            "logit": 7.44140625
+          },
+          {
+            "token_str": "'isci'",
+            "token_id": 93386,
+            "logit": 7.41015625
+          },
+          {
+            "token_str": "'.ast'",
+            "token_id": 46157,
+            "logit": 7.3671875
+          },
+          {
+            "token_str": "'edir'",
+            "token_id": 101081,
+            "logit": 7.2890625
+          },
+          {
+            "token_str": "'ORB'",
+            "token_id": 74226,
+            "logit": 7.26171875
+          },
+          {
+            "token_str": "'\u0627\u06a9\u06cc'",
+            "token_id": 124086,
+            "logit": 7.17578125
+          },
+          {
+            "token_str": "'iale'",
+            "token_id": 20487,
+            "logit": 7.16015625
+          },
+          {
+            "token_str": "' toe'",
+            "token_id": 31316,
+            "logit": 7.1484375
+          },
+          {
+            "token_str": "'incer'",
+            "token_id": 70898,
+            "logit": 7.078125
+          },
+          {
+            "token_str": "'-lfs'",
+            "token_id": 71262,
+            "logit": 7.078125
+          },
+          {
+            "token_str": "'\u30e1\u30f3\u30c8'",
+            "token_id": 73590,
+            "logit": 7.05859375
+          },
+          {
+            "token_str": "'ichern'",
+            "token_id": 89681,
+            "logit": 7.0546875
+          },
+          {
+            "token_str": "'FFT'",
+            "token_id": 87514,
+            "logit": 6.9921875
+          },
+          {
+            "token_str": "' MainForm'",
+            "token_id": 75777,
+            "logit": 6.96875
+          },
+          {
+            "token_str": "'illo'",
+            "token_id": 22532,
+            "logit": 6.828125
+          },
+          {
+            "token_str": "\"'gc\"",
+            "token_id": 63075,
+            "logit": 6.78125
+          },
+          {
+            "token_str": "'\u03c1\u03b5\u03af'",
+            "token_id": 107125,
+            "logit": 6.6953125
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'pn'",
+            "token_id": 20553,
+            "logit": -9.109375
+          },
+          {
+            "token_str": "'eah'",
+            "token_id": 10644,
+            "logit": -8.8515625
+          },
+          {
+            "token_str": "'uario'",
+            "token_id": 6208,
+            "logit": -8.8203125
+          },
+          {
+            "token_str": "'xn'",
+            "token_id": 44067,
+            "logit": -8.4765625
+          },
+          {
+            "token_str": "'quate'",
+            "token_id": 19684,
+            "logit": -8.2109375
+          },
+          {
+            "token_str": "'eus'",
+            "token_id": 90802,
+            "logit": -8.109375
+          },
+          {
+            "token_str": "'\u0435\u0441\u044f'",
+            "token_id": 104707,
+            "logit": -8.0625
+          },
+          {
+            "token_str": "'rex'",
+            "token_id": 38639,
+            "logit": -7.5546875
+          },
+          {
+            "token_str": "'908'",
+            "token_id": 23629,
+            "logit": -7.4609375
+          },
+          {
+            "token_str": "'swana'",
+            "token_id": 94810,
+            "logit": -7.4375
+          },
+          {
+            "token_str": "'verige'",
+            "token_id": 75295,
+            "logit": -7.3984375
+          },
+          {
+            "token_str": "'undra'",
+            "token_id": 79830,
+            "logit": -7.34375
+          },
+          {
+            "token_str": "'olt'",
+            "token_id": 6312,
+            "logit": -7.3359375
+          },
+          {
+            "token_str": "'endoza'",
+            "token_id": 96528,
+            "logit": -7.26171875
+          },
+          {
+            "token_str": "'.getOwnProperty'",
+            "token_id": 62112,
+            "logit": -7.17578125
+          },
+          {
+            "token_str": "'OLEAN'",
+            "token_id": 24503,
+            "logit": -7.08984375
+          },
+          {
+            "token_str": "'\ufffd'",
+            "token_id": 14888,
+            "logit": -7.07421875
+          },
+          {
+            "token_str": "'s'",
+            "token_id": 82,
+            "logit": -7.05859375
+          },
+          {
+            "token_str": "'oftware'",
+            "token_id": 74205,
+            "logit": -7.03515625
+          },
+          {
+            "token_str": "'onden'",
+            "token_id": 73316,
+            "logit": -7.01953125
+          }
+        ]
+      },
+      "logits_mean": -0.08514404296875,
+      "logits_std": 1.734375,
+      "logits_max": 7.80078125,
+      "logits_min": -9.109375
+    },
+    "1": {
+      "layer": 1,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "'\u0633\u062a\u06cc'",
+            "token_id": 111039,
+            "logit": 8.8984375
+          },
+          {
+            "token_str": "'eshire'",
+            "token_id": 90345,
+            "logit": 8.6484375
+          },
+          {
+            "token_str": "' decentral'",
+            "token_id": 39205,
+            "logit": 8.578125
+          },
+          {
+            "token_str": "'ovenant'",
+            "token_id": 39702,
+            "logit": 8.5390625
+          },
+          {
+            "token_str": "\"'gc\"",
+            "token_id": 63075,
+            "logit": 8.3046875
+          },
+          {
+            "token_str": "'\u03ba\u03b9'",
+            "token_id": 105975,
+            "logit": 8.265625
+          },
+          {
+            "token_str": "'chod'",
+            "token_id": 103844,
+            "logit": 8.1875
+          },
+          {
+            "token_str": "'.Keyword'",
+            "token_id": 62325,
+            "logit": 7.9453125
+          },
+          {
+            "token_str": "' Alam'",
+            "token_id": 66050,
+            "logit": 7.84765625
+          },
+          {
+            "token_str": "'icone'",
+            "token_id": 37273,
+            "logit": 7.8359375
+          },
+          {
+            "token_str": "'ode'",
+            "token_id": 536,
+            "logit": 7.69140625
+          },
+          {
+            "token_str": "'\u30e1\u30f3\u30c8'",
+            "token_id": 73590,
+            "logit": 7.6875
+          },
+          {
+            "token_str": "'\u0446\u0435\u0441'",
+            "token_id": 127459,
+            "logit": 7.6875
+          },
+          {
+            "token_str": "'cheng'",
+            "token_id": 68284,
+            "logit": 7.66796875
+          },
+          {
+            "token_str": "' setBackgroundImage'",
+            "token_id": 96366,
+            "logit": 7.60546875
+          },
+          {
+            "token_str": "' toe'",
+            "token_id": 31316,
+            "logit": 7.5859375
+          },
+          {
+            "token_str": "'utas'",
+            "token_id": 17141,
+            "logit": 7.5390625
+          },
+          {
+            "token_str": "'\u5012'",
+            "token_id": 105987,
+            "logit": 7.45703125
+          },
+          {
+            "token_str": "'oucher'",
+            "token_id": 24889,
+            "logit": 7.453125
+          },
+          {
+            "token_str": "'.Persistent'",
+            "token_id": 62755,
+            "logit": 7.33203125
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'eah'",
+            "token_id": 10644,
+            "logit": -9.0
+          },
+          {
+            "token_str": "'.getValue'",
+            "token_id": 12165,
+            "logit": -7.85546875
+          },
+          {
+            "token_str": "'stagram'",
+            "token_id": 118063,
+            "logit": -7.84765625
+          },
+          {
+            "token_str": "' Egyptian'",
+            "token_id": 33589,
+            "logit": -7.76171875
+          },
+          {
+            "token_str": "'ej'",
+            "token_id": 36568,
+            "logit": -7.72265625
+          },
+          {
+            "token_str": "'uario'",
+            "token_id": 6208,
+            "logit": -7.66796875
+          },
+          {
+            "token_str": "' Seite'",
+            "token_id": 48504,
+            "logit": -7.65625
+          },
+          {
+            "token_str": "'xn'",
+            "token_id": 44067,
+            "logit": -7.62890625
+          },
+          {
+            "token_str": "'\ufffd'",
+            "token_id": 35722,
+            "logit": -7.5859375
+          },
+          {
+            "token_str": "' ef'",
+            "token_id": 31469,
+            "logit": -7.5
+          },
+          {
+            "token_str": "'steen'",
+            "token_id": 95057,
+            "logit": -7.43359375
+          },
+          {
+            "token_str": "'upaten'",
+            "token_id": 75995,
+            "logit": -7.35546875
+          },
+          {
+            "token_str": "'ei'",
+            "token_id": 20568,
+            "logit": -7.3515625
+          },
+          {
+            "token_str": "'\u0443\u043d\u0434'",
+            "token_id": 118918,
+            "logit": -7.34375
+          },
+          {
+            "token_str": "'haust'",
+            "token_id": 15424,
+            "logit": -7.265625
+          },
+          {
+            "token_str": "'cplusplus'",
+            "token_id": 25971,
+            "logit": -7.26171875
+          },
+          {
+            "token_str": "'Screen'",
+            "token_id": 8130,
+            "logit": -7.18359375
+          },
+          {
+            "token_str": "'.sf'",
+            "token_id": 42639,
+            "logit": -7.16796875
+          },
+          {
+            "token_str": "'\ufffd'",
+            "token_id": 14888,
+            "logit": -7.15234375
+          },
+          {
+            "token_str": "'ung'",
+            "token_id": 2234,
+            "logit": -7.1484375
+          }
+        ]
+      },
+      "logits_mean": 0.05889892578125,
+      "logits_std": 1.8125,
+      "logits_max": 8.8984375,
+      "logits_min": -9.0
+    },
+    "2": {
+      "layer": 2,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "\"'gc\"",
+            "token_id": 63075,
+            "logit": 12.5546875
+          },
+          {
+            "token_str": "'cheng'",
+            "token_id": 68284,
+            "logit": 8.7578125
+          },
+          {
+            "token_str": "'u\u010d'",
+            "token_id": 125313,
+            "logit": 8.671875
+          },
+          {
+            "token_str": "'ewood'",
+            "token_id": 76365,
+            "logit": 8.6015625
+          },
+          {
+            "token_str": "'\"indices'",
+            "token_id": 88031,
+            "logit": 8.3046875
+          },
+          {
+            "token_str": "'\u0441\u043a\u043b\u0430\u0434'",
+            "token_id": 116655,
+            "logit": 8.296875
+          },
+          {
+            "token_str": "'edir'",
+            "token_id": 101081,
+            "logit": 8.203125
+          },
+          {
+            "token_str": "'heimer'",
+            "token_id": 35180,
+            "logit": 7.8359375
+          },
+          {
+            "token_str": "'\u00f6\u011f'",
+            "token_id": 119713,
+            "logit": 7.76953125
+          },
+          {
+            "token_str": "' purch'",
+            "token_id": 5007,
+            "logit": 7.60546875
+          },
+          {
+            "token_str": "'\u30e1\u30f3\u30c8'",
+            "token_id": 73590,
+            "logit": 7.5
+          },
+          {
+            "token_str": "\"=\\\\'\"",
+            "token_id": 56861,
+            "logit": 7.49609375
+          },
+          {
+            "token_str": "'dire'",
+            "token_id": 64684,
+            "logit": 7.47265625
+          },
+          {
+            "token_str": "'utas'",
+            "token_id": 17141,
+            "logit": 7.44921875
+          },
+          {
+            "token_str": "'\"urls'",
+            "token_id": 92699,
+            "logit": 7.4140625
+          },
+          {
+            "token_str": "' decentral'",
+            "token_id": 39205,
+            "logit": 7.40234375
+          },
+          {
+            "token_str": "'.utf'",
+            "token_id": 91005,
+            "logit": 7.39453125
+          },
+          {
+            "token_str": "'efon'",
+            "token_id": 104880,
+            "logit": 7.37109375
+          },
+          {
+            "token_str": "'\u03b9\u03b4'",
+            "token_id": 111630,
+            "logit": 7.37109375
+          },
+          {
+            "token_str": "'chod'",
+            "token_id": 103844,
+            "logit": 7.3671875
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'\u2026\\n'",
+            "token_id": 90578,
+            "logit": -10.875
+          },
+          {
+            "token_str": "'\u2026it'",
+            "token_id": 100067,
+            "logit": -9.328125
+          },
+          {
+            "token_str": "'\u2026I'",
+            "token_id": 55080,
+            "logit": -8.7734375
+          },
+          {
+            "token_str": "'\u2026and'",
+            "token_id": 53676,
+            "logit": -8.515625
+          },
+          {
+            "token_str": "'\u2026.'",
+            "token_id": 21060,
+            "logit": -8.359375
+          },
+          {
+            "token_str": "'\u2026but'",
+            "token_id": 83766,
+            "logit": -8.265625
+          },
+          {
+            "token_str": "'\u2026'",
+            "token_id": 1981,
+            "logit": -8.234375
+          },
+          {
+            "token_str": "' \u2026\\n'",
+            "token_id": 117054,
+            "logit": -8.1875
+          },
+          {
+            "token_str": "'\u2026\u201d'",
+            "token_id": 51279,
+            "logit": -7.98828125
+          },
+          {
+            "token_str": "' [\u2026]\\n'",
+            "token_id": 126459,
+            "logit": -7.93359375
+          },
+          {
+            "token_str": "',\u2026'",
+            "token_id": 99313,
+            "logit": -7.92578125
+          },
+          {
+            "token_str": "'ej'",
+            "token_id": 36568,
+            "logit": -7.7734375
+          },
+          {
+            "token_str": "'uku'",
+            "token_id": 36834,
+            "logit": -7.5703125
+          },
+          {
+            "token_str": "'\u2026\u2026'",
+            "token_id": 14382,
+            "logit": -7.546875
+          },
+          {
+            "token_str": "'\\x85'",
+            "token_id": 116360,
+            "logit": -7.51171875
+          },
+          {
+            "token_str": "'snippet'",
+            "token_id": 58715,
+            "logit": -7.24609375
+          },
+          {
+            "token_str": "'\u2026..'",
+            "token_id": 53263,
+            "logit": -7.22265625
+          },
+          {
+            "token_str": "' \u2026'",
+            "token_id": 4696,
+            "logit": -7.2109375
+          },
+          {
+            "token_str": "' ck'",
+            "token_id": 39713,
+            "logit": -7.18359375
+          },
+          {
+            "token_str": "' ef'",
+            "token_id": 31469,
+            "logit": -7.17578125
+          }
+        ]
+      },
+      "logits_mean": 0.208251953125,
+      "logits_std": 1.7626953125,
+      "logits_max": 12.5546875,
+      "logits_min": -10.875
+    },
+    "3": {
+      "layer": 3,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "\"'gc\"",
+            "token_id": 63075,
+            "logit": 11.421875
+          },
+          {
+            "token_str": "'cheng'",
+            "token_id": 68284,
+            "logit": 9.3671875
+          },
+          {
+            "token_str": "'edir'",
+            "token_id": 101081,
+            "logit": 9.25
+          },
+          {
+            "token_str": "':\\\\/\\\\/'",
+            "token_id": 15685,
+            "logit": 9.078125
+          },
+          {
+            "token_str": "'ordova'",
+            "token_id": 77263,
+            "logit": 8.9609375
+          },
+          {
+            "token_str": "'.netbeans'",
+            "token_id": 47429,
+            "logit": 8.9609375
+          },
+          {
+            "token_str": "'(CC'",
+            "token_id": 75171,
+            "logit": 8.78125
+          },
+          {
+            "token_str": "'.Restr'",
+            "token_id": 78950,
+            "logit": 8.71875
+          },
+          {
+            "token_str": "'\u00f6\u011f'",
+            "token_id": 119713,
+            "logit": 8.6640625
+          },
+          {
+            "token_str": "'\u0441\u043a\u043b\u0430\u0434'",
+            "token_id": 116655,
+            "logit": 8.515625
+          },
+          {
+            "token_str": "'chal'",
+            "token_id": 86667,
+            "logit": 8.4296875
+          },
+          {
+            "token_str": "'.CR'",
+            "token_id": 88271,
+            "logit": 8.421875
+          },
+          {
+            "token_str": "'hil'",
+            "token_id": 76423,
+            "logit": 8.3359375
+          },
+          {
+            "token_str": "'chedulers'",
+            "token_id": 37312,
+            "logit": 8.3125
+          },
+          {
+            "token_str": "'tica'",
+            "token_id": 83055,
+            "logit": 8.203125
+          },
+          {
+            "token_str": "' chaud'",
+            "token_id": 70412,
+            "logit": 8.171875
+          },
+          {
+            "token_str": "'imal'",
+            "token_id": 2931,
+            "logit": 8.0546875
+          },
+          {
+            "token_str": "' Lia'",
+            "token_id": 84757,
+            "logit": 7.97265625
+          },
+          {
+            "token_str": "'\"indices'",
+            "token_id": 88031,
+            "logit": 7.9140625
+          },
+          {
+            "token_str": "'gnore'",
+            "token_id": 10501,
+            "logit": 7.9140625
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'\u2026\\n'",
+            "token_id": 90578,
+            "logit": -10.6171875
+          },
+          {
+            "token_str": "'\u2026and'",
+            "token_id": 53676,
+            "logit": -9.03125
+          },
+          {
+            "token_str": "'\u2026'",
+            "token_id": 1981,
+            "logit": -8.921875
+          },
+          {
+            "token_str": "'\u2026it'",
+            "token_id": 100067,
+            "logit": -7.7890625
+          },
+          {
+            "token_str": "'enos'",
+            "token_id": 71970,
+            "logit": -7.66015625
+          },
+          {
+            "token_str": "'ies'",
+            "token_id": 552,
+            "logit": -7.609375
+          },
+          {
+            "token_str": "' \u2026\\n'",
+            "token_id": 117054,
+            "logit": -7.5546875
+          },
+          {
+            "token_str": "'\u2026\u2026'",
+            "token_id": 14382,
+            "logit": -7.47265625
+          },
+          {
+            "token_str": "'\u2026I'",
+            "token_id": 55080,
+            "logit": -7.36328125
+          },
+          {
+            "token_str": "'folk'",
+            "token_id": 42031,
+            "logit": -7.359375
+          },
+          {
+            "token_str": "'\u2026\u201d'",
+            "token_id": 51279,
+            "logit": -7.3359375
+          },
+          {
+            "token_str": "'E'",
+            "token_id": 36,
+            "logit": -7.1484375
+          },
+          {
+            "token_str": "'\u2026.'",
+            "token_id": 21060,
+            "logit": -7.05859375
+          },
+          {
+            "token_str": "'nee'",
+            "token_id": 34191,
+            "logit": -6.99609375
+          },
+          {
+            "token_str": "'koneksi'",
+            "token_id": 89882,
+            "logit": -6.9765625
+          },
+          {
+            "token_str": "' meanwhile'",
+            "token_id": 37318,
+            "logit": -6.9609375
+          },
+          {
+            "token_str": "'\u2026but'",
+            "token_id": 83766,
+            "logit": -6.94140625
+          },
+          {
+            "token_str": "'uku'",
+            "token_id": 36834,
+            "logit": -6.91796875
+          },
+          {
+            "token_str": "'ya'",
+            "token_id": 7911,
+            "logit": -6.875
+          },
+          {
+            "token_str": "' [\u2026]\\n'",
+            "token_id": 126459,
+            "logit": -6.8046875
+          }
+        ]
+      },
+      "logits_mean": 0.399658203125,
+      "logits_std": 1.849609375,
+      "logits_max": 11.421875,
+      "logits_min": -10.6171875
+    },
+    "4": {
+      "layer": 4,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "\"'gc\"",
+            "token_id": 63075,
+            "logit": 11.2734375
+          },
+          {
+            "token_str": "'\u30e1\u30f3\u30c8'",
+            "token_id": 73590,
+            "logit": 9.1953125
+          },
+          {
+            "token_str": "'.netbeans'",
+            "token_id": 47429,
+            "logit": 9.0234375
+          },
+          {
+            "token_str": "'.Restr'",
+            "token_id": 78950,
+            "logit": 8.34375
+          },
+          {
+            "token_str": "' '",
+            "token_id": 220,
+            "logit": 8.2890625
+          },
+          {
+            "token_str": "'ionale'",
+            "token_id": 56797,
+            "logit": 8.2265625
+          },
+          {
+            "token_str": "'edom'",
+            "token_id": 8944,
+            "logit": 8.21875
+          },
+          {
+            "token_str": "'imas'",
+            "token_id": 50463,
+            "logit": 7.984375
+          },
+          {
+            "token_str": "'\u30fc\u30c4'",
+            "token_id": 109089,
+            "logit": 7.89453125
+          },
+          {
+            "token_str": "'.removeAttribute'",
+            "token_id": 79720,
+            "logit": 7.86328125
+          },
+          {
+            "token_str": "'icker'",
+            "token_id": 5327,
+            "logit": 7.83203125
+          },
+          {
+            "token_str": "'\\t'",
+            "token_id": 197,
+            "logit": 7.81640625
+          },
+          {
+            "token_str": "'\u574a'",
+            "token_id": 121441,
+            "logit": 7.734375
+          },
+          {
+            "token_str": "' domic'",
+            "token_id": 54985,
+            "logit": 7.72265625
+          },
+          {
+            "token_str": "'erca'",
+            "token_id": 78993,
+            "logit": 7.67578125
+          },
+          {
+            "token_str": "'-shadow'",
+            "token_id": 27964,
+            "logit": 7.6640625
+          },
+          {
+            "token_str": "'ictim'",
+            "token_id": 52244,
+            "logit": 7.6328125
+          },
+          {
+            "token_str": "'.GetBytes'",
+            "token_id": 30723,
+            "logit": 7.62109375
+          },
+          {
+            "token_str": "' Staples'",
+            "token_id": 92498,
+            "logit": 7.6015625
+          },
+          {
+            "token_str": "'incer'",
+            "token_id": 70898,
+            "logit": 7.5859375
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'loh'",
+            "token_id": 83448,
+            "logit": -9.15625
+          },
+          {
+            "token_str": "'ses'",
+            "token_id": 9459,
+            "logit": -8.75
+          },
+          {
+            "token_str": "'asi'",
+            "token_id": 10426,
+            "logit": -8.40625
+          },
+          {
+            "token_str": "'iri'",
+            "token_id": 21336,
+            "logit": -8.0703125
+          },
+          {
+            "token_str": "'\u2026\\n'",
+            "token_id": 90578,
+            "logit": -7.95703125
+          },
+          {
+            "token_str": "' mobility'",
+            "token_id": 31139,
+            "logit": -7.9375
+          },
+          {
+            "token_str": "' Reporting'",
+            "token_id": 47793,
+            "logit": -7.9375
+          },
+          {
+            "token_str": "'att'",
+            "token_id": 1617,
+            "logit": -7.90234375
+          },
+          {
+            "token_str": "'\ufffd'",
+            "token_id": 23964,
+            "logit": -7.88671875
+          },
+          {
+            "token_str": "'ov'",
+            "token_id": 869,
+            "logit": -7.84765625
+          },
+          {
+            "token_str": "'491'",
+            "token_id": 21824,
+            "logit": -7.82421875
+          },
+          {
+            "token_str": "'yg'",
+            "token_id": 49865,
+            "logit": -7.69921875
+          },
+          {
+            "token_str": "'\u2026it'",
+            "token_id": 100067,
+            "logit": -7.68359375
+          },
+          {
+            "token_str": "' Rad'",
+            "token_id": 21254,
+            "logit": -7.671875
+          },
+          {
+            "token_str": "'WK'",
+            "token_id": 69416,
+            "logit": -7.6640625
+          },
+          {
+            "token_str": "'/catalog'",
+            "token_id": 77198,
+            "logit": -7.65234375
+          },
+          {
+            "token_str": "' norge'",
+            "token_id": 67022,
+            "logit": -7.59765625
+          },
+          {
+            "token_str": "'arg'",
+            "token_id": 867,
+            "logit": -7.59375
+          },
+          {
+            "token_str": "' Mobility'",
+            "token_id": 63410,
+            "logit": -7.57421875
+          },
+          {
+            "token_str": "'\u2026I'",
+            "token_id": 55080,
+            "logit": -7.51953125
+          }
+        ]
+      },
+      "logits_mean": -0.032196044921875,
+      "logits_std": 1.8984375,
+      "logits_max": 11.2734375,
+      "logits_min": -9.15625
+    },
+    "5": {
+      "layer": 5,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "'adera'",
+            "token_id": 67701,
+            "logit": 10.828125
+          },
+          {
+            "token_str": "'cheng'",
+            "token_id": 68284,
+            "logit": 10.6875
+          },
+          {
+            "token_str": "\"'gc\"",
+            "token_id": 63075,
+            "logit": 10.6328125
+          },
+          {
+            "token_str": "'\u30c3\u30ab\u30fc'",
+            "token_id": 125135,
+            "logit": 10.4453125
+          },
+          {
+            "token_str": "'.Restr'",
+            "token_id": 78950,
+            "logit": 10.359375
+          },
+          {
+            "token_str": "'elop'",
+            "token_id": 104701,
+            "logit": 10.1875
+          },
+          {
+            "token_str": "'\u30fc\u30c9'",
+            "token_id": 65575,
+            "logit": 9.625
+          },
+          {
+            "token_str": "'dealloc'",
+            "token_id": 76760,
+            "logit": 9.1796875
+          },
+          {
+            "token_str": "'hil'",
+            "token_id": 76423,
+            "logit": 9.09375
+          },
+          {
+            "token_str": "'longleftrightarrow'",
+            "token_id": 88559,
+            "logit": 8.890625
+          },
+          {
+            "token_str": "'\u03b4\u03b7'",
+            "token_id": 106051,
+            "logit": 8.8828125
+          },
+          {
+            "token_str": "' \u53cc\u7ebf'",
+            "token_id": 126681,
+            "logit": 8.8828125
+          },
+          {
+            "token_str": "'edir'",
+            "token_id": 101081,
+            "logit": 8.84375
+          },
+          {
+            "token_str": "'ekil'",
+            "token_id": 126946,
+            "logit": 8.796875
+          },
+          {
+            "token_str": "'_DM'",
+            "token_id": 59896,
+            "logit": 8.7265625
+          },
+          {
+            "token_str": "'ompiler'",
+            "token_id": 88585,
+            "logit": 8.609375
+          },
+          {
+            "token_str": "'LAR'",
+            "token_id": 107256,
+            "logit": 8.5
+          },
+          {
+            "token_str": "'#af'",
+            "token_id": 77436,
+            "logit": 8.375
+          },
+          {
+            "token_str": "' setBackgroundImage'",
+            "token_id": 96366,
+            "logit": 8.375
+          },
+          {
+            "token_str": "'MUX'",
+            "token_id": 79361,
+            "logit": 8.359375
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'ses'",
+            "token_id": 9459,
+            "logit": -10.1171875
+          },
+          {
+            "token_str": "'iba'",
+            "token_id": 36038,
+            "logit": -9.1875
+          },
+          {
+            "token_str": "'\u2026\\n'",
+            "token_id": 90578,
+            "logit": -8.953125
+          },
+          {
+            "token_str": "' Elder'",
+            "token_id": 39669,
+            "logit": -8.40625
+          },
+          {
+            "token_str": "'oro'",
+            "token_id": 18812,
+            "logit": -8.3828125
+          },
+          {
+            "token_str": "'\u547d'",
+            "token_id": 51609,
+            "logit": -7.85546875
+          },
+          {
+            "token_str": "' Mitchell'",
+            "token_id": 31038,
+            "logit": -7.7421875
+          },
+          {
+            "token_str": "'yg'",
+            "token_id": 49865,
+            "logit": -7.71484375
+          },
+          {
+            "token_str": "'asi'",
+            "token_id": 10426,
+            "logit": -7.54296875
+          },
+          {
+            "token_str": "'uyen'",
+            "token_id": 38855,
+            "logit": -7.5
+          },
+          {
+            "token_str": "'Unit'",
+            "token_id": 4665,
+            "logit": -7.44140625
+          },
+          {
+            "token_str": "'\ufffd'",
+            "token_id": 19012,
+            "logit": -7.43359375
+          },
+          {
+            "token_str": "'laus'",
+            "token_id": 58329,
+            "logit": -7.375
+          },
+          {
+            "token_str": "'WK'",
+            "token_id": 69416,
+            "logit": -7.30078125
+          },
+          {
+            "token_str": "'odon'",
+            "token_id": 77152,
+            "logit": -7.14453125
+          },
+          {
+            "token_str": "' landing'",
+            "token_id": 20948,
+            "logit": -7.140625
+          },
+          {
+            "token_str": "'paired'",
+            "token_id": 77267,
+            "logit": -7.0859375
+          },
+          {
+            "token_str": "'sv'",
+            "token_id": 3576,
+            "logit": -7.03515625
+          },
+          {
+            "token_str": "' Unit'",
+            "token_id": 8113,
+            "logit": -6.98046875
+          },
+          {
+            "token_str": "' \ufffd'",
+            "token_id": 107929,
+            "logit": -6.98046875
+          }
+        ]
+      },
+      "logits_mean": 0.5703125,
+      "logits_std": 1.955078125,
+      "logits_max": 10.828125,
+      "logits_min": -10.1171875
+    },
+    "6": {
+      "layer": 6,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "'adera'",
+            "token_id": 67701,
+            "logit": 11.25
+          },
+          {
+            "token_str": "'.netbeans'",
+            "token_id": 47429,
+            "logit": 10.5234375
+          },
+          {
+            "token_str": "\"'gc\"",
+            "token_id": 63075,
+            "logit": 10.265625
+          },
+          {
+            "token_str": "'hil'",
+            "token_id": 76423,
+            "logit": 9.8046875
+          },
+          {
+            "token_str": "'.createServer'",
+            "token_id": 78390,
+            "logit": 9.28125
+          },
+          {
+            "token_str": "'currentColor'",
+            "token_id": 61845,
+            "logit": 9.2421875
+          },
+          {
+            "token_str": "'MUX'",
+            "token_id": 79361,
+            "logit": 9.2109375
+          },
+          {
+            "token_str": "'leyin'",
+            "token_id": 127530,
+            "logit": 9.203125
+          },
+          {
+            "token_str": "'ImageData'",
+            "token_id": 91683,
+            "logit": 9.1640625
+          },
+          {
+            "token_str": "'itsu'",
+            "token_id": 50657,
+            "logit": 9.1484375
+          },
+          {
+            "token_str": "'_TAC'",
+            "token_id": 49321,
+            "logit": 9.0390625
+          },
+          {
+            "token_str": "'\u30fc\u30d7'",
+            "token_id": 107610,
+            "logit": 9.03125
+          },
+          {
+            "token_str": "'emain'",
+            "token_id": 93658,
+            "logit": 9.0234375
+          },
+          {
+            "token_str": "'-\u043d\u0438'",
+            "token_id": 117635,
+            "logit": 8.9375
+          },
+          {
+            "token_str": "'kil'",
+            "token_id": 86626,
+            "logit": 8.90625
+          },
+          {
+            "token_str": "'\u2661'",
+            "token_id": 127413,
+            "logit": 8.828125
+          },
+          {
+            "token_str": "'PURE'",
+            "token_id": 46461,
+            "logit": 8.828125
+          },
+          {
+            "token_str": "'.PropTypes'",
+            "token_id": 54484,
+            "logit": 8.75
+          },
+          {
+            "token_str": "'.googleapis'",
+            "token_id": 20341,
+            "logit": 8.6484375
+          },
+          {
+            "token_str": "'\u093e\u092a\u0928'",
+            "token_id": 113131,
+            "logit": 8.625
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'anth'",
+            "token_id": 32329,
+            "logit": -11.3671875
+          },
+          {
+            "token_str": "'\u2026\\n'",
+            "token_id": 90578,
+            "logit": -9.8515625
+          },
+          {
+            "token_str": "'ses'",
+            "token_id": 9459,
+            "logit": -9.75
+          },
+          {
+            "token_str": "'iba'",
+            "token_id": 36038,
+            "logit": -8.359375
+          },
+          {
+            "token_str": "' Elder'",
+            "token_id": 39669,
+            "logit": -8.2109375
+          },
+          {
+            "token_str": "'s'",
+            "token_id": 82,
+            "logit": -7.875
+          },
+          {
+            "token_str": "'oa'",
+            "token_id": 20103,
+            "logit": -7.6171875
+          },
+          {
+            "token_str": "'enes'",
+            "token_id": 22383,
+            "logit": -7.546875
+          },
+          {
+            "token_str": "' Root'",
+            "token_id": 19385,
+            "logit": -7.48046875
+          },
+          {
+            "token_str": "'inee'",
+            "token_id": 85899,
+            "logit": -7.42578125
+          },
+          {
+            "token_str": "' Aqu'",
+            "token_id": 23815,
+            "logit": -7.37109375
+          },
+          {
+            "token_str": "'\u00e9n\u00e9'",
+            "token_id": 32453,
+            "logit": -7.1796875
+          },
+          {
+            "token_str": "' Sak'",
+            "token_id": 39867,
+            "logit": -7.08984375
+          },
+          {
+            "token_str": "' Rag'",
+            "token_id": 51359,
+            "logit": -7.06640625
+          },
+          {
+            "token_str": "'XXXX'",
+            "token_id": 24769,
+            "logit": -7.0078125
+          },
+          {
+            "token_str": "'ved'",
+            "token_id": 2111,
+            "logit": -6.984375
+          },
+          {
+            "token_str": "'ving'",
+            "token_id": 4504,
+            "logit": -6.96484375
+          },
+          {
+            "token_str": "'pw'",
+            "token_id": 32962,
+            "logit": -6.94921875
+          },
+          {
+            "token_str": "'acs'",
+            "token_id": 19807,
+            "logit": -6.94140625
+          },
+          {
+            "token_str": "'\u00ecm'",
+            "token_id": 103019,
+            "logit": -6.8828125
+          }
+        ]
+      },
+      "logits_mean": 0.6767578125,
+      "logits_std": 1.978515625,
+      "logits_max": 11.25,
+      "logits_min": -11.3671875
+    },
+    "7": {
+      "layer": 7,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "'nonnull'",
+            "token_id": 62536,
+            "logit": 9.8125
+          },
+          {
+            "token_str": "'currentColor'",
+            "token_id": 61845,
+            "logit": 9.609375
+          },
+          {
+            "token_str": "'idot'",
+            "token_id": 94369,
+            "logit": 9.5390625
+          },
+          {
+            "token_str": "'onet'",
+            "token_id": 69786,
+            "logit": 9.5
+          },
+          {
+            "token_str": "'\u043a\u043e\u0440\u0438\u0441\u0442'",
+            "token_id": 103642,
+            "logit": 9.4921875
+          },
+          {
+            "token_str": "'.netbeans'",
+            "token_id": 47429,
+            "logit": 9.4921875
+          },
+          {
+            "token_str": "\"'gc\"",
+            "token_id": 63075,
+            "logit": 9.453125
+          },
+          {
+            "token_str": "'AXB'",
+            "token_id": 48996,
+            "logit": 9.21875
+          },
+          {
+            "token_str": "'.createServer'",
+            "token_id": 78390,
+            "logit": 9.0546875
+          },
+          {
+            "token_str": "' buurt'",
+            "token_id": 60117,
+            "logit": 9.0390625
+          },
+          {
+            "token_str": "'Prostit'",
+            "token_id": 93908,
+            "logit": 8.9453125
+          },
+          {
+            "token_str": "'\u0e04\u0e27'",
+            "token_id": 100877,
+            "logit": 8.84375
+          },
+          {
+            "token_str": "'.openg'",
+            "token_id": 74405,
+            "logit": 8.84375
+          },
+          {
+            "token_str": "' VARIANT'",
+            "token_id": 83446,
+            "logit": 8.8359375
+          },
+          {
+            "token_str": "'heimer'",
+            "token_id": 35180,
+            "logit": 8.7890625
+          },
+          {
+            "token_str": "'vanished'",
+            "token_id": 88857,
+            "logit": 8.7734375
+          },
+          {
+            "token_str": "'ANGLE'",
+            "token_id": 38671,
+            "logit": 8.7109375
+          },
+          {
+            "token_str": "' -*-\\r\\n'",
+            "token_id": 83394,
+            "logit": 8.671875
+          },
+          {
+            "token_str": "'.variant'",
+            "token_id": 79755,
+            "logit": 8.546875
+          },
+          {
+            "token_str": "'_TAC'",
+            "token_id": 49321,
+            "logit": 8.4609375
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'\u2026\\n'",
+            "token_id": 90578,
+            "logit": -9.8515625
+          },
+          {
+            "token_str": "'anth'",
+            "token_id": 32329,
+            "logit": -8.140625
+          },
+          {
+            "token_str": "'org'",
+            "token_id": 1813,
+            "logit": -8.0625
+          },
+          {
+            "token_str": "'enes'",
+            "token_id": 22383,
+            "logit": -7.8828125
+          },
+          {
+            "token_str": "' Elder'",
+            "token_id": 39669,
+            "logit": -7.515625
+          },
+          {
+            "token_str": "'\u2026'",
+            "token_id": 1981,
+            "logit": -7.48828125
+          },
+          {
+            "token_str": "'\u2026and'",
+            "token_id": 53676,
+            "logit": -7.4453125
+          },
+          {
+            "token_str": "'ene'",
+            "token_id": 1994,
+            "logit": -7.29296875
+          },
+          {
+            "token_str": "'\u2026but'",
+            "token_id": 83766,
+            "logit": -7.2734375
+          },
+          {
+            "token_str": "' assembly'",
+            "token_id": 14956,
+            "logit": -7.23828125
+          },
+          {
+            "token_str": "'elas'",
+            "token_id": 40843,
+            "logit": -7.16796875
+          },
+          {
+            "token_str": "'alsa'",
+            "token_id": 42926,
+            "logit": -7.1484375
+          },
+          {
+            "token_str": "'ses'",
+            "token_id": 9459,
+            "logit": -7.14453125
+          },
+          {
+            "token_str": "'EventArgs'",
+            "token_id": 11373,
+            "logit": -7.109375
+          },
+          {
+            "token_str": "' Agency'",
+            "token_id": 16784,
+            "logit": -7.1015625
+          },
+          {
+            "token_str": "' Aqu'",
+            "token_id": 23815,
+            "logit": -6.9140625
+          },
+          {
+            "token_str": "' ><?'",
+            "token_id": 87252,
+            "logit": -6.875
+          },
+          {
+            "token_str": "' Responsive'",
+            "token_id": 71565,
+            "logit": -6.82421875
+          },
+          {
+            "token_str": "' elder'",
+            "token_id": 22916,
+            "logit": -6.7890625
+          },
+          {
+            "token_str": "'ALA'",
+            "token_id": 98865,
+            "logit": -6.75390625
+          }
+        ]
+      },
+      "logits_mean": 0.382568359375,
+      "logits_std": 1.9248046875,
+      "logits_max": 9.8125,
+      "logits_min": -9.8515625
+    },
+    "8": {
+      "layer": 8,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "'pok'",
+            "token_id": 110907,
+            "logit": 11.1171875
+          },
+          {
+            "token_str": "\"'gc\"",
+            "token_id": 63075,
+            "logit": 10.0390625
+          },
+          {
+            "token_str": "'AXB'",
+            "token_id": 48996,
+            "logit": 9.734375
+          },
+          {
+            "token_str": "' Vect'",
+            "token_id": 91256,
+            "logit": 9.1875
+          },
+          {
+            "token_str": "'Sharper'",
+            "token_id": 49516,
+            "logit": 8.828125
+          },
+          {
+            "token_str": "'\u30fc\u30d7'",
+            "token_id": 107610,
+            "logit": 8.7734375
+          },
+          {
+            "token_str": "'\u7f6e'",
+            "token_id": 22324,
+            "logit": 8.6640625
+          },
+          {
+            "token_str": "'\u0442\u0435\u0440\u043d'",
+            "token_id": 121844,
+            "logit": 8.640625
+          },
+          {
+            "token_str": "'\u0e04\u0e27'",
+            "token_id": 100877,
+            "logit": 8.6171875
+          },
+          {
+            "token_str": "'_va'",
+            "token_id": 75059,
+            "logit": 8.46875
+          },
+          {
+            "token_str": "'TouchEvent'",
+            "token_id": 85044,
+            "logit": 8.453125
+          },
+          {
+            "token_str": "'\u03bc\u03bc'",
+            "token_id": 121286,
+            "logit": 8.4140625
+          },
+          {
+            "token_str": "' horm'",
+            "token_id": 21548,
+            "logit": 8.3359375
+          },
+          {
+            "token_str": "'ContentLoaded'",
+            "token_id": 73859,
+            "logit": 8.2578125
+          },
+          {
+            "token_str": "'\u30fc\u30d6'",
+            "token_id": 109229,
+            "logit": 8.1953125
+          },
+          {
+            "token_str": "'SKTOP'",
+            "token_id": 92514,
+            "logit": 8.1640625
+          },
+          {
+            "token_str": "'currentColor'",
+            "token_id": 61845,
+            "logit": 8.09375
+          },
+          {
+            "token_str": "'krom'",
+            "token_id": 119875,
+            "logit": 8.0859375
+          },
+          {
+            "token_str": "'.vert'",
+            "token_id": 58865,
+            "logit": 8.0390625
+          },
+          {
+            "token_str": "'-BEGIN'",
+            "token_id": 55045,
+            "logit": 8.0
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'\u2026\\n'",
+            "token_id": 90578,
+            "logit": -9.3125
+          },
+          {
+            "token_str": "'\u2026and'",
+            "token_id": 53676,
+            "logit": -9.0625
+          },
+          {
+            "token_str": "'ninger'",
+            "token_id": 88521,
+            "logit": -8.9765625
+          },
+          {
+            "token_str": "'\u094d\u092a\u0928'",
+            "token_id": 117229,
+            "logit": -7.76953125
+          },
+          {
+            "token_str": "'\u2026but'",
+            "token_id": 83766,
+            "logit": -7.73046875
+          },
+          {
+            "token_str": "' native'",
+            "token_id": 10068,
+            "logit": -7.6953125
+          },
+          {
+            "token_str": "' atmos'",
+            "token_id": 14036,
+            "logit": -7.6796875
+          },
+          {
+            "token_str": "'\u00e1na'",
+            "token_id": 107346,
+            "logit": -7.546875
+          },
+          {
+            "token_str": "'etCode'",
+            "token_id": 90360,
+            "logit": -7.5
+          },
+          {
+            "token_str": "'elder'",
+            "token_id": 68076,
+            "logit": -7.48046875
+          },
+          {
+            "token_str": "' T\u00e9l\u00e9'",
+            "token_id": 95188,
+            "logit": -7.45703125
+          },
+          {
+            "token_str": "' expl'",
+            "token_id": 3327,
+            "logit": -7.44921875
+          },
+          {
+            "token_str": "'itting'",
+            "token_id": 15154,
+            "logit": -7.359375
+          },
+          {
+            "token_str": "' Agency'",
+            "token_id": 16784,
+            "logit": -7.32421875
+          },
+          {
+            "token_str": "'\u00f1as'",
+            "token_id": 61025,
+            "logit": -7.31640625
+          },
+          {
+            "token_str": "' Gh'",
+            "token_id": 24855,
+            "logit": -7.3125
+          },
+          {
+            "token_str": "'.shtml'",
+            "token_id": 92487,
+            "logit": -7.2734375
+          },
+          {
+            "token_str": "'EventArgs'",
+            "token_id": 11373,
+            "logit": -7.13671875
+          },
+          {
+            "token_str": "'ponder'",
+            "token_id": 20949,
+            "logit": -7.08984375
+          },
+          {
+            "token_str": "'-operation'",
+            "token_id": 67334,
+            "logit": -7.02734375
+          }
+        ]
+      },
+      "logits_mean": 0.2320556640625,
+      "logits_std": 1.919921875,
+      "logits_max": 11.1171875,
+      "logits_min": -9.3125
+    },
+    "9": {
+      "layer": 9,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "'isci'",
+            "token_id": 93386,
+            "logit": 10.8359375
+          },
+          {
+            "token_str": "'\u30fc\u30d7'",
+            "token_id": 107610,
+            "logit": 10.125
+          },
+          {
+            "token_str": "'Sharper'",
+            "token_id": 49516,
+            "logit": 9.6875
+          },
+          {
+            "token_str": "' Vect'",
+            "token_id": 91256,
+            "logit": 9.6171875
+          },
+          {
+            "token_str": "\"'gc\"",
+            "token_id": 63075,
+            "logit": 9.609375
+          },
+          {
+            "token_str": "'hm'",
+            "token_id": 35401,
+            "logit": 9.359375
+          },
+          {
+            "token_str": "'chy'",
+            "token_id": 59064,
+            "logit": 8.6328125
+          },
+          {
+            "token_str": "\".']\"",
+            "token_id": 99858,
+            "logit": 8.5078125
+          },
+          {
+            "token_str": "'uator'",
+            "token_id": 46262,
+            "logit": 8.34375
+          },
+          {
+            "token_str": "'emed'",
+            "token_id": 16809,
+            "logit": 8.2734375
+          },
+          {
+            "token_str": "'.netbeans'",
+            "token_id": 47429,
+            "logit": 8.2109375
+          },
+          {
+            "token_str": "'.Parcel'",
+            "token_id": 62835,
+            "logit": 8.203125
+          },
+          {
+            "token_str": "'morgan'",
+            "token_id": 97491,
+            "logit": 8.078125
+          },
+          {
+            "token_str": "'\u7a3f'",
+            "token_id": 83932,
+            "logit": 8.0546875
+          },
+          {
+            "token_str": "'vecs'",
+            "token_id": 95754,
+            "logit": 8.015625
+          },
+          {
+            "token_str": "'rray'",
+            "token_id": 855,
+            "logit": 8.0
+          },
+          {
+            "token_str": "'cht'",
+            "token_id": 14244,
+            "logit": 7.9140625
+          },
+          {
+            "token_str": "'\u706b'",
+            "token_id": 80699,
+            "logit": 7.87890625
+          },
+          {
+            "token_str": "'oty'",
+            "token_id": 115966,
+            "logit": 7.83984375
+          },
+          {
+            "token_str": "'.$.'",
+            "token_id": 86487,
+            "logit": 7.82421875
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'elas'",
+            "token_id": 40843,
+            "logit": -9.53125
+          },
+          {
+            "token_str": "'aus'",
+            "token_id": 12119,
+            "logit": -9.4140625
+          },
+          {
+            "token_str": "' Agency'",
+            "token_id": 16784,
+            "logit": -8.84375
+          },
+          {
+            "token_str": "' balance'",
+            "token_id": 8335,
+            "logit": -8.7734375
+          },
+          {
+            "token_str": "'\u00fap'",
+            "token_id": 102059,
+            "logit": -8.7578125
+          },
+          {
+            "token_str": "'Ping'",
+            "token_id": 70983,
+            "logit": -8.5
+          },
+          {
+            "token_str": "'\u2026\\n'",
+            "token_id": 90578,
+            "logit": -8.34375
+          },
+          {
+            "token_str": "'erken'",
+            "token_id": 109838,
+            "logit": -8.296875
+          },
+          {
+            "token_str": "'EventArgs'",
+            "token_id": 11373,
+            "logit": -8.28125
+          },
+          {
+            "token_str": "'okus'",
+            "token_id": 91176,
+            "logit": -8.234375
+          },
+          {
+            "token_str": "' Authority'",
+            "token_id": 22677,
+            "logit": -8.03125
+          },
+          {
+            "token_str": "'avana'",
+            "token_id": 29345,
+            "logit": -8.0078125
+          },
+          {
+            "token_str": "'oine'",
+            "token_id": 63916,
+            "logit": -7.6640625
+          },
+          {
+            "token_str": "'enes'",
+            "token_id": 22383,
+            "logit": -7.65625
+          },
+          {
+            "token_str": "'/configuration'",
+            "token_id": 90542,
+            "logit": -7.65625
+          },
+          {
+            "token_str": "'odon'",
+            "token_id": 77152,
+            "logit": -7.6328125
+          },
+          {
+            "token_str": "'\ufffd'",
+            "token_id": 159,
+            "logit": -7.62890625
+          },
+          {
+            "token_str": "' Truy'",
+            "token_id": 124433,
+            "logit": -7.515625
+          },
+          {
+            "token_str": "'TEL'",
+            "token_id": 48904,
+            "logit": -7.46875
+          },
+          {
+            "token_str": "'amba'",
+            "token_id": 43008,
+            "logit": -7.43359375
+          }
+        ]
+      },
+      "logits_mean": 0.1417236328125,
+      "logits_std": 1.9443359375,
+      "logits_max": 10.8359375,
+      "logits_min": -9.53125
+    },
+    "10": {
+      "layer": 10,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "\"'gc\"",
+            "token_id": 63075,
+            "logit": 11.0234375
+          },
+          {
+            "token_str": "'ARA'",
+            "token_id": 55062,
+            "logit": 10.828125
+          },
+          {
+            "token_str": "'pcl'",
+            "token_id": 78953,
+            "logit": 9.9375
+          },
+          {
+            "token_str": "'Sharper'",
+            "token_id": 49516,
+            "logit": 9.4296875
+          },
+          {
+            "token_str": "'_TAC'",
+            "token_id": 49321,
+            "logit": 9.0078125
+          },
+          {
+            "token_str": "'leftright'",
+            "token_id": 81475,
+            "logit": 8.9140625
+          },
+          {
+            "token_str": "'hm'",
+            "token_id": 35401,
+            "logit": 8.859375
+          },
+          {
+            "token_str": "'allet'",
+            "token_id": 7616,
+            "logit": 8.8203125
+          },
+          {
+            "token_str": "'OutOfRangeException'",
+            "token_id": 50340,
+            "logit": 8.6953125
+          },
+          {
+            "token_str": "'heimer'",
+            "token_id": 35180,
+            "logit": 8.65625
+          },
+          {
+            "token_str": "'\u0632\u0631'",
+            "token_id": 102600,
+            "logit": 8.640625
+          },
+          {
+            "token_str": "'KHR'",
+            "token_id": 82505,
+            "logit": 8.6328125
+          },
+          {
+            "token_str": "'addOn'",
+            "token_id": 59167,
+            "logit": 8.578125
+          },
+          {
+            "token_str": "'onet'",
+            "token_id": 69786,
+            "logit": 8.5625
+          },
+          {
+            "token_str": "'oload'",
+            "token_id": 29212,
+            "logit": 8.5546875
+          },
+          {
+            "token_str": "'acement'",
+            "token_id": 6480,
+            "logit": 8.546875
+          },
+          {
+            "token_str": "'OptionsResolver'",
+            "token_id": 64335,
+            "logit": 8.53125
+          },
+          {
+            "token_str": "'afort'",
+            "token_id": 53813,
+            "logit": 8.515625
+          },
+          {
+            "token_str": "'omatic'",
+            "token_id": 13795,
+            "logit": 8.5078125
+          },
+          {
+            "token_str": "'(exports'",
+            "token_id": 35525,
+            "logit": 8.4921875
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'elas'",
+            "token_id": 40843,
+            "logit": -8.8203125
+          },
+          {
+            "token_str": "'ago'",
+            "token_id": 6438,
+            "logit": -8.375
+          },
+          {
+            "token_str": "' \u010d'",
+            "token_id": 33902,
+            "logit": -8.25
+          },
+          {
+            "token_str": "'aus'",
+            "token_id": 12119,
+            "logit": -8.15625
+          },
+          {
+            "token_str": "'\u2026\\n'",
+            "token_id": 90578,
+            "logit": -8.109375
+          },
+          {
+            "token_str": "'inging'",
+            "token_id": 24992,
+            "logit": -8.0625
+          },
+          {
+            "token_str": "'illa'",
+            "token_id": 6374,
+            "logit": -8.015625
+          },
+          {
+            "token_str": "'ieux'",
+            "token_id": 53819,
+            "logit": -7.97265625
+          },
+          {
+            "token_str": "'\u043e\u043a\u043e\u043b'",
+            "token_id": 115291,
+            "logit": -7.87890625
+          },
+          {
+            "token_str": "'illaume'",
+            "token_id": 99112,
+            "logit": -7.875
+          },
+          {
+            "token_str": "'avana'",
+            "token_id": 29345,
+            "logit": -7.77734375
+          },
+          {
+            "token_str": "' Regional'",
+            "token_id": 26361,
+            "logit": -7.75
+          },
+          {
+            "token_str": "'father'",
+            "token_id": 23881,
+            "logit": -7.734375
+          },
+          {
+            "token_str": "' Union'",
+            "token_id": 9323,
+            "logit": -7.6328125
+          },
+          {
+            "token_str": "' unmanned'",
+            "token_id": 88940,
+            "logit": -7.6171875
+          },
+          {
+            "token_str": "'G'",
+            "token_id": 38,
+            "logit": -7.58984375
+          },
+          {
+            "token_str": "'aug'",
+            "token_id": 19729,
+            "logit": -7.53515625
+          },
+          {
+            "token_str": "' equally'",
+            "token_id": 18813,
+            "logit": -7.5234375
+          },
+          {
+            "token_str": "' Blues'",
+            "token_id": 33425,
+            "logit": -7.4921875
+          },
+          {
+            "token_str": "' Authority'",
+            "token_id": 22677,
+            "logit": -7.46875
+          }
+        ]
+      },
+      "logits_mean": 0.49462890625,
+      "logits_std": 2.001953125,
+      "logits_max": 11.0234375,
+      "logits_min": -8.8203125
+    },
+    "11": {
+      "layer": 11,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "'\ufffd'",
+            "token_id": 26274,
+            "logit": 10.46875
+          },
+          {
+            "token_str": "'\">//'",
+            "token_id": 73106,
+            "logit": 9.7578125
+          },
+          {
+            "token_str": "'isci'",
+            "token_id": 93386,
+            "logit": 9.7109375
+          },
+          {
+            "token_str": "'ortal'",
+            "token_id": 34472,
+            "logit": 9.4375
+          },
+          {
+            "token_str": "'rome'",
+            "token_id": 6786,
+            "logit": 9.203125
+          },
+          {
+            "token_str": "'.VK'",
+            "token_id": 52690,
+            "logit": 9.203125
+          },
+          {
+            "token_str": "'pollo'",
+            "token_id": 86990,
+            "logit": 9.0234375
+          },
+          {
+            "token_str": "'ecycle'",
+            "token_id": 17110,
+            "logit": 8.8671875
+          },
+          {
+            "token_str": "')frame'",
+            "token_id": 73921,
+            "logit": 8.75
+          },
+          {
+            "token_str": "'utors'",
+            "token_id": 9663,
+            "logit": 8.7265625
+          },
+          {
+            "token_str": "'alom'",
+            "token_id": 83128,
+            "logit": 8.7109375
+          },
+          {
+            "token_str": "'\u3057\u304f'",
+            "token_id": 106624,
+            "logit": 8.65625
+          },
+          {
+            "token_str": "'ickt'",
+            "token_id": 72080,
+            "logit": 8.609375
+          },
+          {
+            "token_str": "'acci'",
+            "token_id": 35703,
+            "logit": 8.53125
+          },
+          {
+            "token_str": "'\u03bc\u03bc'",
+            "token_id": 121286,
+            "logit": 8.515625
+          },
+          {
+            "token_str": "'\u0443\u0433'",
+            "token_id": 95570,
+            "logit": 8.4140625
+          },
+          {
+            "token_str": "'-BEGIN'",
+            "token_id": 55045,
+            "logit": 8.3515625
+          },
+          {
+            "token_str": "'ampus'",
+            "token_id": 44651,
+            "logit": 8.34375
+          },
+          {
+            "token_str": "'cht'",
+            "token_id": 14244,
+            "logit": 8.34375
+          },
+          {
+            "token_str": "'OptionsResolver'",
+            "token_id": 64335,
+            "logit": 8.3359375
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'ote'",
+            "token_id": 1295,
+            "logit": -9.578125
+          },
+          {
+            "token_str": "'\ufffd'",
+            "token_id": 19012,
+            "logit": -8.171875
+          },
+          {
+            "token_str": "'ses'",
+            "token_id": 9459,
+            "logit": -8.0859375
+          },
+          {
+            "token_str": "'inging'",
+            "token_id": 24992,
+            "logit": -7.98046875
+          },
+          {
+            "token_str": "' pos'",
+            "token_id": 1153,
+            "logit": -7.91796875
+          },
+          {
+            "token_str": "' Pear'",
+            "token_id": 23910,
+            "logit": -7.90625
+          },
+          {
+            "token_str": "'auth'",
+            "token_id": 3322,
+            "logit": -7.8203125
+          },
+          {
+            "token_str": "' Eld'",
+            "token_id": 27965,
+            "logit": -7.77734375
+          },
+          {
+            "token_str": "'annis'",
+            "token_id": 77383,
+            "logit": -7.69140625
+          },
+          {
+            "token_str": "'elles'",
+            "token_id": 37907,
+            "logit": -7.65234375
+          },
+          {
+            "token_str": "' Gad'",
+            "token_id": 72042,
+            "logit": -7.6328125
+          },
+          {
+            "token_str": "' msgid'",
+            "token_id": 120707,
+            "logit": -7.578125
+          },
+          {
+            "token_str": "'otes'",
+            "token_id": 6429,
+            "logit": -7.33984375
+          },
+          {
+            "token_str": "' Drone'",
+            "token_id": 74581,
+            "logit": -7.25
+          },
+          {
+            "token_str": "' Rahman'",
+            "token_id": 98376,
+            "logit": -7.24609375
+          },
+          {
+            "token_str": "' Pepper'",
+            "token_id": 52882,
+            "logit": -7.22265625
+          },
+          {
+            "token_str": "' Hab'",
+            "token_id": 29976,
+            "logit": -7.22265625
+          },
+          {
+            "token_str": "' Blow'",
+            "token_id": 46952,
+            "logit": -7.19921875
+          },
+          {
+            "token_str": "' Elder'",
+            "token_id": 39669,
+            "logit": -7.19921875
+          },
+          {
+            "token_str": "' Union'",
+            "token_id": 9323,
+            "logit": -7.18359375
+          }
+        ]
+      },
+      "logits_mean": 0.50830078125,
+      "logits_std": 1.98828125,
+      "logits_max": 10.46875,
+      "logits_min": -9.578125
+    },
+    "12": {
+      "layer": 12,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "'ecycle'",
+            "token_id": 17110,
+            "logit": 11.1796875
+          },
+          {
+            "token_str": "'-BEGIN'",
+            "token_id": 55045,
+            "logit": 10.078125
+          },
+          {
+            "token_str": "'HeaderCode'",
+            "token_id": 98358,
+            "logit": 9.6640625
+          },
+          {
+            "token_str": "\"'gc\"",
+            "token_id": 63075,
+            "logit": 9.59375
+          },
+          {
+            "token_str": "'\u042e\u041b'",
+            "token_id": 112570,
+            "logit": 9.546875
+          },
+          {
+            "token_str": "'acebook'",
+            "token_id": 4598,
+            "logit": 9.546875
+          },
+          {
+            "token_str": "'VISIBLE'",
+            "token_id": 51089,
+            "logit": 9.4609375
+          },
+          {
+            "token_str": "')frame'",
+            "token_id": 73921,
+            "logit": 9.4609375
+          },
+          {
+            "token_str": "'_hub'",
+            "token_id": 95096,
+            "logit": 9.4375
+          },
+          {
+            "token_str": "'#af'",
+            "token_id": 77436,
+            "logit": 9.4296875
+          },
+          {
+            "token_str": "'/***/'",
+            "token_id": 22471,
+            "logit": 9.3671875
+          },
+          {
+            "token_str": "'#ad'",
+            "token_id": 68968,
+            "logit": 9.3671875
+          },
+          {
+            "token_str": "'\u043a\u043e\u0440\u0438\u0441\u0442'",
+            "token_id": 103642,
+            "logit": 9.328125
+          },
+          {
+            "token_str": "'ymax'",
+            "token_id": 57388,
+            "logit": 9.3125
+          },
+          {
+            "token_str": "'.TXT'",
+            "token_id": 86314,
+            "logit": 9.2421875
+          },
+          {
+            "token_str": "'asha'",
+            "token_id": 31543,
+            "logit": 9.125
+          },
+          {
+            "token_str": "'!\\n\\n\\n\\n\\n\\n'",
+            "token_id": 57057,
+            "logit": 9.125
+          },
+          {
+            "token_str": "'\u0122'",
+            "token_id": 125366,
+            "logit": 9.109375
+          },
+          {
+            "token_str": "'OMPI'",
+            "token_id": 72350,
+            "logit": 9.1015625
+          },
+          {
+            "token_str": "'MMdd'",
+            "token_id": 71667,
+            "logit": 9.0703125
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'\u2026\\n'",
+            "token_id": 90578,
+            "logit": -10.65625
+          },
+          {
+            "token_str": "'('",
+            "token_id": 7,
+            "logit": -8.8671875
+          },
+          {
+            "token_str": "'opia'",
+            "token_id": 30651,
+            "logit": -8.828125
+          },
+          {
+            "token_str": "'j'",
+            "token_id": 73,
+            "logit": -8.21875
+          },
+          {
+            "token_str": "' msgid'",
+            "token_id": 120707,
+            "logit": -8.203125
+          },
+          {
+            "token_str": "'e'",
+            "token_id": 68,
+            "logit": -8.1171875
+          },
+          {
+            "token_str": "'\u2026'",
+            "token_id": 1981,
+            "logit": -8.1171875
+          },
+          {
+            "token_str": "'T'",
+            "token_id": 51,
+            "logit": -8.046875
+          },
+          {
+            "token_str": "'(s'",
+            "token_id": 1161,
+            "logit": -8.0390625
+          },
+          {
+            "token_str": "'-'",
+            "token_id": 12,
+            "logit": -8.0390625
+          },
+          {
+            "token_str": "' ear'",
+            "token_id": 2487,
+            "logit": -7.9765625
+          },
+          {
+            "token_str": "' Crawford'",
+            "token_id": 54276,
+            "logit": -7.94140625
+          },
+          {
+            "token_str": "'\u2026and'",
+            "token_id": 53676,
+            "logit": -7.59765625
+          },
+          {
+            "token_str": "'ninger'",
+            "token_id": 88521,
+            "logit": -7.4921875
+          },
+          {
+            "token_str": "'-in'",
+            "token_id": 3502,
+            "logit": -7.359375
+          },
+          {
+            "token_str": "'t'",
+            "token_id": 83,
+            "logit": -7.19921875
+          },
+          {
+            "token_str": "'ou'",
+            "token_id": 283,
+            "logit": -7.16796875
+          },
+          {
+            "token_str": "' lazy'",
+            "token_id": 16053,
+            "logit": -7.1640625
+          },
+          {
+            "token_str": "'ine'",
+            "token_id": 483,
+            "logit": -7.12890625
+          },
+          {
+            "token_str": "' sak'",
+            "token_id": 78410,
+            "logit": -7.12109375
+          }
+        ]
+      },
+      "logits_mean": 0.82958984375,
+      "logits_std": 2.048828125,
+      "logits_max": 11.1796875,
+      "logits_min": -10.65625
+    },
+    "13": {
+      "layer": 13,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "'ecycle'",
+            "token_id": 17110,
+            "logit": 11.171875
+          },
+          {
+            "token_str": "'VISIBLE'",
+            "token_id": 51089,
+            "logit": 9.6796875
+          },
+          {
+            "token_str": "'Marshal'",
+            "token_id": 56538,
+            "logit": 9.46875
+          },
+          {
+            "token_str": "'uish'",
+            "token_id": 51220,
+            "logit": 9.2890625
+          },
+          {
+            "token_str": "'isci'",
+            "token_id": 93386,
+            "logit": 9.1171875
+          },
+          {
+            "token_str": "'\u0442\u0440\u043e'",
+            "token_id": 115627,
+            "logit": 9.0703125
+          },
+          {
+            "token_str": "'\u00fcyle'",
+            "token_id": 116375,
+            "logit": 9.0234375
+          },
+          {
+            "token_str": "'_VM'",
+            "token_id": 66496,
+            "logit": 8.984375
+          },
+          {
+            "token_str": "'anzeigen'",
+            "token_id": 89960,
+            "logit": 8.828125
+          },
+          {
+            "token_str": "'\ub7f4'",
+            "token_id": 121408,
+            "logit": 8.796875
+          },
+          {
+            "token_str": "'ONENT'",
+            "token_id": 27161,
+            "logit": 8.6953125
+          },
+          {
+            "token_str": "'\u03bc\u03ac'",
+            "token_id": 102000,
+            "logit": 8.671875
+          },
+          {
+            "token_str": "'urons'",
+            "token_id": 54769,
+            "logit": 8.59375
+          },
+          {
+            "token_str": "'likle'",
+            "token_id": 103088,
+            "logit": 8.53125
+          },
+          {
+            "token_str": "'deniz'",
+            "token_id": 124821,
+            "logit": 8.4609375
+          },
+          {
+            "token_str": "'erot'",
+            "token_id": 90092,
+            "logit": 8.3515625
+          },
+          {
+            "token_str": "' Pulitzer'",
+            "token_id": 96815,
+            "logit": 8.3203125
+          },
+          {
+            "token_str": "'asha'",
+            "token_id": 31543,
+            "logit": 8.2890625
+          },
+          {
+            "token_str": "\"'gc\"",
+            "token_id": 63075,
+            "logit": 8.28125
+          },
+          {
+            "token_str": "'.lat'",
+            "token_id": 29731,
+            "logit": 8.265625
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "' Peters'",
+            "token_id": 32284,
+            "logit": -9.15625
+          },
+          {
+            "token_str": "'i\u015f'",
+            "token_id": 98902,
+            "logit": -8.0078125
+          },
+          {
+            "token_str": "' Wong'",
+            "token_id": 56728,
+            "logit": -7.99609375
+          },
+          {
+            "token_str": "' msgid'",
+            "token_id": 120707,
+            "logit": -7.95703125
+          },
+          {
+            "token_str": "' momentum'",
+            "token_id": 24151,
+            "logit": -7.87109375
+          },
+          {
+            "token_str": "'en'",
+            "token_id": 268,
+            "logit": -7.7890625
+          },
+          {
+            "token_str": "' Thrones'",
+            "token_id": 47494,
+            "logit": -7.734375
+          },
+          {
+            "token_str": "'j'",
+            "token_id": 73,
+            "logit": -7.68359375
+          },
+          {
+            "token_str": "'lock'",
+            "token_id": 1039,
+            "logit": -7.5703125
+          },
+          {
+            "token_str": "'akash'",
+            "token_id": 95095,
+            "logit": -7.5625
+          },
+          {
+            "token_str": "' \ub545'",
+            "token_id": 126276,
+            "logit": -7.4765625
+          },
+          {
+            "token_str": "'93'",
+            "token_id": 6365,
+            "logit": -7.41796875
+          },
+          {
+            "token_str": "'arn'",
+            "token_id": 1923,
+            "logit": -7.39453125
+          },
+          {
+            "token_str": "' forth'",
+            "token_id": 13544,
+            "logit": -7.3359375
+          },
+          {
+            "token_str": "'ella'",
+            "token_id": 6985,
+            "logit": -7.2109375
+          },
+          {
+            "token_str": "' Francois'",
+            "token_id": 92471,
+            "logit": -7.15234375
+          },
+          {
+            "token_str": "'sto'",
+            "token_id": 34152,
+            "logit": -7.1484375
+          },
+          {
+            "token_str": "'ame'",
+            "token_id": 373,
+            "logit": -7.09765625
+          },
+          {
+            "token_str": "' equival'",
+            "token_id": 44554,
+            "logit": -7.09375
+          },
+          {
+            "token_str": "'arl'",
+            "token_id": 49358,
+            "logit": -7.046875
+          }
+        ]
+      },
+      "logits_mean": 0.541015625,
+      "logits_std": 1.9970703125,
+      "logits_max": 11.171875,
+      "logits_min": -9.15625
+    },
+    "14": {
+      "layer": 14,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "'ruba'",
+            "token_id": 119535,
+            "logit": 10.96875
+          },
+          {
+            "token_str": "\"'gc\"",
+            "token_id": 63075,
+            "logit": 10.8125
+          },
+          {
+            "token_str": "'\ufffdn'",
+            "token_id": 100859,
+            "logit": 10.4140625
+          },
+          {
+            "token_str": "'ernals'",
+            "token_id": 90420,
+            "logit": 9.859375
+          },
+          {
+            "token_str": "'(Initialized'",
+            "token_id": 91098,
+            "logit": 9.71875
+          },
+          {
+            "token_str": "'\u03af\u03bd\u03b7'",
+            "token_id": 110742,
+            "logit": 9.703125
+          },
+          {
+            "token_str": "' Berk'",
+            "token_id": 51291,
+            "logit": 9.640625
+          },
+          {
+            "token_str": "'.WinForms'",
+            "token_id": 67767,
+            "logit": 9.5390625
+          },
+          {
+            "token_str": "'#af'",
+            "token_id": 77436,
+            "logit": 9.515625
+          },
+          {
+            "token_str": "'herits'",
+            "token_id": 39793,
+            "logit": 9.4296875
+          },
+          {
+            "token_str": "'vecs'",
+            "token_id": 95754,
+            "logit": 9.3359375
+          },
+          {
+            "token_str": "'_kses'",
+            "token_id": 97896,
+            "logit": 9.3125
+          },
+          {
+            "token_str": "' cir'",
+            "token_id": 30570,
+            "logit": 9.234375
+          },
+          {
+            "token_str": "'\u0627\u0648\u0646\u062f'",
+            "token_id": 114167,
+            "logit": 9.2265625
+          },
+          {
+            "token_str": "'ecycle'",
+            "token_id": 17110,
+            "logit": 9.21875
+          },
+          {
+            "token_str": "'efa'",
+            "token_id": 76731,
+            "logit": 9.1953125
+          },
+          {
+            "token_str": "'\"\\';'",
+            "token_id": 78760,
+            "logit": 9.15625
+          },
+          {
+            "token_str": "'chedulers'",
+            "token_id": 37312,
+            "logit": 9.09375
+          },
+          {
+            "token_str": "' \u0442\u0438\u0436'",
+            "token_id": 126798,
+            "logit": 9.078125
+          },
+          {
+            "token_str": "'\u2015\u2015\u2015\u2015'",
+            "token_id": 119022,
+            "logit": 9.0
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'\u2026\\n'",
+            "token_id": 90578,
+            "logit": -9.609375
+          },
+          {
+            "token_str": "'atta'",
+            "token_id": 33019,
+            "logit": -8.0234375
+          },
+          {
+            "token_str": "' Original'",
+            "token_id": 17674,
+            "logit": -8.015625
+          },
+          {
+            "token_str": "'\u2026'",
+            "token_id": 1981,
+            "logit": -7.9765625
+          },
+          {
+            "token_str": "'fact'",
+            "token_id": 34210,
+            "logit": -7.78125
+          },
+          {
+            "token_str": "' original'",
+            "token_id": 4113,
+            "logit": -7.71875
+          },
+          {
+            "token_str": "'\u2026\u201d'",
+            "token_id": 51279,
+            "logit": -7.5390625
+          },
+          {
+            "token_str": "'itation'",
+            "token_id": 7709,
+            "logit": -7.28125
+          },
+          {
+            "token_str": "' [\u2026'",
+            "token_id": 10416,
+            "logit": -7.140625
+          },
+          {
+            "token_str": "' stol'",
+            "token_id": 106470,
+            "logit": -7.1015625
+          },
+          {
+            "token_str": "' ORIGINAL'",
+            "token_id": 87882,
+            "logit": -7.08984375
+          },
+          {
+            "token_str": "'iger'",
+            "token_id": 7420,
+            "logit": -7.0859375
+          },
+          {
+            "token_str": "' Gross'",
+            "token_id": 43907,
+            "logit": -7.03125
+          },
+          {
+            "token_str": "'\u0456\u043b\u0430'",
+            "token_id": 111414,
+            "logit": -7.03125
+          },
+          {
+            "token_str": "'j'",
+            "token_id": 73,
+            "logit": -6.9921875
+          },
+          {
+            "token_str": "' Stella'",
+            "token_id": 75698,
+            "logit": -6.98828125
+          },
+          {
+            "token_str": "'ilion'",
+            "token_id": 50012,
+            "logit": -6.95703125
+          },
+          {
+            "token_str": "'\u2026and'",
+            "token_id": 53676,
+            "logit": -6.953125
+          },
+          {
+            "token_str": "' [\u2026]\\n'",
+            "token_id": 126459,
+            "logit": -6.93359375
+          },
+          {
+            "token_str": "'igg'",
+            "token_id": 20831,
+            "logit": -6.9296875
+          }
+        ]
+      },
+      "logits_mean": 0.787109375,
+      "logits_std": 2.03515625,
+      "logits_max": 10.96875,
+      "logits_min": -9.609375
+    },
+    "15": {
+      "layer": 15,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "\"'gc\"",
+            "token_id": 63075,
+            "logit": 13.34375
+          },
+          {
+            "token_str": "'ilo'",
+            "token_id": 18536,
+            "logit": 9.25
+          },
+          {
+            "token_str": "'\u679d'",
+            "token_id": 120929,
+            "logit": 8.9453125
+          },
+          {
+            "token_str": "'ecycle'",
+            "token_id": 17110,
+            "logit": 8.9296875
+          },
+          {
+            "token_str": "'Subset'",
+            "token_id": 71684,
+            "logit": 8.84375
+          },
+          {
+            "token_str": "'likle'",
+            "token_id": 103088,
+            "logit": 8.6875
+          },
+          {
+            "token_str": "'Subsystem'",
+            "token_id": 82220,
+            "logit": 8.5390625
+          },
+          {
+            "token_str": "'\u043e\u043b\u044c\u043a\u0443'",
+            "token_id": 111245,
+            "logit": 8.515625
+          },
+          {
+            "token_str": "'herits'",
+            "token_id": 39793,
+            "logit": 8.453125
+          },
+          {
+            "token_str": "'\u2510'",
+            "token_id": 116707,
+            "logit": 8.4296875
+          },
+          {
+            "token_str": "'SGlobal'",
+            "token_id": 54580,
+            "logit": 8.3984375
+          },
+          {
+            "token_str": "'tik'",
+            "token_id": 103589,
+            "logit": 8.3828125
+          },
+          {
+            "token_str": "' Berk'",
+            "token_id": 51291,
+            "logit": 8.375
+          },
+          {
+            "token_str": "'tridge'",
+            "token_id": 37977,
+            "logit": 8.359375
+          },
+          {
+            "token_str": "'erence'",
+            "token_id": 112265,
+            "logit": 8.3515625
+          },
+          {
+            "token_str": "'(disposing'",
+            "token_id": 28984,
+            "logit": 8.3125
+          },
+          {
+            "token_str": "'skb'",
+            "token_id": 67209,
+            "logit": 8.2890625
+          },
+          {
+            "token_str": "'.multi'",
+            "token_id": 52251,
+            "logit": 8.2890625
+          },
+          {
+            "token_str": "'HeaderCode'",
+            "token_id": 98358,
+            "logit": 8.2734375
+          },
+          {
+            "token_str": "'906'",
+            "token_id": 22224,
+            "logit": 8.21875
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "' Gest'",
+            "token_id": 54999,
+            "logit": -8.890625
+          },
+          {
+            "token_str": "' Scr'",
+            "token_id": 33234,
+            "logit": -8.859375
+          },
+          {
+            "token_str": "' gest'",
+            "token_id": 13033,
+            "logit": -8.3984375
+          },
+          {
+            "token_str": "'\u2026\\n'",
+            "token_id": 90578,
+            "logit": -8.34375
+          },
+          {
+            "token_str": "'orris'",
+            "token_id": 98416,
+            "logit": -8.1015625
+          },
+          {
+            "token_str": "' att'",
+            "token_id": 1651,
+            "logit": -8.09375
+          },
+          {
+            "token_str": "'iba'",
+            "token_id": 36038,
+            "logit": -8.0703125
+          },
+          {
+            "token_str": "'atta'",
+            "token_id": 33019,
+            "logit": -7.9140625
+          },
+          {
+            "token_str": "'opsis'",
+            "token_id": 33906,
+            "logit": -7.84765625
+          },
+          {
+            "token_str": "'oes'",
+            "token_id": 7217,
+            "logit": -7.83203125
+          },
+          {
+            "token_str": "'statt'",
+            "token_id": 97446,
+            "logit": -7.76171875
+          },
+          {
+            "token_str": "' ing'",
+            "token_id": 6892,
+            "logit": -7.60546875
+          },
+          {
+            "token_str": "' eth'",
+            "token_id": 8537,
+            "logit": -7.58984375
+          },
+          {
+            "token_str": "'gest'",
+            "token_id": 7114,
+            "logit": -7.5859375
+          },
+          {
+            "token_str": "' dry'",
+            "token_id": 9235,
+            "logit": -7.58203125
+          },
+          {
+            "token_str": "'ella'",
+            "token_id": 6985,
+            "logit": -7.5078125
+          },
+          {
+            "token_str": "'igg'",
+            "token_id": 20831,
+            "logit": -7.44140625
+          },
+          {
+            "token_str": "'isp'",
+            "token_id": 13391,
+            "logit": -7.27734375
+          },
+          {
+            "token_str": "'\u1ea7m'",
+            "token_id": 103598,
+            "logit": -7.25
+          },
+          {
+            "token_str": "'aud'",
+            "token_id": 8039,
+            "logit": -7.2265625
+          }
+        ]
+      },
+      "logits_mean": 0.54638671875,
+      "logits_std": 1.9658203125,
+      "logits_max": 13.34375,
+      "logits_min": -8.890625
+    },
+    "16": {
+      "layer": 16,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "\"'gc\"",
+            "token_id": 63075,
+            "logit": 11.46875
+          },
+          {
+            "token_str": "'#af'",
+            "token_id": 77436,
+            "logit": 10.25
+          },
+          {
+            "token_str": "'.onViewCreated'",
+            "token_id": 94627,
+            "logit": 9.5703125
+          },
+          {
+            "token_str": "'kul'",
+            "token_id": 91295,
+            "logit": 9.109375
+          },
+          {
+            "token_str": "'_letter'",
+            "token_id": 47217,
+            "logit": 8.859375
+          },
+          {
+            "token_str": "'QRST'",
+            "token_id": 71692,
+            "logit": 8.6015625
+          },
+          {
+            "token_str": "'DataExchange'",
+            "token_id": 90800,
+            "logit": 8.46875
+          },
+          {
+            "token_str": "'ushi'",
+            "token_id": 38174,
+            "logit": 8.3515625
+          },
+          {
+            "token_str": "'ecycle'",
+            "token_id": 17110,
+            "logit": 8.3203125
+          },
+          {
+            "token_str": "' letter'",
+            "token_id": 6661,
+            "logit": 8.1484375
+          },
+          {
+            "token_str": "'issions'",
+            "token_id": 16935,
+            "logit": 8.0859375
+          },
+          {
+            "token_str": "'edback'",
+            "token_id": 20313,
+            "logit": 8.046875
+          },
+          {
+            "token_str": "'actable'",
+            "token_id": 67760,
+            "logit": 8.0078125
+          },
+          {
+            "token_str": "'_kses'",
+            "token_id": 97896,
+            "logit": 7.99609375
+          },
+          {
+            "token_str": "'MUX'",
+            "token_id": 79361,
+            "logit": 7.98046875
+          },
+          {
+            "token_str": "'Shortcut'",
+            "token_id": 64174,
+            "logit": 7.9140625
+          },
+          {
+            "token_str": "'ylim'",
+            "token_id": 48898,
+            "logit": 7.9140625
+          },
+          {
+            "token_str": "'\u03c4\u03b9\u03ba'",
+            "token_id": 100589,
+            "logit": 7.91015625
+          },
+          {
+            "token_str": "'chyb'",
+            "token_id": 122029,
+            "logit": 7.875
+          },
+          {
+            "token_str": "'ktop'",
+            "token_id": 8787,
+            "logit": 7.859375
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'ellas'",
+            "token_id": 75595,
+            "logit": -9.8984375
+          },
+          {
+            "token_str": "'\u2026\\n'",
+            "token_id": 90578,
+            "logit": -9.2421875
+          },
+          {
+            "token_str": "'ella'",
+            "token_id": 6985,
+            "logit": -9.1796875
+          },
+          {
+            "token_str": "'igg'",
+            "token_id": 20831,
+            "logit": -8.34375
+          },
+          {
+            "token_str": "'oes'",
+            "token_id": 7217,
+            "logit": -8.296875
+          },
+          {
+            "token_str": "'\u3060\u3051\u3067'",
+            "token_id": 121142,
+            "logit": -8.265625
+          },
+          {
+            "token_str": "'apolis'",
+            "token_id": 24751,
+            "logit": -8.140625
+          },
+          {
+            "token_str": "'agna'",
+            "token_id": 56057,
+            "logit": -7.86328125
+          },
+          {
+            "token_str": "' Rouge'",
+            "token_id": 56747,
+            "logit": -7.83984375
+          },
+          {
+            "token_str": "'exampleModal'",
+            "token_id": 59490,
+            "logit": -7.52734375
+          },
+          {
+            "token_str": "' eth'",
+            "token_id": 8537,
+            "logit": -7.515625
+          },
+          {
+            "token_str": "'\u00e9ro'",
+            "token_id": 56771,
+            "logit": -7.51171875
+          },
+          {
+            "token_str": "'oine'",
+            "token_id": 63916,
+            "logit": -7.48046875
+          },
+          {
+            "token_str": "'iba'",
+            "token_id": 36038,
+            "logit": -7.35546875
+          },
+          {
+            "token_str": "'\ufffd\ufffd'",
+            "token_id": 107569,
+            "logit": -7.3359375
+          },
+          {
+            "token_str": "'ilion'",
+            "token_id": 50012,
+            "logit": -7.33203125
+          },
+          {
+            "token_str": "'amburg'",
+            "token_id": 32548,
+            "logit": -7.30859375
+          },
+          {
+            "token_str": "'isp'",
+            "token_id": 13391,
+            "logit": -7.1875
+          },
+          {
+            "token_str": "'ville'",
+            "token_id": 8078,
+            "logit": -7.171875
+          },
+          {
+            "token_str": "' Catalog'",
+            "token_id": 32321,
+            "logit": -7.15625
+          }
+        ]
+      },
+      "logits_mean": 0.2481689453125,
+      "logits_std": 1.908203125,
+      "logits_max": 11.46875,
+      "logits_min": -9.8984375
+    },
+    "17": {
+      "layer": 17,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "\"'gc\"",
+            "token_id": 63075,
+            "logit": 9.8515625
+          },
+          {
+            "token_str": "'_kses'",
+            "token_id": 97896,
+            "logit": 8.828125
+          },
+          {
+            "token_str": "'ushi'",
+            "token_id": 38174,
+            "logit": 8.734375
+          },
+          {
+            "token_str": "'#af'",
+            "token_id": 77436,
+            "logit": 8.59375
+          },
+          {
+            "token_str": "' dime'",
+            "token_id": 74953,
+            "logit": 8.1484375
+          },
+          {
+            "token_str": "'\u5dee'",
+            "token_id": 104364,
+            "logit": 8.1328125
+          },
+          {
+            "token_str": "'\u1ea1c'",
+            "token_id": 102696,
+            "logit": 8.1328125
+          },
+          {
+            "token_str": "')const'",
+            "token_id": 84207,
+            "logit": 7.9296875
+          },
+          {
+            "token_str": "'icine'",
+            "token_id": 55103,
+            "logit": 7.81640625
+          },
+          {
+            "token_str": "'.onViewCreated'",
+            "token_id": 94627,
+            "logit": 7.72265625
+          },
+          {
+            "token_str": "' Voy'",
+            "token_id": 44723,
+            "logit": 7.67578125
+          },
+          {
+            "token_str": "' RVA'",
+            "token_id": 45696,
+            "logit": 7.48828125
+          },
+          {
+            "token_str": "'\u0631\u062e'",
+            "token_id": 107922,
+            "logit": 7.48046875
+          },
+          {
+            "token_str": "'shortcut'",
+            "token_id": 47457,
+            "logit": 7.38671875
+          },
+          {
+            "token_str": "' perfected'",
+            "token_id": 95246,
+            "logit": 7.3828125
+          },
+          {
+            "token_str": "'atin'",
+            "token_id": 15111,
+            "logit": 7.37890625
+          },
+          {
+            "token_str": "'/***/'",
+            "token_id": 22471,
+            "logit": 7.375
+          },
+          {
+            "token_str": "'vida'",
+            "token_id": 76600,
+            "logit": 7.3359375
+          },
+          {
+            "token_str": "'edelta'",
+            "token_id": 47954,
+            "logit": 7.31640625
+          },
+          {
+            "token_str": "'igraph'",
+            "token_id": 54967,
+            "logit": 7.29296875
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'igue'",
+            "token_id": 22711,
+            "logit": -10.5
+          },
+          {
+            "token_str": "' Gest'",
+            "token_id": 54999,
+            "logit": -8.796875
+          },
+          {
+            "token_str": "'oom'",
+            "token_id": 4285,
+            "logit": -8.5703125
+          },
+          {
+            "token_str": "'ih'",
+            "token_id": 7141,
+            "logit": -8.2109375
+          },
+          {
+            "token_str": "'[:,:'",
+            "token_id": 98053,
+            "logit": -8.15625
+          },
+          {
+            "token_str": "'ellas'",
+            "token_id": 75595,
+            "logit": -7.76953125
+          },
+          {
+            "token_str": "'oine'",
+            "token_id": 63916,
+            "logit": -7.72265625
+          },
+          {
+            "token_str": "' ing'",
+            "token_id": 6892,
+            "logit": -7.68359375
+          },
+          {
+            "token_str": "'amburg'",
+            "token_id": 32548,
+            "logit": -7.640625
+          },
+          {
+            "token_str": "'\u3060\u3051\u3067'",
+            "token_id": 121142,
+            "logit": -7.5703125
+          },
+          {
+            "token_str": "' Rouge'",
+            "token_id": 56747,
+            "logit": -7.5078125
+          },
+          {
+            "token_str": "'ogl'",
+            "token_id": 98347,
+            "logit": -7.3984375
+          },
+          {
+            "token_str": "'ilion'",
+            "token_id": 50012,
+            "logit": -7.38671875
+          },
+          {
+            "token_str": "'OLLOW'",
+            "token_id": 31289,
+            "logit": -7.36328125
+          },
+          {
+            "token_str": "' \ub545'",
+            "token_id": 126276,
+            "logit": -7.29296875
+          },
+          {
+            "token_str": "'olis'",
+            "token_id": 69858,
+            "logit": -7.1640625
+          },
+          {
+            "token_str": "'bour'",
+            "token_id": 15747,
+            "logit": -7.12890625
+          },
+          {
+            "token_str": "'apolis'",
+            "token_id": 24751,
+            "logit": -7.12109375
+          },
+          {
+            "token_str": "'u\u00e7'",
+            "token_id": 104353,
+            "logit": -7.1015625
+          },
+          {
+            "token_str": "'\u043e\u0437'",
+            "token_id": 20219,
+            "logit": -7.08984375
+          }
+        ]
+      },
+      "logits_mean": 0.0104827880859375,
+      "logits_std": 1.8720703125,
+      "logits_max": 9.8515625,
+      "logits_min": -10.5
+    },
+    "18": {
+      "layer": 18,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "\"'gc\"",
+            "token_id": 63075,
+            "logit": 10.28125
+          },
+          {
+            "token_str": "'agus'",
+            "token_id": 59838,
+            "logit": 8.703125
+          },
+          {
+            "token_str": "'vida'",
+            "token_id": 76600,
+            "logit": 8.4296875
+          },
+          {
+            "token_str": "'actable'",
+            "token_id": 67760,
+            "logit": 8.0390625
+          },
+          {
+            "token_str": "'_kses'",
+            "token_id": 97896,
+            "logit": 7.80078125
+          },
+          {
+            "token_str": "')const'",
+            "token_id": 84207,
+            "logit": 7.6484375
+          },
+          {
+            "token_str": "'ights'",
+            "token_id": 2866,
+            "logit": 7.5078125
+          },
+          {
+            "token_str": "'.onViewCreated'",
+            "token_id": 94627,
+            "logit": 7.484375
+          },
+          {
+            "token_str": "' Pew'",
+            "token_id": 57717,
+            "logit": 7.47265625
+          },
+          {
+            "token_str": "' Voy'",
+            "token_id": 44723,
+            "logit": 7.421875
+          },
+          {
+            "token_str": "'#af'",
+            "token_id": 77436,
+            "logit": 7.421875
+          },
+          {
+            "token_str": "'issions'",
+            "token_id": 16935,
+            "logit": 7.40625
+          },
+          {
+            "token_str": "' Powers'",
+            "token_id": 46137,
+            "logit": 7.34375
+          },
+          {
+            "token_str": "' sidew'",
+            "token_id": 32617,
+            "logit": 7.265625
+          },
+          {
+            "token_str": "'ylim'",
+            "token_id": 48898,
+            "logit": 7.2421875
+          },
+          {
+            "token_str": "'icine'",
+            "token_id": 55103,
+            "logit": 7.1015625
+          },
+          {
+            "token_str": "'iability'",
+            "token_id": 79443,
+            "logit": 7.00390625
+          },
+          {
+            "token_str": "'\ufffdu'",
+            "token_id": 104340,
+            "logit": 6.98828125
+          },
+          {
+            "token_str": "'alah'",
+            "token_id": 30493,
+            "logit": 6.92578125
+          },
+          {
+            "token_str": "' \u0e13'",
+            "token_id": 115124,
+            "logit": 6.91015625
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'u\u00e7'",
+            "token_id": 104353,
+            "logit": -9.2109375
+          },
+          {
+            "token_str": "'igue'",
+            "token_id": 22711,
+            "logit": -9.09375
+          },
+          {
+            "token_str": "'oom'",
+            "token_id": 4285,
+            "logit": -8.5625
+          },
+          {
+            "token_str": "'\u1eac'",
+            "token_id": 125612,
+            "logit": -8.5234375
+          },
+          {
+            "token_str": "' Gest'",
+            "token_id": 54999,
+            "logit": -8.2890625
+          },
+          {
+            "token_str": "'aign'",
+            "token_id": 4201,
+            "logit": -8.2265625
+          },
+          {
+            "token_str": "'dete'",
+            "token_id": 122221,
+            "logit": -8.109375
+          },
+          {
+            "token_str": "'igg'",
+            "token_id": 20831,
+            "logit": -7.953125
+          },
+          {
+            "token_str": "'[:,:'",
+            "token_id": 98053,
+            "logit": -7.8671875
+          },
+          {
+            "token_str": "'REAM'",
+            "token_id": 16294,
+            "logit": -7.80859375
+          },
+          {
+            "token_str": "'\u30ad\u30e5'",
+            "token_id": 123283,
+            "logit": -7.78125
+          },
+          {
+            "token_str": "'ellas'",
+            "token_id": 75595,
+            "logit": -7.546875
+          },
+          {
+            "token_str": "'>Lorem'",
+            "token_id": 69039,
+            "logit": -7.546875
+          },
+          {
+            "token_str": "'OLLOW'",
+            "token_id": 31289,
+            "logit": -7.31640625
+          },
+          {
+            "token_str": "'ih'",
+            "token_id": 7141,
+            "logit": -7.2734375
+          },
+          {
+            "token_str": "'_Bool'",
+            "token_id": 81048,
+            "logit": -7.26171875
+          },
+          {
+            "token_str": "' ORIGINAL'",
+            "token_id": 87882,
+            "logit": -7.25
+          },
+          {
+            "token_str": "'ennen'",
+            "token_id": 41293,
+            "logit": -7.234375
+          },
+          {
+            "token_str": "'til'",
+            "token_id": 1678,
+            "logit": -7.23046875
+          },
+          {
+            "token_str": "' int'",
+            "token_id": 528,
+            "logit": -7.2265625
+          }
+        ]
+      },
+      "logits_mean": -0.140380859375,
+      "logits_std": 1.837890625,
+      "logits_max": 10.28125,
+      "logits_min": -9.2109375
+    },
+    "19": {
+      "layer": 19,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "\"'gc\"",
+            "token_id": 63075,
+            "logit": 9.953125
+          },
+          {
+            "token_str": "'issions'",
+            "token_id": 16935,
+            "logit": 8.640625
+          },
+          {
+            "token_str": "'ifi'",
+            "token_id": 13215,
+            "logit": 8.1171875
+          },
+          {
+            "token_str": "' dime'",
+            "token_id": 74953,
+            "logit": 7.77734375
+          },
+          {
+            "token_str": "'agus'",
+            "token_id": 59838,
+            "logit": 7.5859375
+          },
+          {
+            "token_str": "'answer'",
+            "token_id": 9399,
+            "logit": 7.515625
+          },
+          {
+            "token_str": "'VISIBLE'",
+            "token_id": 51089,
+            "logit": 7.41015625
+          },
+          {
+            "token_str": "'izational'",
+            "token_id": 77491,
+            "logit": 7.23046875
+          },
+          {
+            "token_str": "'.onViewCreated'",
+            "token_id": 94627,
+            "logit": 7.22265625
+          },
+          {
+            "token_str": "'#af'",
+            "token_id": 77436,
+            "logit": 7.21484375
+          },
+          {
+            "token_str": "'_letter'",
+            "token_id": 47217,
+            "logit": 7.15625
+          },
+          {
+            "token_str": "'ights'",
+            "token_id": 2866,
+            "logit": 7.02734375
+          },
+          {
+            "token_str": "'\u0e38\u0e2a'",
+            "token_id": 125230,
+            "logit": 6.92578125
+          },
+          {
+            "token_str": "'vida'",
+            "token_id": 76600,
+            "logit": 6.88671875
+          },
+          {
+            "token_str": "')const'",
+            "token_id": 84207,
+            "logit": 6.82421875
+          },
+          {
+            "token_str": "'.lift'",
+            "token_id": 96297,
+            "logit": 6.81640625
+          },
+          {
+            "token_str": "' recycl'",
+            "token_id": 92465,
+            "logit": 6.80078125
+          },
+          {
+            "token_str": "' troub'",
+            "token_id": 20498,
+            "logit": 6.7890625
+          },
+          {
+            "token_str": "' surviv'",
+            "token_id": 23589,
+            "logit": 6.7265625
+          },
+          {
+            "token_str": "'\u044f\u043b'",
+            "token_id": 115065,
+            "logit": 6.71875
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'u\u00e7'",
+            "token_id": 104353,
+            "logit": -8.953125
+          },
+          {
+            "token_str": "'REAM'",
+            "token_id": 16294,
+            "logit": -8.1875
+          },
+          {
+            "token_str": "'OLLOW'",
+            "token_id": 31289,
+            "logit": -7.99609375
+          },
+          {
+            "token_str": "'[:,:'",
+            "token_id": 98053,
+            "logit": -7.8984375
+          },
+          {
+            "token_str": "'oom'",
+            "token_id": 4285,
+            "logit": -7.81640625
+          },
+          {
+            "token_str": "'oco'",
+            "token_id": 13441,
+            "logit": -7.796875
+          },
+          {
+            "token_str": "'\u1eac'",
+            "token_id": 125612,
+            "logit": -7.76953125
+          },
+          {
+            "token_str": "' Gest'",
+            "token_id": 54999,
+            "logit": -7.75390625
+          },
+          {
+            "token_str": "' int'",
+            "token_id": 528,
+            "logit": -7.703125
+          },
+          {
+            "token_str": "'uhe'",
+            "token_id": 92647,
+            "logit": -7.609375
+          },
+          {
+            "token_str": "'ellas'",
+            "token_id": 75595,
+            "logit": -7.515625
+          },
+          {
+            "token_str": "' Rouge'",
+            "token_id": 56747,
+            "logit": -7.4765625
+          },
+          {
+            "token_str": "'nofollow'",
+            "token_id": 29630,
+            "logit": -7.43359375
+          },
+          {
+            "token_str": "' Sullivan'",
+            "token_id": 43089,
+            "logit": -7.35546875
+          },
+          {
+            "token_str": "'dete'",
+            "token_id": 122221,
+            "logit": -7.20703125
+          },
+          {
+            "token_str": "'bau'",
+            "token_id": 72932,
+            "logit": -7.19921875
+          },
+          {
+            "token_str": "'oor'",
+            "token_id": 10922,
+            "logit": -7.171875
+          },
+          {
+            "token_str": "'IPC'",
+            "token_id": 63219,
+            "logit": -7.16015625
+          },
+          {
+            "token_str": "' COPYRIGHT'",
+            "token_id": 14879,
+            "logit": -7.078125
+          },
+          {
+            "token_str": "' Hou'",
+            "token_id": 60700,
+            "logit": -7.05078125
+          }
+        ]
+      },
+      "logits_mean": -0.258056640625,
+      "logits_std": 1.779296875,
+      "logits_max": 9.953125,
+      "logits_min": -8.953125
+    },
+    "20": {
+      "layer": 20,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "\"'gc\"",
+            "token_id": 63075,
+            "logit": 9.3671875
+          },
+          {
+            "token_str": "' dime'",
+            "token_id": 74953,
+            "logit": 8.140625
+          },
+          {
+            "token_str": "'_letter'",
+            "token_id": 47217,
+            "logit": 7.7578125
+          },
+          {
+            "token_str": "'ifi'",
+            "token_id": 13215,
+            "logit": 7.39453125
+          },
+          {
+            "token_str": "'ecycle'",
+            "token_id": 17110,
+            "logit": 7.30078125
+          },
+          {
+            "token_str": "' surviv'",
+            "token_id": 23589,
+            "logit": 6.87890625
+          },
+          {
+            "token_str": "'issions'",
+            "token_id": 16935,
+            "logit": 6.8359375
+          },
+          {
+            "token_str": "'acz'",
+            "token_id": 42930,
+            "logit": 6.82421875
+          },
+          {
+            "token_str": "'\ufffd'",
+            "token_id": 115,
+            "logit": 6.76171875
+          },
+          {
+            "token_str": "'\u044f\u043b'",
+            "token_id": 115065,
+            "logit": 6.7265625
+          },
+          {
+            "token_str": "'vida'",
+            "token_id": 76600,
+            "logit": 6.72265625
+          },
+          {
+            "token_str": "' nearly'",
+            "token_id": 7154,
+            "logit": 6.703125
+          },
+          {
+            "token_str": "' correctness'",
+            "token_id": 58423,
+            "logit": 6.63671875
+          },
+          {
+            "token_str": "'\u0e38\u0e2a'",
+            "token_id": 125230,
+            "logit": 6.6328125
+          },
+          {
+            "token_str": "'ician'",
+            "token_id": 12734,
+            "logit": 6.5546875
+          },
+          {
+            "token_str": "'itant'",
+            "token_id": 52044,
+            "logit": 6.55078125
+          },
+          {
+            "token_str": "'leftright'",
+            "token_id": 81475,
+            "logit": 6.546875
+          },
+          {
+            "token_str": "'\u044b\u0441'",
+            "token_id": 111171,
+            "logit": 6.45703125
+          },
+          {
+            "token_str": "' hitch'",
+            "token_id": 59207,
+            "logit": 6.421875
+          },
+          {
+            "token_str": "'ystore'",
+            "token_id": 64473,
+            "logit": 6.41796875
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'uhe'",
+            "token_id": 92647,
+            "logit": -8.484375
+          },
+          {
+            "token_str": "'amble'",
+            "token_id": 64034,
+            "logit": -8.2890625
+          },
+          {
+            "token_str": "' Gest'",
+            "token_id": 54999,
+            "logit": -8.0546875
+          },
+          {
+            "token_str": "' bloginfo'",
+            "token_id": 60781,
+            "logit": -8.0234375
+          },
+          {
+            "token_str": "'\u1eac'",
+            "token_id": 125612,
+            "logit": -7.796875
+          },
+          {
+            "token_str": "'dete'",
+            "token_id": 122221,
+            "logit": -7.66015625
+          },
+          {
+            "token_str": "'igg'",
+            "token_id": 20831,
+            "logit": -7.609375
+          },
+          {
+            "token_str": "'.bot'",
+            "token_id": 35809,
+            "logit": -7.5859375
+          },
+          {
+            "token_str": "'oor'",
+            "token_id": 10922,
+            "logit": -7.50390625
+          },
+          {
+            "token_str": "'REAM'",
+            "token_id": 16294,
+            "logit": -7.484375
+          },
+          {
+            "token_str": "'\u03c1\u03b1'",
+            "token_id": 100379,
+            "logit": -7.46484375
+          },
+          {
+            "token_str": "'[:,:'",
+            "token_id": 98053,
+            "logit": -7.44140625
+          },
+          {
+            "token_str": "'\u0131l'",
+            "token_id": 55888,
+            "logit": -7.421875
+          },
+          {
+            "token_str": "' int'",
+            "token_id": 528,
+            "logit": -7.40625
+          },
+          {
+            "token_str": "'u\u00e7'",
+            "token_id": 104353,
+            "logit": -7.3828125
+          },
+          {
+            "token_str": "'\u90a3\u4e9b'",
+            "token_id": 116539,
+            "logit": -7.23046875
+          },
+          {
+            "token_str": "'inoa'",
+            "token_id": 80094,
+            "logit": -7.22265625
+          },
+          {
+            "token_str": "'ipt'",
+            "token_id": 11696,
+            "logit": -7.19921875
+          },
+          {
+            "token_str": "' D\u00fcn'",
+            "token_id": 107390,
+            "logit": -7.1953125
+          },
+          {
+            "token_str": "'arella'",
+            "token_id": 76031,
+            "logit": -7.15234375
+          }
+        ]
+      },
+      "logits_mean": -0.366455078125,
+      "logits_std": 1.7470703125,
+      "logits_max": 9.3671875,
+      "logits_min": -8.484375
+    },
+    "21": {
+      "layer": 21,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "'_letter'",
+            "token_id": 47217,
+            "logit": 7.98046875
+          },
+          {
+            "token_str": "\"'gc\"",
+            "token_id": 63075,
+            "logit": 7.41015625
+          },
+          {
+            "token_str": "'\ufffd'",
+            "token_id": 115,
+            "logit": 7.359375
+          },
+          {
+            "token_str": "'acz'",
+            "token_id": 42930,
+            "logit": 7.109375
+          },
+          {
+            "token_str": "'ecycle'",
+            "token_id": 17110,
+            "logit": 7.09375
+          },
+          {
+            "token_str": "'VISIBLE'",
+            "token_id": 51089,
+            "logit": 6.6875
+          },
+          {
+            "token_str": "' dime'",
+            "token_id": 74953,
+            "logit": 6.62109375
+          },
+          {
+            "token_str": "'_exempt'",
+            "token_id": 96836,
+            "logit": 6.515625
+          },
+          {
+            "token_str": "'.NaN'",
+            "token_id": 79806,
+            "logit": 6.48828125
+          },
+          {
+            "token_str": "'itant'",
+            "token_id": 52044,
+            "logit": 6.38671875
+          },
+          {
+            "token_str": "'.mybatisplus'",
+            "token_id": 54396,
+            "logit": 6.28515625
+          },
+          {
+            "token_str": "'issions'",
+            "token_id": 16935,
+            "logit": 6.26953125
+          },
+          {
+            "token_str": "'\u0e38\u0e2a'",
+            "token_id": 125230,
+            "logit": 6.2578125
+          },
+          {
+            "token_str": "' surviv'",
+            "token_id": 23589,
+            "logit": 6.23828125
+          },
+          {
+            "token_str": "'icine'",
+            "token_id": 55103,
+            "logit": 6.17578125
+          },
+          {
+            "token_str": "' RoundedRectangle'",
+            "token_id": 78815,
+            "logit": 6.12109375
+          },
+          {
+            "token_str": "'ician'",
+            "token_id": 12734,
+            "logit": 6.0625
+          },
+          {
+            "token_str": "' \u043f\u043e\u0433\u043e\u0434'",
+            "token_id": 122555,
+            "logit": 5.9296875
+          },
+          {
+            "token_str": "'ystore'",
+            "token_id": 64473,
+            "logit": 5.90234375
+          },
+          {
+            "token_str": "'DataExchange'",
+            "token_id": 90800,
+            "logit": 5.84765625
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'uhe'",
+            "token_id": 92647,
+            "logit": -7.7734375
+          },
+          {
+            "token_str": "'uhl'",
+            "token_id": 96274,
+            "logit": -7.67578125
+          },
+          {
+            "token_str": "'REAM'",
+            "token_id": 16294,
+            "logit": -7.625
+          },
+          {
+            "token_str": "'amble'",
+            "token_id": 64034,
+            "logit": -7.3984375
+          },
+          {
+            "token_str": "'ostel'",
+            "token_id": 117700,
+            "logit": -7.203125
+          },
+          {
+            "token_str": "'nda'",
+            "token_id": 28996,
+            "logit": -7.16796875
+          },
+          {
+            "token_str": "'oor'",
+            "token_id": 10922,
+            "logit": -7.16015625
+          },
+          {
+            "token_str": "'ngr'",
+            "token_id": 59292,
+            "logit": -7.13671875
+          },
+          {
+            "token_str": "'u\u00e7'",
+            "token_id": 104353,
+            "logit": -6.984375
+          },
+          {
+            "token_str": "' bloginfo'",
+            "token_id": 60781,
+            "logit": -6.9765625
+          },
+          {
+            "token_str": "'.bot'",
+            "token_id": 35809,
+            "logit": -6.95703125
+          },
+          {
+            "token_str": "'igg'",
+            "token_id": 20831,
+            "logit": -6.8984375
+          },
+          {
+            "token_str": "'\u00e8o'",
+            "token_id": 109168,
+            "logit": -6.83984375
+          },
+          {
+            "token_str": "'\u90a3\u4e9b'",
+            "token_id": 116539,
+            "logit": -6.828125
+          },
+          {
+            "token_str": "'inoa'",
+            "token_id": 80094,
+            "logit": -6.796875
+          },
+          {
+            "token_str": "'________________________________'",
+            "token_id": 17924,
+            "logit": -6.69921875
+          },
+          {
+            "token_str": "'\u06a9\u06cc\u0644'",
+            "token_id": 110464,
+            "logit": -6.57421875
+          },
+          {
+            "token_str": "' eof'",
+            "token_id": 77860,
+            "logit": -6.54296875
+          },
+          {
+            "token_str": "'\u03c1\u03b1'",
+            "token_id": 100379,
+            "logit": -6.53515625
+          },
+          {
+            "token_str": "'bia'",
+            "token_id": 14840,
+            "logit": -6.53125
+          }
+        ]
+      },
+      "logits_mean": -0.3603515625,
+      "logits_std": 1.6181640625,
+      "logits_max": 7.98046875,
+      "logits_min": -7.7734375
+    },
+    "22": {
+      "layer": 22,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "'_letter'",
+            "token_id": 47217,
+            "logit": 7.9453125
+          },
+          {
+            "token_str": "'_exempt'",
+            "token_id": 96836,
+            "logit": 7.65234375
+          },
+          {
+            "token_str": "\"'gc\"",
+            "token_id": 63075,
+            "logit": 7.58203125
+          },
+          {
+            "token_str": "'acz'",
+            "token_id": 42930,
+            "logit": 7.2578125
+          },
+          {
+            "token_str": "'\u044b\u0441'",
+            "token_id": 111171,
+            "logit": 6.9453125
+          },
+          {
+            "token_str": "' letter'",
+            "token_id": 6661,
+            "logit": 6.8984375
+          },
+          {
+            "token_str": "'vida'",
+            "token_id": 76600,
+            "logit": 6.87109375
+          },
+          {
+            "token_str": "'issions'",
+            "token_id": 16935,
+            "logit": 6.2890625
+          },
+          {
+            "token_str": "' Z'",
+            "token_id": 1901,
+            "logit": 6.171875
+          },
+          {
+            "token_str": "'ylim'",
+            "token_id": 48898,
+            "logit": 6.16015625
+          },
+          {
+            "token_str": "' dime'",
+            "token_id": 74953,
+            "logit": 6.109375
+          },
+          {
+            "token_str": "'\ufffd'",
+            "token_id": 115,
+            "logit": 6.08984375
+          },
+          {
+            "token_str": "' correctness'",
+            "token_id": 58423,
+            "logit": 6.06640625
+          },
+          {
+            "token_str": "'.NaN'",
+            "token_id": 79806,
+            "logit": 5.96484375
+          },
+          {
+            "token_str": "'-letter'",
+            "token_id": 80468,
+            "logit": 5.90234375
+          },
+          {
+            "token_str": "'ocator'",
+            "token_id": 75428,
+            "logit": 5.80078125
+          },
+          {
+            "token_str": "'\u0e38\u0e2a'",
+            "token_id": 125230,
+            "logit": 5.80078125
+          },
+          {
+            "token_str": "'ozy'",
+            "token_id": 76523,
+            "logit": 5.75
+          },
+          {
+            "token_str": "'ifi'",
+            "token_id": 13215,
+            "logit": 5.73828125
+          },
+          {
+            "token_str": "'ystore'",
+            "token_id": 64473,
+            "logit": 5.69921875
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'uhl'",
+            "token_id": 96274,
+            "logit": -8.984375
+          },
+          {
+            "token_str": "' noh'",
+            "token_id": 113947,
+            "logit": -7.7109375
+          },
+          {
+            "token_str": "'\u043a\u043e\u043f'",
+            "token_id": 108251,
+            "logit": -7.59375
+          },
+          {
+            "token_str": "'amble'",
+            "token_id": 64034,
+            "logit": -7.55078125
+          },
+          {
+            "token_str": "'uhe'",
+            "token_id": 92647,
+            "logit": -7.40234375
+          },
+          {
+            "token_str": "'REAM'",
+            "token_id": 16294,
+            "logit": -7.3984375
+          },
+          {
+            "token_str": "'\u0e17\u0e32\u0e19'",
+            "token_id": 119967,
+            "logit": -7.35546875
+          },
+          {
+            "token_str": "'ooke'",
+            "token_id": 86558,
+            "logit": -7.05078125
+          },
+          {
+            "token_str": "' Gest'",
+            "token_id": 54999,
+            "logit": -6.96484375
+          },
+          {
+            "token_str": "'ngr'",
+            "token_id": 59292,
+            "logit": -6.94140625
+          },
+          {
+            "token_str": "'ostel'",
+            "token_id": 117700,
+            "logit": -6.8828125
+          },
+          {
+            "token_str": "'\u00e8o'",
+            "token_id": 109168,
+            "logit": -6.87890625
+          },
+          {
+            "token_str": "'GLOSS'",
+            "token_id": 84310,
+            "logit": -6.83984375
+          },
+          {
+            "token_str": "' T\u00e9l\u00e9'",
+            "token_id": 95188,
+            "logit": -6.82421875
+          },
+          {
+            "token_str": "'arella'",
+            "token_id": 76031,
+            "logit": -6.78515625
+          },
+          {
+            "token_str": "'\u011bk'",
+            "token_id": 103030,
+            "logit": -6.7421875
+          },
+          {
+            "token_str": "'\u0443\u0440\u0443'",
+            "token_id": 124580,
+            "logit": -6.671875
+          },
+          {
+            "token_str": "'igg'",
+            "token_id": 20831,
+            "logit": -6.6484375
+          },
+          {
+            "token_str": "'ixer'",
+            "token_id": 40114,
+            "logit": -6.5625
+          },
+          {
+            "token_str": "'\u304f\u3060'",
+            "token_id": 108112,
+            "logit": -6.55859375
+          }
+        ]
+      },
+      "logits_mean": -0.51220703125,
+      "logits_std": 1.5732421875,
+      "logits_max": 7.9453125,
+      "logits_min": -8.984375
+    },
+    "23": {
+      "layer": 23,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "' Z'",
+            "token_id": 1901,
+            "logit": 7.74609375
+          },
+          {
+            "token_str": "'acz'",
+            "token_id": 42930,
+            "logit": 7.2890625
+          },
+          {
+            "token_str": "'_exempt'",
+            "token_id": 96836,
+            "logit": 7.25
+          },
+          {
+            "token_str": "'_letter'",
+            "token_id": 47217,
+            "logit": 6.54296875
+          },
+          {
+            "token_str": "'ystore'",
+            "token_id": 64473,
+            "logit": 6.0390625
+          },
+          {
+            "token_str": "'issions'",
+            "token_id": 16935,
+            "logit": 6.02734375
+          },
+          {
+            "token_str": "' letter'",
+            "token_id": 6661,
+            "logit": 5.8828125
+          },
+          {
+            "token_str": "'\u044b\u0441'",
+            "token_id": 111171,
+            "logit": 5.82421875
+          },
+          {
+            "token_str": "'.NaN'",
+            "token_id": 79806,
+            "logit": 5.82421875
+          },
+          {
+            "token_str": "'ombat'",
+            "token_id": 78728,
+            "logit": 5.765625
+          },
+          {
+            "token_str": "' nearly'",
+            "token_id": 7154,
+            "logit": 5.73828125
+          },
+          {
+            "token_str": "'outu'",
+            "token_id": 51132,
+            "logit": 5.7109375
+          },
+          {
+            "token_str": "'vida'",
+            "token_id": 76600,
+            "logit": 5.6953125
+          },
+          {
+            "token_str": "'-z'",
+            "token_id": 9319,
+            "logit": 5.60546875
+          },
+          {
+            "token_str": "' Nearly'",
+            "token_id": 49669,
+            "logit": 5.5703125
+          },
+          {
+            "token_str": "' Zimmer'",
+            "token_id": 41507,
+            "logit": 5.5078125
+          },
+          {
+            "token_str": "'\u0e38\u0e2a'",
+            "token_id": 125230,
+            "logit": 5.48046875
+          },
+          {
+            "token_str": "'uty'",
+            "token_id": 20850,
+            "logit": 5.453125
+          },
+          {
+            "token_str": "'oldemort'",
+            "token_id": 76163,
+            "logit": 5.453125
+          },
+          {
+            "token_str": "' wom'",
+            "token_id": 2413,
+            "logit": 5.44921875
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'arella'",
+            "token_id": 76031,
+            "logit": -7.59375
+          },
+          {
+            "token_str": "'uhl'",
+            "token_id": 96274,
+            "logit": -7.58984375
+          },
+          {
+            "token_str": "'\u304f\u3060'",
+            "token_id": 108112,
+            "logit": -7.33203125
+          },
+          {
+            "token_str": "' noh'",
+            "token_id": 113947,
+            "logit": -7.10546875
+          },
+          {
+            "token_str": "'REAM'",
+            "token_id": 16294,
+            "logit": -7.08984375
+          },
+          {
+            "token_str": "'#__'",
+            "token_id": 45187,
+            "logit": -7.08984375
+          },
+          {
+            "token_str": "'\u043a\u043e\u043f'",
+            "token_id": 108251,
+            "logit": -7.0078125
+          },
+          {
+            "token_str": "' \u0434\u0438\u0432\u0438'",
+            "token_id": 121015,
+            "logit": -6.9765625
+          },
+          {
+            "token_str": "'\u0e17\u0e32\u0e19'",
+            "token_id": 119967,
+            "logit": -6.89453125
+          },
+          {
+            "token_str": "'igg'",
+            "token_id": 20831,
+            "logit": -6.8046875
+          },
+          {
+            "token_str": "'shaw'",
+            "token_id": 51104,
+            "logit": -6.74609375
+          },
+          {
+            "token_str": "' \u043e\u0433\u0440\u0430'",
+            "token_id": 112102,
+            "logit": -6.74609375
+          },
+          {
+            "token_str": "'\u0e27\u0e25'",
+            "token_id": 119115,
+            "logit": -6.6640625
+          },
+          {
+            "token_str": "'798'",
+            "token_id": 26519,
+            "logit": -6.66015625
+          },
+          {
+            "token_str": "'ostel'",
+            "token_id": 117700,
+            "logit": -6.63671875
+          },
+          {
+            "token_str": "'reira'",
+            "token_id": 78342,
+            "logit": -6.6328125
+          },
+          {
+            "token_str": "' QQ'",
+            "token_id": 74215,
+            "logit": -6.62890625
+          },
+          {
+            "token_str": "'\u094b\u0939'",
+            "token_id": 106269,
+            "logit": -6.59765625
+          },
+          {
+            "token_str": "'\u0443\u0440\u0443'",
+            "token_id": 124580,
+            "logit": -6.58984375
+          },
+          {
+            "token_str": "'.isNullOrEmpty'",
+            "token_id": 88744,
+            "logit": -6.5859375
+          }
+        ]
+      },
+      "logits_mean": -0.615234375,
+      "logits_std": 1.4716796875,
+      "logits_max": 7.74609375,
+      "logits_min": -7.59375
+    },
+    "24": {
+      "layer": 24,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "' Z'",
+            "token_id": 1901,
+            "logit": 7.6953125
+          },
+          {
+            "token_str": "'_exempt'",
+            "token_id": 96836,
+            "logit": 7.29296875
+          },
+          {
+            "token_str": "' Y'",
+            "token_id": 816,
+            "logit": 6.99609375
+          },
+          {
+            "token_str": "'acz'",
+            "token_id": 42930,
+            "logit": 6.75390625
+          },
+          {
+            "token_str": "' X'",
+            "token_id": 1630,
+            "logit": 6.41796875
+          },
+          {
+            "token_str": "'_letter'",
+            "token_id": 47217,
+            "logit": 6.3671875
+          },
+          {
+            "token_str": "'-fontawesome'",
+            "token_id": 96948,
+            "logit": 5.75
+          },
+          {
+            "token_str": "' C'",
+            "token_id": 356,
+            "logit": 5.48828125
+          },
+          {
+            "token_str": "' V'",
+            "token_id": 650,
+            "logit": 5.4765625
+          },
+          {
+            "token_str": "' letter'",
+            "token_id": 6661,
+            "logit": 5.46875
+          },
+          {
+            "token_str": "'\u0e38\u0e2a'",
+            "token_id": 125230,
+            "logit": 5.33984375
+          },
+          {
+            "token_str": "'_customize'",
+            "token_id": 41695,
+            "logit": 5.3125
+          },
+          {
+            "token_str": "' noreferrer'",
+            "token_id": 72704,
+            "logit": 5.30078125
+          },
+          {
+            "token_str": "'.NaN'",
+            "token_id": 79806,
+            "logit": 5.2890625
+          },
+          {
+            "token_str": "'ombat'",
+            "token_id": 78728,
+            "logit": 5.20703125
+          },
+          {
+            "token_str": "'ystore'",
+            "token_id": 64473,
+            "logit": 5.19921875
+          },
+          {
+            "token_str": "'\ufffd'",
+            "token_id": 115,
+            "logit": 5.1484375
+          },
+          {
+            "token_str": "'\u043e\u0433\u0440\u0430\u0444\u0456\u044f'",
+            "token_id": 121439,
+            "logit": 5.1015625
+          },
+          {
+            "token_str": "'outu'",
+            "token_id": 51132,
+            "logit": 5.0546875
+          },
+          {
+            "token_str": "' nearly'",
+            "token_id": 7154,
+            "logit": 5.0546875
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'uhl'",
+            "token_id": 96274,
+            "logit": -8.1640625
+          },
+          {
+            "token_str": "'\u011bk'",
+            "token_id": 103030,
+            "logit": -7.8984375
+          },
+          {
+            "token_str": "'elope'",
+            "token_id": 82665,
+            "logit": -7.53125
+          },
+          {
+            "token_str": "'\u043a\u043e\u043f'",
+            "token_id": 108251,
+            "logit": -7.44140625
+          },
+          {
+            "token_str": "'ennen'",
+            "token_id": 41293,
+            "logit": -7.4140625
+          },
+          {
+            "token_str": "'\u304f\u3060'",
+            "token_id": 108112,
+            "logit": -7.3984375
+          },
+          {
+            "token_str": "' \u0434\u0438\u0432\u0438'",
+            "token_id": 121015,
+            "logit": -7.36328125
+          },
+          {
+            "token_str": "' \u043e\u0433\u0440\u0430'",
+            "token_id": 112102,
+            "logit": -7.27734375
+          },
+          {
+            "token_str": "'REAM'",
+            "token_id": 16294,
+            "logit": -7.26953125
+          },
+          {
+            "token_str": "'arella'",
+            "token_id": 76031,
+            "logit": -7.17578125
+          },
+          {
+            "token_str": "'shaw'",
+            "token_id": 51104,
+            "logit": -7.03125
+          },
+          {
+            "token_str": "'ixer'",
+            "token_id": 40114,
+            "logit": -6.88671875
+          },
+          {
+            "token_str": "' noh'",
+            "token_id": 113947,
+            "logit": -6.828125
+          },
+          {
+            "token_str": "' T\u00e9l\u00e9'",
+            "token_id": 95188,
+            "logit": -6.8203125
+          },
+          {
+            "token_str": "'#__'",
+            "token_id": 45187,
+            "logit": -6.8125
+          },
+          {
+            "token_str": "' \ub4ef'",
+            "token_id": 112285,
+            "logit": -6.78125
+          },
+          {
+            "token_str": "'\u06a9\u06cc\u0644'",
+            "token_id": 110464,
+            "logit": -6.74609375
+          },
+          {
+            "token_str": "'\uc18c\uac1c'",
+            "token_id": 120417,
+            "logit": -6.7265625
+          },
+          {
+            "token_str": "'GLOSS'",
+            "token_id": 84310,
+            "logit": -6.68359375
+          },
+          {
+            "token_str": "'SSI'",
+            "token_id": 76439,
+            "logit": -6.6640625
+          }
+        ]
+      },
+      "logits_mean": -0.77490234375,
+      "logits_std": 1.47265625,
+      "logits_max": 7.6953125,
+      "logits_min": -8.1640625
+    },
+    "25": {
+      "layer": 25,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "'_exempt'",
+            "token_id": 96836,
+            "logit": 8.15625
+          },
+          {
+            "token_str": "' X'",
+            "token_id": 1630,
+            "logit": 7.5625
+          },
+          {
+            "token_str": "' Y'",
+            "token_id": 816,
+            "logit": 7.4921875
+          },
+          {
+            "token_str": "' Z'",
+            "token_id": 1901,
+            "logit": 7.26171875
+          },
+          {
+            "token_str": "' V'",
+            "token_id": 650,
+            "logit": 6.10546875
+          },
+          {
+            "token_str": "'_letter'",
+            "token_id": 47217,
+            "logit": 5.8515625
+          },
+          {
+            "token_str": "'.NaN'",
+            "token_id": 79806,
+            "logit": 5.7578125
+          },
+          {
+            "token_str": "'-fontawesome'",
+            "token_id": 96948,
+            "logit": 5.671875
+          },
+          {
+            "token_str": "'acz'",
+            "token_id": 42930,
+            "logit": 5.64453125
+          },
+          {
+            "token_str": "' letter'",
+            "token_id": 6661,
+            "logit": 5.56640625
+          },
+          {
+            "token_str": "' noreferrer'",
+            "token_id": 72704,
+            "logit": 5.5
+          },
+          {
+            "token_str": "' C'",
+            "token_id": 356,
+            "logit": 5.4140625
+          },
+          {
+            "token_str": "'Z'",
+            "token_id": 57,
+            "logit": 5.40625
+          },
+          {
+            "token_str": "'\u043e\u0433\u0440\u0430\u0444\u0456\u044f'",
+            "token_id": 121439,
+            "logit": 5.40625
+          },
+          {
+            "token_str": "'issions'",
+            "token_id": 16935,
+            "logit": 5.16796875
+          },
+          {
+            "token_str": "' wom'",
+            "token_id": 2413,
+            "logit": 5.05078125
+          },
+          {
+            "token_str": "' respectfully'",
+            "token_id": 93445,
+            "logit": 5.01171875
+          },
+          {
+            "token_str": "'outu'",
+            "token_id": 51132,
+            "logit": 4.94921875
+          },
+          {
+            "token_str": "' zun'",
+            "token_id": 99275,
+            "logit": 4.92578125
+          },
+          {
+            "token_str": "'allet'",
+            "token_id": 7616,
+            "logit": 4.91796875
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'uhl'",
+            "token_id": 96274,
+            "logit": -7.88671875
+          },
+          {
+            "token_str": "'\u043a\u043e\u043f'",
+            "token_id": 108251,
+            "logit": -7.515625
+          },
+          {
+            "token_str": "' noh'",
+            "token_id": 113947,
+            "logit": -7.50390625
+          },
+          {
+            "token_str": "' \u0434\u0438\u0432\u0438'",
+            "token_id": 121015,
+            "logit": -7.48828125
+          },
+          {
+            "token_str": "'GLOSS'",
+            "token_id": 84310,
+            "logit": -7.45703125
+          },
+          {
+            "token_str": "'elope'",
+            "token_id": 82665,
+            "logit": -7.44921875
+          },
+          {
+            "token_str": "'\u304f\u3060'",
+            "token_id": 108112,
+            "logit": -7.36328125
+          },
+          {
+            "token_str": "'ennen'",
+            "token_id": 41293,
+            "logit": -7.33984375
+          },
+          {
+            "token_str": "'u\u00e7'",
+            "token_id": 104353,
+            "logit": -7.32421875
+          },
+          {
+            "token_str": "'\u06a9\u06cc\u0644'",
+            "token_id": 110464,
+            "logit": -7.3203125
+          },
+          {
+            "token_str": "'shaw'",
+            "token_id": 51104,
+            "logit": -7.1328125
+          },
+          {
+            "token_str": "'\u5b8b\u4f53'",
+            "token_id": 78111,
+            "logit": -7.02734375
+          },
+          {
+            "token_str": "'ixer'",
+            "token_id": 40114,
+            "logit": -6.93359375
+          },
+          {
+            "token_str": "'ngr'",
+            "token_id": 59292,
+            "logit": -6.8046875
+          },
+          {
+            "token_str": "'REAM'",
+            "token_id": 16294,
+            "logit": -6.72265625
+          },
+          {
+            "token_str": "'ostel'",
+            "token_id": 117700,
+            "logit": -6.6875
+          },
+          {
+            "token_str": "'---</'",
+            "token_id": 62890,
+            "logit": -6.66796875
+          },
+          {
+            "token_str": "'anko'",
+            "token_id": 93952,
+            "logit": -6.625
+          },
+          {
+            "token_str": "' \u043e\u0433\u0440\u0430'",
+            "token_id": 112102,
+            "logit": -6.578125
+          },
+          {
+            "token_str": "'\u010de'",
+            "token_id": 93586,
+            "logit": -6.515625
+          }
+        ]
+      },
+      "logits_mean": -0.77490234375,
+      "logits_std": 1.4375,
+      "logits_max": 8.15625,
+      "logits_min": -7.88671875
+    },
+    "26": {
+      "layer": 26,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "' Z'",
+            "token_id": 1901,
+            "logit": 8.7421875
+          },
+          {
+            "token_str": "' X'",
+            "token_id": 1630,
+            "logit": 7.8984375
+          },
+          {
+            "token_str": "' Y'",
+            "token_id": 816,
+            "logit": 7.8984375
+          },
+          {
+            "token_str": "'_exempt'",
+            "token_id": 96836,
+            "logit": 7.484375
+          },
+          {
+            "token_str": "'Z'",
+            "token_id": 57,
+            "logit": 6.6953125
+          },
+          {
+            "token_str": "'acz'",
+            "token_id": 42930,
+            "logit": 6.1328125
+          },
+          {
+            "token_str": "'-fontawesome'",
+            "token_id": 96948,
+            "logit": 6.06640625
+          },
+          {
+            "token_str": "' nay'",
+            "token_id": 103091,
+            "logit": 5.65625
+          },
+          {
+            "token_str": "' noreferrer'",
+            "token_id": 72704,
+            "logit": 5.640625
+          },
+          {
+            "token_str": "' V'",
+            "token_id": 650,
+            "logit": 5.52734375
+          },
+          {
+            "token_str": "'.NaN'",
+            "token_id": 79806,
+            "logit": 5.4765625
+          },
+          {
+            "token_str": "'ystore'",
+            "token_id": 64473,
+            "logit": 5.3515625
+          },
+          {
+            "token_str": "' \u0111\u1ec1'",
+            "token_id": 101218,
+            "logit": 5.3359375
+          },
+          {
+            "token_str": "' letter'",
+            "token_id": 6661,
+            "logit": 5.3203125
+          },
+          {
+            "token_str": "'_letter'",
+            "token_id": 47217,
+            "logit": 5.2734375
+          },
+          {
+            "token_str": "' Zimmer'",
+            "token_id": 41507,
+            "logit": 5.26171875
+          },
+          {
+            "token_str": "' y'",
+            "token_id": 379,
+            "logit": 5.234375
+          },
+          {
+            "token_str": "'\u017c'",
+            "token_id": 6077,
+            "logit": 5.125
+          },
+          {
+            "token_str": "' W'",
+            "token_id": 468,
+            "logit": 5.0703125
+          },
+          {
+            "token_str": "'>Z'",
+            "token_id": 64516,
+            "logit": 5.02734375
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'\u043a\u043e\u043f'",
+            "token_id": 108251,
+            "logit": -8.1328125
+          },
+          {
+            "token_str": "'u\u00e7'",
+            "token_id": 104353,
+            "logit": -7.875
+          },
+          {
+            "token_str": "'\u304f\u3060'",
+            "token_id": 108112,
+            "logit": -7.74609375
+          },
+          {
+            "token_str": "'\u5b8b\u4f53'",
+            "token_id": 78111,
+            "logit": -7.375
+          },
+          {
+            "token_str": "' \u5f92'",
+            "token_id": 122030,
+            "logit": -7.24609375
+          },
+          {
+            "token_str": "'uhl'",
+            "token_id": 96274,
+            "logit": -7.12109375
+          },
+          {
+            "token_str": "'---</'",
+            "token_id": 62890,
+            "logit": -6.921875
+          },
+          {
+            "token_str": "' __________________________________'",
+            "token_id": 82108,
+            "logit": -6.84765625
+          },
+          {
+            "token_str": "'GLOSS'",
+            "token_id": 84310,
+            "logit": -6.765625
+          },
+          {
+            "token_str": "'ToF'",
+            "token_id": 70252,
+            "logit": -6.75390625
+          },
+          {
+            "token_str": "'\u06a9\u06cc\u0644'",
+            "token_id": 110464,
+            "logit": -6.6484375
+          },
+          {
+            "token_str": "'ennen'",
+            "token_id": 41293,
+            "logit": -6.640625
+          },
+          {
+            "token_str": "'elope'",
+            "token_id": 82665,
+            "logit": -6.58984375
+          },
+          {
+            "token_str": "'ngr'",
+            "token_id": 59292,
+            "logit": -6.5859375
+          },
+          {
+            "token_str": "' Lil'",
+            "token_id": 41578,
+            "logit": -6.58203125
+          },
+          {
+            "token_str": "'\u00e7uk'",
+            "token_id": 121762,
+            "logit": -6.58203125
+          },
+          {
+            "token_str": "'\u03be\u03b9'",
+            "token_id": 116075,
+            "logit": -6.5625
+          },
+          {
+            "token_str": "'.Sql'",
+            "token_id": 23867,
+            "logit": -6.54296875
+          },
+          {
+            "token_str": "'\u010de'",
+            "token_id": 93586,
+            "logit": -6.47265625
+          },
+          {
+            "token_str": "'engkap'",
+            "token_id": 88372,
+            "logit": -6.40234375
+          }
+        ]
+      },
+      "logits_mean": -0.76025390625,
+      "logits_std": 1.4130859375,
+      "logits_max": 8.7421875,
+      "logits_min": -8.1328125
+    },
+    "27": {
+      "layer": 27,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "' Z'",
+            "token_id": 1901,
+            "logit": 9.40625
+          },
+          {
+            "token_str": "' Y'",
+            "token_id": 816,
+            "logit": 8.59375
+          },
+          {
+            "token_str": "' X'",
+            "token_id": 1630,
+            "logit": 8.3828125
+          },
+          {
+            "token_str": "'Z'",
+            "token_id": 57,
+            "logit": 7.59765625
+          },
+          {
+            "token_str": "'_exempt'",
+            "token_id": 96836,
+            "logit": 6.69140625
+          },
+          {
+            "token_str": "'acz'",
+            "token_id": 42930,
+            "logit": 6.58203125
+          },
+          {
+            "token_str": "'-fontawesome'",
+            "token_id": 96948,
+            "logit": 6.3203125
+          },
+          {
+            "token_str": "' noreferrer'",
+            "token_id": 72704,
+            "logit": 6.2734375
+          },
+          {
+            "token_str": "' nay'",
+            "token_id": 103091,
+            "logit": 5.6328125
+          },
+          {
+            "token_str": "' V'",
+            "token_id": 650,
+            "logit": 5.48828125
+          },
+          {
+            "token_str": "' W'",
+            "token_id": 468,
+            "logit": 5.43359375
+          },
+          {
+            "token_str": "'.NaN'",
+            "token_id": 79806,
+            "logit": 5.359375
+          },
+          {
+            "token_str": "'ozy'",
+            "token_id": 76523,
+            "logit": 5.32421875
+          },
+          {
+            "token_str": "' excessively'",
+            "token_id": 87146,
+            "logit": 5.30859375
+          },
+          {
+            "token_str": "'-Z'",
+            "token_id": 11419,
+            "logit": 5.2890625
+          },
+          {
+            "token_str": "'X'",
+            "token_id": 55,
+            "logit": 5.21875
+          },
+          {
+            "token_str": "'>Z'",
+            "token_id": 64516,
+            "logit": 5.21875
+          },
+          {
+            "token_str": "'ORY'",
+            "token_id": 7668,
+            "logit": 5.21484375
+          },
+          {
+            "token_str": "' letter'",
+            "token_id": 6661,
+            "logit": 5.125
+          },
+          {
+            "token_str": "'\\tZ'",
+            "token_id": 36953,
+            "logit": 5.109375
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'u\u00e7'",
+            "token_id": 104353,
+            "logit": -7.7890625
+          },
+          {
+            "token_str": "'anko'",
+            "token_id": 93952,
+            "logit": -7.515625
+          },
+          {
+            "token_str": "'---</'",
+            "token_id": 62890,
+            "logit": -7.51171875
+          },
+          {
+            "token_str": "'\u043a\u043e\u043f'",
+            "token_id": 108251,
+            "logit": -7.44140625
+          },
+          {
+            "token_str": "'\u304f\u3060'",
+            "token_id": 108112,
+            "logit": -7.15625
+          },
+          {
+            "token_str": "'.Sql'",
+            "token_id": 23867,
+            "logit": -7.10546875
+          },
+          {
+            "token_str": "'\u30e9\u30b9'",
+            "token_id": 112718,
+            "logit": -7.046875
+          },
+          {
+            "token_str": "'\u30a4\u30f3\u30c8'",
+            "token_id": 114810,
+            "logit": -6.9609375
+          },
+          {
+            "token_str": "'\u010de'",
+            "token_id": 93586,
+            "logit": -6.79296875
+          },
+          {
+            "token_str": "'uve'",
+            "token_id": 57123,
+            "logit": -6.703125
+          },
+          {
+            "token_str": "'ixer'",
+            "token_id": 40114,
+            "logit": -6.6796875
+          },
+          {
+            "token_str": "'ennen'",
+            "token_id": 41293,
+            "logit": -6.6640625
+          },
+          {
+            "token_str": "' __________________________________'",
+            "token_id": 82108,
+            "logit": -6.640625
+          },
+          {
+            "token_str": "' Gest'",
+            "token_id": 54999,
+            "logit": -6.57421875
+          },
+          {
+            "token_str": "'.Serial'",
+            "token_id": 13717,
+            "logit": -6.4609375
+          },
+          {
+            "token_str": "'/stats'",
+            "token_id": 96033,
+            "logit": -6.4140625
+          },
+          {
+            "token_str": "'\u00e8o'",
+            "token_id": 109168,
+            "logit": -6.3984375
+          },
+          {
+            "token_str": "'addock'",
+            "token_id": 80534,
+            "logit": -6.38671875
+          },
+          {
+            "token_str": "'\u0433\u043e\u0440\u043e\u0434'",
+            "token_id": 110434,
+            "logit": -6.37890625
+          },
+          {
+            "token_str": "'CDATA'",
+            "token_id": 55102,
+            "logit": -6.36328125
+          }
+        ]
+      },
+      "logits_mean": -0.73046875,
+      "logits_std": 1.3984375,
+      "logits_max": 9.40625,
+      "logits_min": -7.7890625
+    },
+    "28": {
+      "layer": 28,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "' Z'",
+            "token_id": 1901,
+            "logit": 13.953125
+          },
+          {
+            "token_str": "'Z'",
+            "token_id": 57,
+            "logit": 13.078125
+          },
+          {
+            "token_str": "'-Z'",
+            "token_id": 11419,
+            "logit": 10.109375
+          },
+          {
+            "token_str": "' X'",
+            "token_id": 1630,
+            "logit": 9.4453125
+          },
+          {
+            "token_str": "'\\tZ'",
+            "token_id": 36953,
+            "logit": 9.0625
+          },
+          {
+            "token_str": "' Y'",
+            "token_id": 816,
+            "logit": 8.3359375
+          },
+          {
+            "token_str": "'>Z'",
+            "token_id": 64516,
+            "logit": 8.0703125
+          },
+          {
+            "token_str": "'.getZ'",
+            "token_id": 77572,
+            "logit": 7.9375
+          },
+          {
+            "token_str": "'.Z'",
+            "token_id": 13784,
+            "logit": 7.453125
+          },
+          {
+            "token_str": "' \u0417'",
+            "token_id": 53677,
+            "logit": 7.37890625
+          },
+          {
+            "token_str": "'_Z'",
+            "token_id": 12582,
+            "logit": 7.3046875
+          },
+          {
+            "token_str": "' \u0396'",
+            "token_id": 107941,
+            "logit": 7.13671875
+          },
+          {
+            "token_str": "'X'",
+            "token_id": 55,
+            "logit": 7.01953125
+          },
+          {
+            "token_str": "' \u0632'",
+            "token_id": 100378,
+            "logit": 6.87109375
+          },
+          {
+            "token_str": "'-z'",
+            "token_id": 9319,
+            "logit": 6.84375
+          },
+          {
+            "token_str": "'.z'",
+            "token_id": 4025,
+            "logit": 6.8046875
+          },
+          {
+            "token_str": "' noreferrer'",
+            "token_id": 72704,
+            "logit": 6.70703125
+          },
+          {
+            "token_str": "'_exempt'",
+            "token_id": 96836,
+            "logit": 6.5390625
+          },
+          {
+            "token_str": "'-fontawesome'",
+            "token_id": 96948,
+            "logit": 6.5234375
+          },
+          {
+            "token_str": "' z'",
+            "token_id": 1167,
+            "logit": 6.4140625
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'u\u00e7'",
+            "token_id": 104353,
+            "logit": -7.7265625
+          },
+          {
+            "token_str": "'.Sql'",
+            "token_id": 23867,
+            "logit": -7.26953125
+          },
+          {
+            "token_str": "'.Localization'",
+            "token_id": 70648,
+            "logit": -7.203125
+          },
+          {
+            "token_str": "'---</'",
+            "token_id": 62890,
+            "logit": -7.16796875
+          },
+          {
+            "token_str": "'\u304f\u3060'",
+            "token_id": 108112,
+            "logit": -6.85546875
+          },
+          {
+            "token_str": "' Ekon'",
+            "token_id": 122306,
+            "logit": -6.76171875
+          },
+          {
+            "token_str": "'anko'",
+            "token_id": 93952,
+            "logit": -6.6171875
+          },
+          {
+            "token_str": "'aupt'",
+            "token_id": 52998,
+            "logit": -6.61328125
+          },
+          {
+            "token_str": "'ixer'",
+            "token_id": 40114,
+            "logit": -6.56640625
+          },
+          {
+            "token_str": "'\u043a\u043e\u043f'",
+            "token_id": 108251,
+            "logit": -6.5390625
+          },
+          {
+            "token_str": "'\u30a4\u30f3\u30c8'",
+            "token_id": 114810,
+            "logit": -6.53125
+          },
+          {
+            "token_str": "'(\u6728'",
+            "token_id": 112309,
+            "logit": -6.5078125
+          },
+          {
+            "token_str": "'ennen'",
+            "token_id": 41293,
+            "logit": -6.50390625
+          },
+          {
+            "token_str": "'.Serial'",
+            "token_id": 13717,
+            "logit": -6.49609375
+          },
+          {
+            "token_str": "'agate'",
+            "token_id": 47936,
+            "logit": -6.48828125
+          },
+          {
+            "token_str": "'/stats'",
+            "token_id": 96033,
+            "logit": -6.3515625
+          },
+          {
+            "token_str": "'\u010de'",
+            "token_id": 93586,
+            "logit": -6.27734375
+          },
+          {
+            "token_str": "'\u06af\u0644'",
+            "token_id": 115918,
+            "logit": -6.2734375
+          },
+          {
+            "token_str": "' __________________________________'",
+            "token_id": 82108,
+            "logit": -6.26953125
+          },
+          {
+            "token_str": "'uve'",
+            "token_id": 57123,
+            "logit": -6.15234375
+          }
+        ]
+      },
+      "logits_mean": -0.60888671875,
+      "logits_std": 1.4189453125,
+      "logits_max": 13.953125,
+      "logits_min": -7.7265625
+    },
+    "29": {
+      "layer": 29,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "'Z'",
+            "token_id": 57,
+            "logit": 12.875
+          },
+          {
+            "token_str": "' Z'",
+            "token_id": 1901,
+            "logit": 12.25
+          },
+          {
+            "token_str": "'-Z'",
+            "token_id": 11419,
+            "logit": 9.4765625
+          },
+          {
+            "token_str": "'>Z'",
+            "token_id": 64516,
+            "logit": 8.25
+          },
+          {
+            "token_str": "'\\tZ'",
+            "token_id": 36953,
+            "logit": 8.0390625
+          },
+          {
+            "token_str": "' X'",
+            "token_id": 1630,
+            "logit": 7.92578125
+          },
+          {
+            "token_str": "'X'",
+            "token_id": 55,
+            "logit": 7.76953125
+          },
+          {
+            "token_str": "' Y'",
+            "token_id": 816,
+            "logit": 7.53125
+          },
+          {
+            "token_str": "'.getZ'",
+            "token_id": 77572,
+            "logit": 7.4765625
+          },
+          {
+            "token_str": "'Y'",
+            "token_id": 56,
+            "logit": 7.4453125
+          },
+          {
+            "token_str": "'_exempt'",
+            "token_id": 96836,
+            "logit": 7.05859375
+          },
+          {
+            "token_str": "'.Z'",
+            "token_id": 13784,
+            "logit": 6.953125
+          },
+          {
+            "token_str": "'-z'",
+            "token_id": 9319,
+            "logit": 6.85546875
+          },
+          {
+            "token_str": "' \u0396'",
+            "token_id": 107941,
+            "logit": 6.83203125
+          },
+          {
+            "token_str": "'_Z'",
+            "token_id": 12582,
+            "logit": 6.6171875
+          },
+          {
+            "token_str": "'-fontawesome'",
+            "token_id": 96948,
+            "logit": 6.6015625
+          },
+          {
+            "token_str": "' \u0417'",
+            "token_id": 53677,
+            "logit": 6.5234375
+          },
+          {
+            "token_str": "' noreferrer'",
+            "token_id": 72704,
+            "logit": 6.44921875
+          },
+          {
+            "token_str": "'.z'",
+            "token_id": 4025,
+            "logit": 6.35546875
+          },
+          {
+            "token_str": "',Z'",
+            "token_id": 51932,
+            "logit": 6.08203125
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'u\u00e7'",
+            "token_id": 104353,
+            "logit": -8.3046875
+          },
+          {
+            "token_str": "'uve'",
+            "token_id": 57123,
+            "logit": -7.109375
+          },
+          {
+            "token_str": "'.Sql'",
+            "token_id": 23867,
+            "logit": -7.09375
+          },
+          {
+            "token_str": "'\uc18c\uac1c'",
+            "token_id": 120417,
+            "logit": -7.0
+          },
+          {
+            "token_str": "'\u010de'",
+            "token_id": 93586,
+            "logit": -6.578125
+          },
+          {
+            "token_str": "'---</'",
+            "token_id": 62890,
+            "logit": -6.4609375
+          },
+          {
+            "token_str": "'.Agent'",
+            "token_id": 89969,
+            "logit": -6.4296875
+          },
+          {
+            "token_str": "' eb'",
+            "token_id": 25470,
+            "logit": -6.4140625
+          },
+          {
+            "token_str": "'\u043a\u043e\u043f'",
+            "token_id": 108251,
+            "logit": -6.3359375
+          },
+          {
+            "token_str": "'\u30c8\u30eb'",
+            "token_id": 127764,
+            "logit": -6.2890625
+          },
+          {
+            "token_str": "'\u30a4\u30f3\u30c8'",
+            "token_id": 114810,
+            "logit": -6.25390625
+          },
+          {
+            "token_str": "' \u0443\u0437\u043d'",
+            "token_id": 122242,
+            "logit": -6.171875
+          },
+          {
+            "token_str": "' opposite'",
+            "token_id": 14329,
+            "logit": -6.16796875
+          },
+          {
+            "token_str": "'QQ'",
+            "token_id": 49126,
+            "logit": -6.10546875
+          },
+          {
+            "token_str": "'icari'",
+            "token_id": 121288,
+            "logit": -6.09765625
+          },
+          {
+            "token_str": "'\u043c\u0435\u043d\u0438'",
+            "token_id": 127374,
+            "logit": -6.0859375
+          },
+          {
+            "token_str": "'\u51fa\u3057\u305f'",
+            "token_id": 118158,
+            "logit": -6.03515625
+          },
+          {
+            "token_str": "'\u06af\u0627\u0647\u06cc'",
+            "token_id": 113436,
+            "logit": -5.98046875
+          },
+          {
+            "token_str": "'uhl'",
+            "token_id": 96274,
+            "logit": -5.97265625
+          },
+          {
+            "token_str": "'ixer'",
+            "token_id": 40114,
+            "logit": -5.96875
+          }
+        ]
+      },
+      "logits_mean": -0.416748046875,
+      "logits_std": 1.3984375,
+      "logits_max": 12.875,
+      "logits_min": -8.3046875
+    },
+    "30": {
+      "layer": 30,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "'Z'",
+            "token_id": 57,
+            "logit": 20.328125
+          },
+          {
+            "token_str": "' Z'",
+            "token_id": 1901,
+            "logit": 15.9296875
+          },
+          {
+            "token_str": "'Y'",
+            "token_id": 56,
+            "logit": 14.8828125
+          },
+          {
+            "token_str": "'X'",
+            "token_id": 55,
+            "logit": 14.1484375
+          },
+          {
+            "token_str": "'\\tZ'",
+            "token_id": 36953,
+            "logit": 12.0234375
+          },
+          {
+            "token_str": "' Y'",
+            "token_id": 816,
+            "logit": 11.9375
+          },
+          {
+            "token_str": "'-Z'",
+            "token_id": 11419,
+            "logit": 11.8203125
+          },
+          {
+            "token_str": "' X'",
+            "token_id": 1630,
+            "logit": 11.5703125
+          },
+          {
+            "token_str": "'>Z'",
+            "token_id": 64516,
+            "logit": 11.109375
+          },
+          {
+            "token_str": "'.Z'",
+            "token_id": 13784,
+            "logit": 10.9453125
+          },
+          {
+            "token_str": "' \u0396'",
+            "token_id": 107941,
+            "logit": 10.5234375
+          },
+          {
+            "token_str": "'W'",
+            "token_id": 54,
+            "logit": 10.4140625
+          },
+          {
+            "token_str": "'_Z'",
+            "token_id": 12582,
+            "logit": 10.3515625
+          },
+          {
+            "token_str": "'U'",
+            "token_id": 52,
+            "logit": 9.7421875
+          },
+          {
+            "token_str": "' \u0417'",
+            "token_id": 53677,
+            "logit": 9.5390625
+          },
+          {
+            "token_str": "'V'",
+            "token_id": 53,
+            "logit": 9.3359375
+          },
+          {
+            "token_str": "'(Z'",
+            "token_id": 28955,
+            "logit": 9.25
+          },
+          {
+            "token_str": "'.getZ'",
+            "token_id": 77572,
+            "logit": 9.078125
+          },
+          {
+            "token_str": "',Z'",
+            "token_id": 51932,
+            "logit": 9.0703125
+          },
+          {
+            "token_str": "'z'",
+            "token_id": 89,
+            "logit": 9.0703125
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'\uc18c\uac1c'",
+            "token_id": 120417,
+            "logit": -8.4453125
+          },
+          {
+            "token_str": "'.Sql'",
+            "token_id": 23867,
+            "logit": -7.6875
+          },
+          {
+            "token_str": "'BOOLE'",
+            "token_id": 52205,
+            "logit": -7.42578125
+          },
+          {
+            "token_str": "'INFRINGEMENT'",
+            "token_id": 26284,
+            "logit": -7.421875
+          },
+          {
+            "token_str": "'\u30ea\u30ab'",
+            "token_id": 109896,
+            "logit": -7.28125
+          },
+          {
+            "token_str": "'\u30e9\u30b9'",
+            "token_id": 112718,
+            "logit": -7.23046875
+          },
+          {
+            "token_str": "'.qq'",
+            "token_id": 61339,
+            "logit": -7.1796875
+          },
+          {
+            "token_str": "'\u304b\u308b'",
+            "token_id": 117295,
+            "logit": -7.140625
+          },
+          {
+            "token_str": "'\u1eb3'",
+            "token_id": 103322,
+            "logit": -7.1015625
+          },
+          {
+            "token_str": "'\u0627\u0631\u06a9'",
+            "token_id": 121231,
+            "logit": -7.08984375
+          },
+          {
+            "token_str": "'\u0441\u043e\u0442'",
+            "token_id": 119427,
+            "logit": -7.08203125
+          },
+          {
+            "token_str": "'SnackBar'",
+            "token_id": 55476,
+            "logit": -7.05078125
+          },
+          {
+            "token_str": "'\u06af\u0627\u0647\u06cc'",
+            "token_id": 113436,
+            "logit": -6.96484375
+          },
+          {
+            "token_str": "' Lac'",
+            "token_id": 55141,
+            "logit": -6.95703125
+          },
+          {
+            "token_str": "'__$'",
+            "token_id": 42189,
+            "logit": -6.86328125
+          },
+          {
+            "token_str": "'DownList'",
+            "token_id": 66996,
+            "logit": -6.83203125
+          },
+          {
+            "token_str": "'QM'",
+            "token_id": 89978,
+            "logit": -6.80859375
+          },
+          {
+            "token_str": "'ieder'",
+            "token_id": 22970,
+            "logit": -6.78125
+          },
+          {
+            "token_str": "'QN'",
+            "token_id": 88154,
+            "logit": -6.75390625
+          },
+          {
+            "token_str": "'#__'",
+            "token_id": 45187,
+            "logit": -6.73828125
+          }
+        ]
+      },
+      "logits_mean": -0.25537109375,
+      "logits_std": 1.634765625,
+      "logits_max": 20.328125,
+      "logits_min": -8.4453125
+    },
+    "31": {
+      "layer": 31,
+      "top_tokens": {
+        "top_positive": [
+          {
+            "token_str": "'Z'",
+            "token_id": 57,
+            "logit": 28.296875
+          },
+          {
+            "token_str": "'Y'",
+            "token_id": 56,
+            "logit": 25.5
+          },
+          {
+            "token_str": "'X'",
+            "token_id": 55,
+            "logit": 24.8125
+          },
+          {
+            "token_str": "'W'",
+            "token_id": 54,
+            "logit": 21.109375
+          },
+          {
+            "token_str": "'V'",
+            "token_id": 53,
+            "logit": 19.78125
+          },
+          {
+            "token_str": "'U'",
+            "token_id": 52,
+            "logit": 17.59375
+          },
+          {
+            "token_str": "'T'",
+            "token_id": 51,
+            "logit": 16.296875
+          },
+          {
+            "token_str": "'A'",
+            "token_id": 32,
+            "logit": 16.296875
+          },
+          {
+            "token_str": "'S'",
+            "token_id": 50,
+            "logit": 16.234375
+          },
+          {
+            "token_str": "'B'",
+            "token_id": 33,
+            "logit": 15.421875
+          },
+          {
+            "token_str": "'C'",
+            "token_id": 34,
+            "logit": 15.2578125
+          },
+          {
+            "token_str": "'ZX'",
+            "token_id": 81823,
+            "logit": 15.234375
+          },
+          {
+            "token_str": "'I'",
+            "token_id": 40,
+            "logit": 15.1328125
+          },
+          {
+            "token_str": "'D'",
+            "token_id": 35,
+            "logit": 14.9140625
+          },
+          {
+            "token_str": "'ZY'",
+            "token_id": 81601,
+            "logit": 14.875
+          },
+          {
+            "token_str": "'YZ'",
+            "token_id": 41309,
+            "logit": 14.8671875
+          },
+          {
+            "token_str": "'M'",
+            "token_id": 44,
+            "logit": 14.796875
+          },
+          {
+            "token_str": "'(Z'",
+            "token_id": 28955,
+            "logit": 14.765625
+          },
+          {
+            "token_str": "'P'",
+            "token_id": 47,
+            "logit": 14.75
+          },
+          {
+            "token_str": "'H'",
+            "token_id": 39,
+            "logit": 14.734375
+          }
+        ],
+        "top_negative": [
+          {
+            "token_str": "'-------------</'",
+            "token_id": 37742,
+            "logit": -8.8125
+          },
+          {
+            "token_str": "' [\u2026]\\n'",
+            "token_id": 126459,
+            "logit": -8.0546875
+          },
+          {
+            "token_str": "']\\u200f'",
+            "token_id": 124495,
+            "logit": -7.77734375
+          },
+          {
+            "token_str": "'\uff01\",'",
+            "token_id": 84765,
+            "logit": -7.48828125
+          },
+          {
+            "token_str": "' [\u2026]'",
+            "token_id": 28624,
+            "logit": -7.14453125
+          },
+          {
+            "token_str": "'-CP'",
+            "token_id": 120529,
+            "logit": -6.9609375
+          },
+          {
+            "token_str": "'{lng'",
+            "token_id": 89854,
+            "logit": -6.80078125
+          },
+          {
+            "token_str": "' SR'",
+            "token_id": 21550,
+            "logit": -6.59375
+          },
+          {
+            "token_str": "'\ud1a0\ud1a0'",
+            "token_id": 119927,
+            "logit": -6.4921875
+          },
+          {
+            "token_str": "'\u266a\\n\\n'",
+            "token_id": 66325,
+            "logit": -6.47265625
+          },
+          {
+            "token_str": "'|(\\n'",
+            "token_id": 38763,
+            "logit": -6.47265625
+          },
+          {
+            "token_str": "'\u2640\u2640'",
+            "token_id": 40785,
+            "logit": -6.3984375
+          },
+          {
+            "token_str": "' \u201c\u2026'",
+            "token_id": 92113,
+            "logit": -6.37109375
+          },
+          {
+            "token_str": "'\\xa0k'",
+            "token_id": 104809,
+            "logit": -6.34375
+          },
+          {
+            "token_str": "' He'",
+            "token_id": 1283,
+            "logit": -6.3046875
+          },
+          {
+            "token_str": "' [=['",
+            "token_id": 91397,
+            "logit": -6.26953125
+          },
+          {
+            "token_str": "' \u00bb\\n'",
+            "token_id": 125341,
+            "logit": -6.2578125
+          },
+          {
+            "token_str": "' PP'",
+            "token_id": 30950,
+            "logit": -6.23046875
+          },
+          {
+            "token_str": "' PSP'",
+            "token_id": 69914,
+            "logit": -6.23046875
+          },
+          {
+            "token_str": "'?\"\\n\\n\\n\\n'",
+            "token_id": 93479,
+            "logit": -6.2265625
+          }
+        ]
+      },
+      "logits_mean": 1.119140625,
+      "logits_std": 1.8681640625,
+      "logits_max": 28.296875,
+      "logits_min": -8.8125
+    }
+  },
+  "final_output": {
+    "top_tokens": {
+      "top_positive": [
+        {
+          "token_str": "'Z'",
+          "token_id": 57,
+          "logit": 28.296875
+        },
+        {
+          "token_str": "'Y'",
+          "token_id": 56,
+          "logit": 25.5
+        },
+        {
+          "token_str": "'X'",
+          "token_id": 55,
+          "logit": 24.8125
+        },
+        {
+          "token_str": "'W'",
+          "token_id": 54,
+          "logit": 21.109375
+        },
+        {
+          "token_str": "'V'",
+          "token_id": 53,
+          "logit": 19.78125
+        },
+        {
+          "token_str": "'U'",
+          "token_id": 52,
+          "logit": 17.59375
+        },
+        {
+          "token_str": "'T'",
+          "token_id": 51,
+          "logit": 16.296875
+        },
+        {
+          "token_str": "'A'",
+          "token_id": 32,
+          "logit": 16.296875
+        },
+        {
+          "token_str": "'S'",
+          "token_id": 50,
+          "logit": 16.234375
+        },
+        {
+          "token_str": "'B'",
+          "token_id": 33,
+          "logit": 15.421875
+        },
+        {
+          "token_str": "'C'",
+          "token_id": 34,
+          "logit": 15.2578125
+        },
+        {
+          "token_str": "'ZX'",
+          "token_id": 81823,
+          "logit": 15.234375
+        },
+        {
+          "token_str": "'I'",
+          "token_id": 40,
+          "logit": 15.1328125
+        },
+        {
+          "token_str": "'D'",
+          "token_id": 35,
+          "logit": 14.90625
+        },
+        {
+          "token_str": "'ZY'",
+          "token_id": 81601,
+          "logit": 14.875
+        },
+        {
+          "token_str": "'YZ'",
+          "token_id": 41309,
+          "logit": 14.8671875
+        },
+        {
+          "token_str": "'M'",
+          "token_id": 44,
+          "logit": 14.796875
+        },
+        {
+          "token_str": "'(Z'",
+          "token_id": 28955,
+          "logit": 14.765625
+        },
+        {
+          "token_str": "'P'",
+          "token_id": 47,
+          "logit": 14.75
+        },
+        {
+          "token_str": "'H'",
+          "token_id": 39,
+          "logit": 14.734375
+        }
+      ],
+      "top_negative": [
+        {
+          "token_str": "'-------------</'",
+          "token_id": 37742,
+          "logit": -8.8125
+        },
+        {
+          "token_str": "' [\u2026]\\n'",
+          "token_id": 126459,
+          "logit": -8.0546875
+        },
+        {
+          "token_str": "']\\u200f'",
+          "token_id": 124495,
+          "logit": -7.77734375
+        },
+        {
+          "token_str": "'\uff01\",'",
+          "token_id": 84765,
+          "logit": -7.48828125
+        },
+        {
+          "token_str": "' [\u2026]'",
+          "token_id": 28624,
+          "logit": -7.14453125
+        },
+        {
+          "token_str": "'-CP'",
+          "token_id": 120529,
+          "logit": -6.9609375
+        },
+        {
+          "token_str": "'{lng'",
+          "token_id": 89854,
+          "logit": -6.80078125
+        },
+        {
+          "token_str": "' SR'",
+          "token_id": 21550,
+          "logit": -6.59375
+        },
+        {
+          "token_str": "'\ud1a0\ud1a0'",
+          "token_id": 119927,
+          "logit": -6.4921875
+        },
+        {
+          "token_str": "'\u266a\\n\\n'",
+          "token_id": 66325,
+          "logit": -6.47265625
+        },
+        {
+          "token_str": "'|(\\n'",
+          "token_id": 38763,
+          "logit": -6.47265625
+        },
+        {
+          "token_str": "'\u2640\u2640'",
+          "token_id": 40785,
+          "logit": -6.3984375
+        },
+        {
+          "token_str": "' \u201c\u2026'",
+          "token_id": 92113,
+          "logit": -6.37109375
+        },
+        {
+          "token_str": "'\\xa0k'",
+          "token_id": 104809,
+          "logit": -6.34375
+        },
+        {
+          "token_str": "' He'",
+          "token_id": 1283,
+          "logit": -6.3046875
+        },
+        {
+          "token_str": "' [=['",
+          "token_id": 91397,
+          "logit": -6.26953125
+        },
+        {
+          "token_str": "' \u00bb\\n'",
+          "token_id": 125341,
+          "logit": -6.2578125
+        },
+        {
+          "token_str": "' PP'",
+          "token_id": 30950,
+          "logit": -6.23046875
+        },
+        {
+          "token_str": "' PSP'",
+          "token_id": 69914,
+          "logit": -6.23046875
+        },
+        {
+          "token_str": "'?\"\\n\\n\\n\\n'",
+          "token_id": 93479,
+          "logit": -6.2265625
+        }
+      ]
+    }
+  },
+  "metadata": {
+    "model": "meta-llama/Llama-3.1-8B-Instruct",
+    "model_short": "Llama-3.1-8B-Instruct",
+    "adapter": null,
+    "num_layers": 32,
+    "device": "cuda",
+    "task_type": "stated_confidence",
+    "task_description": "Stated Confidence (S-Z)",
+    "option_tokens": [
+      "S",
+      "T",
+      "U",
+      "V",
+      "W",
+      "X",
+      "Y",
+      "Z"
+    ]
+  },
+  "question": {
+    "question": "What is the capital of France?",
+    "options": {
+      "A": "New York",
+      "B": "Tokyo",
+      "C": "Paris",
+      "D": "Denver"
+    },
+    "correct_answer": "C"
+  }
+}
