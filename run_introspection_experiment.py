@@ -2843,8 +2843,12 @@ def run_single_experiment(
         resp == q.get("correct_answer") if resp else False
         for resp, q in zip(direct_responses, questions)
     ]
+    # stated_confidence_numeric — format depends on meta task
+    meta_mappings = data.get("meta_mappings") or [None] * len(data["meta_probs"])
+    meta_responses = data["meta_responses"]
     stated_confidence_numeric = [
-        get_stated_confidence_signal(np.array(p)) for p in data["meta_probs"]
+        response_to_confidence(resp, np.array(p), mapping)
+        for resp, p, mapping in zip(meta_responses, data["meta_probs"], meta_mappings)
     ]
 
     accuracy = sum(is_correct) / len(is_correct) if is_correct else 0
