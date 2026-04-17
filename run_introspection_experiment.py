@@ -77,8 +77,8 @@ load_dotenv()
 
 
 # Configuration
-# BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
-BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B"
+BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
+# BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B"
 
 MODEL_NAME = BASE_MODEL_NAME  # Set to adapter path if using fine-tuned model
 
