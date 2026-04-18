@@ -50,7 +50,7 @@ from tasks import (
     MC_SETUP_PROMPT,
     format_direct_prompt,
     format_direct_prompt_base,
-    # Confidence task
+    # Confidence task (letter scale S-Z)
     STATED_CONFIDENCE_SETUP,
     STATED_CONFIDENCE_OPTIONS,
     STATED_CONFIDENCE_MIDPOINTS,
@@ -58,6 +58,14 @@ from tasks import (
     format_stated_confidence_prompt,
     format_stated_confidence_prompt_base,
     get_stated_confidence_signal,
+    # Confidence task (numeric scale 1-9)
+    NUMERIC_CONFIDENCE_SETUP,
+    NUMERIC_CONFIDENCE_OPTIONS,
+    NUMERIC_CONFIDENCE_MIDPOINTS,
+    NUMERIC_CONFIDENCE_QUESTION,
+    format_numeric_confidence_prompt,
+    format_numeric_confidence_prompt_base,
+    get_numeric_confidence_signal,
     # Other-confidence task (control: estimate human difficulty)
     OTHER_CONFIDENCE_SETUP,
     OTHER_CONFIDENCE_QUESTION,
@@ -77,11 +85,12 @@ load_dotenv()
 
 
 # Configuration
-BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
-# BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B"
+BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B"
+# BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
 
-# MODEL_NAME = BASE_MODEL_NAME  # Set to adapter path if using fine-tuned model
-MODEL_NAME = "Tristan-Day/ect_20251222_215412_v0uei7y1_2000"   # Set to adapter path if using fine-tuned model
+
+MODEL_NAME = BASE_MODEL_NAME  # Set to adapter path if using fine-tuned model
+# MODEL_NAME = "Tristan-Day/ect_20251222_215412_v0uei7y1_2000"   # Set to adapter path if using fine-tuned model
 
 # Lists of datasets and meta_tasks to process (will iterate through all combinations)
 # Set to a single-item list for single runs, or multiple items to batch process
@@ -113,6 +122,16 @@ LOAD_IN_8BIT = False
 # "balanced"   - Show all 8 levels (S-Z) with one example each
 # "scale_only" - Just show "S T U V W X Y Z" tokens
 FEW_SHOT_MODE = "fixed"
+
+# Confidence scale to use for the stated-confidence meta task.
+# "letters"  : S-Z 8-bin scale (original).
+# "numeric"  : 1-9 single-digit scale. Applies to BOTH base (few-shot) and
+#              instruct/finetuned (chat template). For base models, only
+#              FEW_SHOT_MODE in {"fixed", "none"} is supported on the numeric
+#              scale currently.
+# Output filenames gain a "_scale-{letters|numeric}" suffix when scale != "letters"
+# so letters-scale and numeric-scale runs do not collide on disk.
+CONFIDENCE_SCALE = "numeric"
 
 # Output directory
 OUTPUTS_DIR = Path("outputs")
@@ -164,11 +183,13 @@ def get_output_prefix(metric: str = None) -> str:
     model_short = get_model_short_name(BASE_MODEL_NAME)
     # Include meta task type in output prefix for clarity
     task_suffix = f"_{META_TASK}" if META_TASK != "confidence" else ""
+    # Only suffix the filename if scale != 'letters' (keep letters as default for backward compat)
+    scale_suffix = f"_scale-{CONFIDENCE_SCALE}" if CONFIDENCE_SCALE != "letters" else ""
     metric_suffix = f"_{metric}" if metric else ""
     if MODEL_NAME != BASE_MODEL_NAME:
         adapter_short = get_model_short_name(MODEL_NAME)
-        return str(OUTPUTS_DIR / f"{model_short}_adapter-{adapter_short}_{DATASET_NAME}_introspection{task_suffix}{metric_suffix}")
-    return str(OUTPUTS_DIR / f"{model_short}_{DATASET_NAME}_introspection{task_suffix}{metric_suffix}")
+        return str(OUTPUTS_DIR / f"{model_short}_adapter-{adapter_short}_{DATASET_NAME}_introspection{task_suffix}{scale_suffix}{metric_suffix}")
+    return str(OUTPUTS_DIR / f"{model_short}_{DATASET_NAME}_introspection{task_suffix}{scale_suffix}{metric_suffix}")
 
 
 def get_directions_prefix(metric: str = None) -> str:
@@ -182,20 +203,40 @@ def get_directions_prefix(metric: str = None) -> str:
         metric: If provided, include metric in prefix.
     """
     model_short = get_model_short_name(BASE_MODEL_NAME)
-    # NO task suffix - directions are task-independent
+    # NO task suffix - directions are task-independent. Scale IS relevant (stated-conf direction depends on scale)
+    scale_suffix = f"_scale-{CONFIDENCE_SCALE}" if CONFIDENCE_SCALE != "letters" else ""
     metric_suffix = f"_{metric}" if metric else ""
     if MODEL_NAME != BASE_MODEL_NAME:
         adapter_short = get_model_short_name(MODEL_NAME)
-        return str(OUTPUTS_DIR / f"{model_short}_adapter-{adapter_short}_{DATASET_NAME}_introspection{metric_suffix}")
-    return str(OUTPUTS_DIR / f"{model_short}_{DATASET_NAME}_introspection{metric_suffix}")
+        return str(OUTPUTS_DIR / f"{model_short}_adapter-{adapter_short}_{DATASET_NAME}_introspection{scale_suffix}{metric_suffix}")
+    return str(OUTPUTS_DIR / f"{model_short}_{DATASET_NAME}_introspection{scale_suffix}{metric_suffix}")
 
 
 # ============================================================================
 # BACKWARD COMPATIBILITY ALIASES (now imported from tasks.py)
+# Scale-aware: delegating to CONFIDENCE_SCALE so switching scales just works.
 # ============================================================================
 
-# Confidence task aliases
-META_SETUP_PROMPT = STATED_CONFIDENCE_SETUP
+
+def _scale_options() -> dict:
+    return NUMERIC_CONFIDENCE_OPTIONS if CONFIDENCE_SCALE == "numeric" else STATED_CONFIDENCE_OPTIONS
+
+
+def _scale_midpoints() -> dict:
+    return NUMERIC_CONFIDENCE_MIDPOINTS if CONFIDENCE_SCALE == "numeric" else STATED_CONFIDENCE_MIDPOINTS
+
+
+def _scale_setup() -> str:
+    return NUMERIC_CONFIDENCE_SETUP if CONFIDENCE_SCALE == "numeric" else STATED_CONFIDENCE_SETUP
+
+
+def _scale_question() -> str:
+    return NUMERIC_CONFIDENCE_QUESTION if CONFIDENCE_SCALE == "numeric" else STATED_CONFIDENCE_QUESTION
+
+
+# Confidence task aliases (kept for any external callers; resolved against the
+# currently-selected scale each time they're accessed via properties above).
+META_SETUP_PROMPT = STATED_CONFIDENCE_SETUP  # letter-scale default; use _scale_setup() for scale-aware
 META_QUESTION_PROMPT = STATED_CONFIDENCE_QUESTION
 META_OPTION_DICT = STATED_CONFIDENCE_OPTIONS
 META_RANGE_MIDPOINTS = STATED_CONFIDENCE_MIDPOINTS
@@ -232,8 +273,21 @@ def load_questions(dataset_name: str, num_questions: int = None) -> List[Dict]:
 
 
 def format_meta_prompt(question: Dict, tokenizer, use_chat_template: bool = True) -> Tuple[str, List[str]]:
-    """Format a meta/confidence question using centralized tasks.py logic."""
+    """Format a meta/confidence question for instruct/finetuned models.
+
+    Dispatches to the numeric (1-9) or letter (S-Z) formatter based on
+    CONFIDENCE_SCALE.
+    """
+    if CONFIDENCE_SCALE == "numeric":
+        return format_numeric_confidence_prompt(question, tokenizer, use_chat_template)
     return format_stated_confidence_prompt(question, tokenizer, use_chat_template)
+
+
+def format_meta_prompt_base(question: Dict, mode: str = "fixed", pool=None) -> Tuple[str, List[str]]:
+    """Format a meta/confidence question for BASE (few-shot, no chat template) models."""
+    if CONFIDENCE_SCALE == "numeric":
+        return format_numeric_confidence_prompt_base(question, mode=mode, pool=pool)
+    return format_stated_confidence_prompt_base(question, mode=mode, pool=pool)
 
 
 def format_delegate_prompt(
@@ -258,11 +312,21 @@ def get_meta_prompt_formatter():
 
 
 def get_meta_options():
-    """Return the meta options based on META_TASK setting."""
+    """Return the meta options based on META_TASK and CONFIDENCE_SCALE."""
     if META_TASK == "delegate":
         return DELEGATE_OPTIONS
-    else:
-        return list(META_OPTION_DICT.keys())
+    # Confidence task — scale-dependent
+    return list(_scale_options().keys())
+
+
+def _meta_task_type() -> str:
+    """Map (META_TASK, CONFIDENCE_SCALE) to the task_type string used by
+    tasks.response_to_confidence()."""
+    if META_TASK == "delegate":
+        return "delegate"
+    if CONFIDENCE_SCALE == "numeric":
+        return "confidence_numeric"
+    return "confidence"
 
 
 def local_response_to_confidence(
@@ -270,13 +334,251 @@ def local_response_to_confidence(
     probs: np.ndarray = None,
     mapping: Dict[str, str] = None
 ) -> float:
-    """
-    Convert a meta response to a confidence value.
+    """Convert a meta response to a confidence scalar (scale-aware)."""
+    return response_to_confidence(response, probs, mapping, _meta_task_type())
 
-    Wrapper around tasks.response_to_confidence that passes the correct task_type.
+
+def get_meta_signal(probs: np.ndarray) -> float:
+    """Scale-aware probability-weighted confidence signal (for confidence task)."""
+    if CONFIDENCE_SCALE == "numeric":
+        return get_numeric_confidence_signal(probs)
+    return get_stated_confidence_signal(probs)
+
+
+def save_example_prompts_and_responses_txt(
+    data: dict,
+    questions: list,
+    tokenizer,
+    is_base: bool,
+    use_chat_template: bool,
+    few_shot_mode: str,
+    output_path: str,
+    n_examples: int = 10,
+) -> None:
+    """Save a human-readable .txt showing exact prompts and model responses.
+
+    For each of the first `n_examples` questions, includes:
+      - Question, options, correct answer
+      - The exact direct prompt string (including chat template tokens)
+      - Direct option probabilities + argmax + correctness
+      - Uncertainty metrics (entropy, logit_gap, margin, top_prob)
+      - The exact meta (confidence) prompt string
+      - Meta option probabilities + argmax + soft-signal confidence
     """
-    task_type = "delegate" if META_TASK == "delegate" else "confidence"
-    return response_to_confidence(response, probs, mapping, task_type)
+    import io
+    buf = io.StringIO()
+
+    n = min(n_examples, len(questions))
+    direct_probs = data.get("direct_probs", [])
+    meta_probs = data.get("meta_probs", [])
+    meta_resp = data.get("meta_responses", [])
+    meta_mappings = data.get("meta_mappings") or [None] * len(questions)
+    direct_metrics = data.get("direct_metrics", {})
+
+    # Header
+    buf.write("=" * 80 + "\n")
+    buf.write(f"Model: {BASE_MODEL_NAME}\n")
+    if MODEL_NAME != BASE_MODEL_NAME:
+        buf.write(f"Adapter: {MODEL_NAME}\n")
+    buf.write(
+        f"Dataset: {DATASET_NAME}   Meta task: {META_TASK}   "
+        f"Scale: {CONFIDENCE_SCALE}   is_base: {is_base}   "
+        f"use_chat_template: {use_chat_template}\n"
+    )
+    if is_base:
+        buf.write(f"Few-shot mode: {few_shot_mode}\n")
+    buf.write(f"Showing first {n} of {len(questions)} examples.\n")
+    buf.write("=" * 80 + "\n\n")
+
+    for i in range(n):
+        q = questions[i]
+        buf.write("=" * 80 + "\n")
+        buf.write(f"EXAMPLE {i + 1} / {n}   (id: {q.get('id', f'q_{i}')})\n")
+        buf.write("=" * 80 + "\n")
+        buf.write(f"Question: {q.get('question', '')}\n")
+        for key, val in q.get("options", {}).items():
+            buf.write(f"  {key}: {val}\n")
+        buf.write(f"Correct answer: {q.get('correct_answer', '?')}\n\n")
+
+        # Rebuild the exact direct prompt
+        if is_base:
+            direct_prompt, direct_opts = format_direct_prompt_base(q, mode=few_shot_mode)
+        else:
+            direct_prompt, direct_opts = format_direct_prompt(q, tokenizer, use_chat_template)
+
+        buf.write("--- DIRECT PROMPT (sent to model) ---\n")
+        buf.write(direct_prompt)
+        buf.write("\n\n")
+
+        buf.write("--- DIRECT RESPONSE ---\n")
+        if i < len(direct_probs) and direct_probs[i]:
+            p = direct_probs[i]
+            probs_str = "  ".join(f"{L}={v:.3f}" for L, v in zip(direct_opts, p))
+            argmax_letter = direct_opts[int(np.argmax(p))]
+            is_correct_flag = argmax_letter == q.get("correct_answer")
+            buf.write(f"Option probs: {probs_str}\n")
+            buf.write(
+                f"Chosen (argmax): {argmax_letter}   "
+                f"Correct? {'YES' if is_correct_flag else 'no'}\n"
+            )
+        if direct_metrics and i < len(direct_metrics.get("entropy", [])):
+            e = direct_metrics["entropy"][i]
+            m = direct_metrics.get("margin", [float("nan")] * len(questions))[i]
+            lg = direct_metrics.get("logit_gap", [float("nan")] * len(questions))[i]
+            tp = direct_metrics.get("top_prob", [float("nan")] * len(questions))[i]
+            buf.write(
+                f"Uncertainty: entropy={float(e):.3f}  logit_gap={float(lg):.3f}  "
+                f"margin={float(m):.3f}  top_prob={float(tp):.3f}\n"
+            )
+        buf.write("\n")
+
+        # Rebuild the exact meta prompt
+        if META_TASK == "delegate":
+            meta_prompt, meta_opts, _mapping = format_delegate_prompt(
+                q, tokenizer, use_chat_template, trial_index=i
+            )
+        else:
+            if is_base:
+                meta_prompt, meta_opts = format_meta_prompt_base(q, mode=few_shot_mode)
+            else:
+                meta_prompt, meta_opts = format_meta_prompt(q, tokenizer, use_chat_template)
+
+        buf.write("--- META PROMPT (sent to model) ---\n")
+        buf.write(meta_prompt)
+        buf.write("\n\n")
+
+        buf.write("--- META RESPONSE ---\n")
+        if i < len(meta_probs) and meta_probs[i]:
+            p = meta_probs[i]
+            probs_str = "  ".join(f"{L}={v:.3f}" for L, v in zip(meta_opts, p))
+            buf.write(f"Option probs: {probs_str}\n")
+        if i < len(meta_resp):
+            buf.write(f"Chosen (argmax): {meta_resp[i]}\n")
+        if i < len(meta_probs) and meta_probs[i]:
+            soft = response_to_confidence(
+                meta_resp[i] if i < len(meta_resp) else "",
+                np.asarray(meta_probs[i]),
+                meta_mappings[i] if i < len(meta_mappings) else None,
+                _meta_task_type(),
+            )
+            buf.write(f"Soft confidence (probability-weighted): {float(soft):.3f}\n")
+        buf.write("\n")
+
+    buf.write("=" * 80 + "\n")
+    buf.write("END\n")
+    buf.write("=" * 80 + "\n")
+
+    with open(output_path, "w") as f:
+        f.write(buf.getvalue())
+    print(f"Saved example prompts/responses to {output_path}")
+
+
+def save_quick_summary_png(data: dict, questions: list, output_path: str) -> None:
+    """Save a quick 3-panel diagnostic PNG right after collection:
+
+      - (left)   MC chosen-answer distribution (A/B/C/D) with correct-answer
+                 baseline, and overall accuracy
+      - (middle) Stated-confidence distribution (scale-aware: S-Z or 1-9)
+      - (right)  Scatter of MC entropy vs stated_confidence_numeric with
+                 Pearson r and Spearman rho annotated
+
+    This runs before the slow probe/introspection analysis so you can eyeball
+    the results immediately.
+    """
+    from scipy.stats import pearsonr, spearmanr
+
+    n = len(questions)
+    # Derive direct answer choices
+    direct_probs = data.get("direct_probs", [])
+    options_per_q = [list(q.get("options", {}).keys()) for q in questions]
+    direct_resp = [
+        opts[int(np.argmax(p))] if opts and p else None
+        for opts, p in zip(options_per_q, direct_probs)
+    ]
+    correct = [q.get("correct_answer") for q in questions]
+    is_correct = [r == c for r, c in zip(direct_resp, correct)]
+    acc = float(np.mean(is_correct)) if is_correct else float("nan")
+
+    # Meta-side
+    meta_probs = data.get("meta_probs", [])
+    meta_resp = data.get("meta_responses", [])
+    entropies = np.asarray(data.get("direct_metrics", {}).get("entropy", [np.nan] * n))
+    # Scale-aware stated_confidence_numeric (soft signal; robust to argmax collapse)
+    stated_num = np.array(
+        [get_meta_signal(np.asarray(p)) if p else np.nan for p in meta_probs]
+    )
+
+    confidence_options = list(_scale_options().keys())
+
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4.2))
+
+    # --- Panel 1: MC chosen answer vs correct distribution ---
+    ax = axes[0]
+    letters = ["A", "B", "C", "D"]
+    chosen_counts = [direct_resp.count(L) for L in letters]
+    correct_counts = [correct.count(L) for L in letters]
+    x = np.arange(len(letters))
+    w = 0.4
+    ax.bar(x - w / 2, np.array(chosen_counts) / max(n, 1), width=w, label="chosen")
+    ax.bar(x + w / 2, np.array(correct_counts) / max(n, 1), width=w, label="correct")
+    ax.axhline(0.25, color="gray", linestyle=":", alpha=0.5, label="uniform")
+    ax.set_xticks(x)
+    ax.set_xticklabels(letters)
+    ax.set_ylabel("fraction")
+    ax.set_title(f"MC answers  (acc = {acc:.1%}, n = {n})")
+    ax.legend(fontsize=8)
+    ax.set_ylim(0, 1)
+    ax.grid(True, alpha=0.3, axis="y")
+
+    # --- Panel 2: Confidence response distribution (scale-aware) ---
+    ax = axes[1]
+    conf_counts = [meta_resp.count(k) for k in confidence_options]
+    ax.bar(range(len(confidence_options)), np.array(conf_counts) / max(n, 1),
+           color="tab:orange")
+    ax.set_xticks(range(len(confidence_options)))
+    ax.set_xticklabels(confidence_options, fontsize=9)
+    ax.set_ylabel("fraction of responses")
+    scale_title = f"{CONFIDENCE_SCALE} scale"
+    ax.set_title(f"Stated confidence  ({scale_title})")
+    ax.set_ylim(0, 1)
+    ax.grid(True, alpha=0.3, axis="y")
+    # Show mean numeric value
+    valid_num = stated_num[~np.isnan(stated_num)]
+    if len(valid_num):
+        ax.text(
+            0.98, 0.95,
+            f"mean = {valid_num.mean():.3f}\nstd  = {valid_num.std():.3f}",
+            ha="right", va="top", transform=ax.transAxes, fontsize=8,
+            bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="0.7"),
+        )
+
+    # --- Panel 3: Entropy vs stated confidence scatter ---
+    ax = axes[2]
+    mask = (~np.isnan(entropies)) & (~np.isnan(stated_num))
+    if mask.sum() > 10:
+        r, p_r = pearsonr(entropies[mask], stated_num[mask])
+        rho, p_rho = spearmanr(entropies[mask], stated_num[mask])
+    else:
+        r = rho = float("nan"); p_r = p_rho = float("nan")
+    ax.scatter(entropies[mask], stated_num[mask], alpha=0.35, s=12)
+    ax.set_xlabel("MC entropy (nats)")
+    ax.set_ylabel("stated_confidence_numeric (soft)")
+    ax.set_title(
+        f"Entropy  vs  stated confidence\n"
+        f"Pearson r = {r:+.3f}  (p={p_r:.1e})\n"
+        f"Spearman ρ = {rho:+.3f}  (p={p_rho:.1e})"
+    )
+    ax.grid(True, alpha=0.3)
+
+    plt.suptitle(
+        f"{get_model_short_name(BASE_MODEL_NAME)}  /  {DATASET_NAME}  /  "
+        f"{META_TASK}  /  scale={CONFIDENCE_SCALE}",
+        y=1.02, fontsize=10,
+    )
+    plt.tight_layout()
+    plt.savefig(output_path, bbox_inches="tight", dpi=100)
+    plt.close(fig)
+    print(f"Saved quick summary to {output_path}")
 
 
 # ============================================================================
@@ -917,7 +1219,7 @@ def collect_paired_data(
             meta_options_list = []
             for q in questions:
                 if is_base:
-                    prompt, opts = format_stated_confidence_prompt_base(q, mode=few_shot_mode)
+                    prompt, opts = format_meta_prompt_base(q, mode=few_shot_mode)
                 else:
                     prompt, opts = format_meta_prompt(q, tokenizer, use_chat_template)
                 meta_prompts.append(prompt)
@@ -1062,7 +1364,7 @@ def collect_meta_only(
             meta_options_list = []
             for q in questions:
                 if is_base:
-                    prompt, opts = format_stated_confidence_prompt_base(q, mode=few_shot_mode)
+                    prompt, opts = format_meta_prompt_base(q, mode=few_shot_mode)
                 else:
                     prompt, opts = format_meta_prompt(q, tokenizer, use_chat_template)
                 meta_prompts.append(prompt)
@@ -2035,10 +2337,9 @@ def analyze_behavioral_introspection(
             )
         ])
     else:
-        # Confidence task: weighted average of midpoints
-        from tasks import get_stated_confidence_signal
+        # Confidence task: weighted average of midpoints (scale-aware)
         stated_confidence = np.array([
-            get_stated_confidence_signal(np.array(p)) if p else 0.5
+            get_meta_signal(np.array(p)) if p else 0.5
             for p in meta_probs
         ])
 
@@ -2787,6 +3088,28 @@ def run_single_experiment(
     )
     print(f"Saved activations to {base_prefix}_*_activations.npz")
 
+    # Quick-look PNG: MC dist + confidence dist + entropy-vs-confidence scatter.
+    # Runs BEFORE the slow probe/introspection analysis so you can sanity-check
+    # distributions immediately.
+    try:
+        save_quick_summary_png(data, questions, f"{base_prefix}_quick_summary.png")
+    except Exception as e:
+        print(f"⚠ quick-summary PNG failed: {e}")
+
+    # Plain-text dump of the first 10 exact prompts + model responses, for
+    # eyeballing that prompts render correctly and the model's argmax/soft
+    # outputs make sense.
+    try:
+        save_example_prompts_and_responses_txt(
+            data, questions, tokenizer,
+            is_base=is_base, use_chat_template=use_chat_template,
+            few_shot_mode=FEW_SHOT_MODE,
+            output_path=f"{base_prefix}_examples.txt",
+            n_examples=10,
+        )
+    except Exception as e:
+        print(f"⚠ examples.txt dump failed: {e}")
+
     # Generate example prompts for verification (first 2 questions)
     example_prompts = []
     for i in range(min(2, len(questions))):
@@ -2799,7 +3122,7 @@ def run_single_experiment(
             meta_prompt, meta_options_list, mapping = format_delegate_prompt(q, tokenizer, use_chat_template, trial_index=i)
         else:
             if is_base:
-                meta_prompt, meta_options_list = format_stated_confidence_prompt_base(q, mode=FEW_SHOT_MODE)
+                meta_prompt, meta_options_list = format_meta_prompt_base(q, mode=FEW_SHOT_MODE)
             else:
                 meta_prompt, meta_options_list = format_meta_prompt(q, tokenizer, use_chat_template)
             mapping = None
@@ -2844,11 +3167,12 @@ def run_single_experiment(
         resp == q.get("correct_answer") if resp else False
         for resp, q in zip(direct_responses, questions)
     ]
-    # stated_confidence_numeric — format depends on meta task
+    # stated_confidence_numeric — format depends on meta task + confidence scale
     meta_mappings = data.get("meta_mappings") or [None] * len(data["meta_probs"])
     meta_responses = data["meta_responses"]
+    _task_type = _meta_task_type()
     stated_confidence_numeric = [
-        response_to_confidence(resp, np.array(p), mapping)
+        response_to_confidence(resp, np.array(p), mapping, _task_type)
         for resp, p, mapping in zip(meta_responses, data["meta_probs"], meta_mappings)
     ]
 
@@ -2902,6 +3226,7 @@ def run_single_experiment(
             "metric": METRIC,
             "is_base_model": is_base,
             "few_shot_mode": FEW_SHOT_MODE if is_base else None,
+            "confidence_scale": CONFIDENCE_SCALE,
             "date_run": datetime.datetime.now().isoformat(),
             "git_commit": git_commit,
             "device": str(DEVICE),
@@ -3024,9 +3349,9 @@ def run_single_experiment(
     # other_data was collected earlier, now we analyze it
     other_confidence_analysis = None
     if META_TASK == "confidence" and other_data is not None:
-        # Compute self-confidence signals for comparison
+        # Compute self-confidence signals for comparison (scale-aware)
         self_confidence = np.array([
-            get_stated_confidence_signal(np.array(p)) if p else 0.5
+            get_meta_signal(np.array(p)) if p else 0.5
             for p in data["meta_probs"]
         ])
 
@@ -3222,6 +3547,31 @@ def main():
         load_in_4bit=args.load_in_4bit,
         load_in_8bit=args.load_in_8bit
     )
+
+    # Sanity check: every confidence option must tokenize to exactly one token.
+    # If any option (especially "10" on non-Llama-3 tokenizers) is multi-token,
+    # our argmax extraction will silently read the wrong probability. Fail loudly.
+    if CONFIDENCE_SCALE == "numeric":
+        bad = []
+        for opt in NUMERIC_CONFIDENCE_OPTIONS:
+            ids = tokenizer.encode(opt, add_special_tokens=False)
+            if len(ids) != 1:
+                bad.append((opt, ids))
+        if bad:
+            msg_lines = [
+                "Numeric confidence scale requires every option to tokenize to exactly one token.",
+                f"Tokenizer: {getattr(tokenizer, 'name_or_path', '?')}",
+            ]
+            for opt, ids in bad:
+                decoded = [tokenizer.decode([t]) for t in ids]
+                msg_lines.append(f"  '{opt}' -> {ids}  (decoded: {decoded})  [len={len(ids)}]")
+            msg_lines.append(
+                "Fix by either (a) switching to CONFIDENCE_SCALE='letters', or "
+                "(b) narrowing the scale in tasks.py NUMERIC_CONFIDENCE_OPTIONS "
+                "(e.g., drop '10' to get 1-9)."
+            )
+            raise RuntimeError("\n".join(msg_lines))
+        print(f"✓ Numeric scale tokenizer check passed: all of {list(NUMERIC_CONFIDENCE_OPTIONS)} are single-token.")
 
     # Skip delegate task for base models (no few-shot delegate prompt exists)
     is_base = is_base_model(BASE_MODEL_NAME)

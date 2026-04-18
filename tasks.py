@@ -176,6 +176,140 @@ STATED_CONFIDENCE_MIDPOINTS = {
 }
 
 
+# ============================================================================
+# NUMERIC CONFIDENCE TASK (1-10 scale)
+# ============================================================================
+# In the Llama 3 tokenizer, "10" is a single token, so we can do 1-10 cleanly.
+# The scale is framed as "1 = not confident at all, 10 = completely sure" with
+# each digit representing a 10%-wide confidence band. Midpoints span [5%, 95%].
+# A runtime tokenizer check in run_introspection_experiment.py aborts if "10"
+# turns out to be multi-token on whatever tokenizer the user loads.
+
+NUMERIC_CONFIDENCE_SETUP = (
+    "I'm going to show you a question, and I want you to tell me your level "
+    "of confidence that you know the correct answer to this question, on a "
+    "scale of 1 to 10 where 1 means \"not confident at all\" and 10 means "
+    "\"completely sure\". Respond only with a number from 1 to 10; do NOT "
+    "output any other text."
+)
+
+NUMERIC_CONFIDENCE_QUESTION = (
+    "How confident are you that you know the correct answer (1-10)?"
+)
+
+# 10 equal-width bins over [0, 1], midpoints at {5%, 15%, ..., 95%}.
+# "1" = bin [0%, 10%) → midpoint 5%; "10" = bin [90%, 100%] → midpoint 95%.
+NUMERIC_CONFIDENCE_OPTIONS = {str(i): f"~{(i*10-5)}% confident" for i in range(1, 11)}
+NUMERIC_CONFIDENCE_MIDPOINTS = {str(i): (i * 10 - 5) / 100.0 for i in range(1, 11)}
+
+
+def format_numeric_confidence_prompt(
+    question: Dict,
+    tokenizer,
+    use_chat_template: bool = True,
+) -> Tuple[str, List[str]]:
+    """Format a numeric (1-9) stated-confidence meta-question for instruct/finetuned models.
+
+    Uses the tokenizer's chat template when available so instruct models see
+    the prompt the way they were trained to see user messages.
+    """
+    q_text = _format_nested_question(
+        question,
+        NUMERIC_CONFIDENCE_QUESTION,
+        NUMERIC_CONFIDENCE_OPTIONS,
+    )
+    options = list(NUMERIC_CONFIDENCE_OPTIONS.keys())
+    llm_prompt = (
+        NUMERIC_CONFIDENCE_SETUP + "\n\n" + q_text + "\nYour choice (1-10): "
+    )
+
+    if use_chat_template:
+        try:
+            messages = [{"role": "user", "content": llm_prompt}]
+            full_prompt = tokenizer.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True
+            )
+        except Exception:
+            full_prompt = llm_prompt
+    else:
+        full_prompt = llm_prompt
+
+    return full_prompt, options
+
+
+def get_numeric_confidence_signal(probs: np.ndarray) -> float:
+    """Scalar expected-confidence from probability-weighted midpoints over the
+    numeric 1-9 options."""
+    options = list(NUMERIC_CONFIDENCE_OPTIONS.keys())
+    midpoints = np.array([NUMERIC_CONFIDENCE_MIDPOINTS[o] for o in options])
+    return float(np.dot(probs, midpoints))
+
+
+def get_numeric_confidence_response(probs: np.ndarray) -> str:
+    """Argmax digit response."""
+    options = list(NUMERIC_CONFIDENCE_OPTIONS.keys())
+    return options[int(np.argmax(probs))]
+
+
+# Base (non-instruct) few-shot prefix — calibrated exemplars on the 1-10 scale.
+BASE_NUMERIC_CONFIDENCE_FEW_SHOT = """For each question, rate your confidence from 1 (not confident at all) to 10 (completely sure) that you know the correct answer.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Confidence: 10
+
+Question: What is the 21 trillionth digit of pi?
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+Confidence: 1
+
+Question: Who wrote the novel 'War and Peace'?
+  A: Charles Dickens
+  B: Leo Tolstoy
+  C: Mark Twain
+  D: Jane Austen
+Confidence: 8
+
+"""
+
+
+def format_numeric_confidence_prompt_base(
+    question: Dict,
+    mode: str = "fixed",
+    pool: Optional[List[Dict]] = None,
+) -> Tuple[str, List[str]]:
+    """Few-shot numeric (1-9) confidence prompt for base (non-instruct) models.
+
+    Currently supports mode='fixed' (the hand-calibrated exemplars above) and
+    mode='none' (scale-only, no examples). Other modes (random/balanced/
+    deceptive_examples) are not yet wired for the numeric scale — add them as
+    needed alongside their S-Z counterparts in _build_confidence_few_shot_prefix.
+    """
+    options = list(NUMERIC_CONFIDENCE_OPTIONS.keys())
+    if mode == "none":
+        prefix = (
+            "For each question, rate your confidence from 1 (not confident at all) "
+            "to 10 (completely sure) that you know the correct answer.\n\n"
+        )
+    elif mode == "fixed":
+        prefix = BASE_NUMERIC_CONFIDENCE_FEW_SHOT
+    else:
+        raise ValueError(
+            f"mode={mode!r} not supported for numeric scale yet. "
+            "Supported: 'fixed', 'none'."
+        )
+    prompt = prefix + "Question: " + question["question"] + "\n"
+    for key, value in question["options"].items():
+        prompt += f"  {key}: {value}\n"
+    prompt += "Confidence:"
+    return prompt, options
+
+
 def _format_nested_question(question_data: Dict, outer_question: str, outer_options: Dict) -> str:
     """Format a nested/meta question for display."""
     formatted = ""
@@ -503,35 +637,43 @@ def response_to_confidence(
     """
     Convert a meta response to a confidence value.
 
-    For confidence task: Uses STATED_CONFIDENCE_MIDPOINTS lookup
+    For confidence (S-Z) task: Uses STATED_CONFIDENCE_MIDPOINTS lookup.
+    For confidence_numeric (1-9) task: Uses NUMERIC_CONFIDENCE_MIDPOINTS lookup.
+                       If `probs` is given, returns the probability-weighted expected midpoint
+                       (soft signal) rather than the argmax-only value.
     For delegate task: Uses P(Answer) from the probability distribution,
-                       accounting for alternating mapping
+                       accounting for alternating mapping.
 
     Args:
-        response: The model's response ("1", "2", or S-Z for confidence)
-        probs: Probability array [P("1"), P("2")] for delegate, or [P(S)...P(Z)] for confidence
+        response: The model's response ("1"/"2" for delegate; S-Z for confidence;
+                  "1".."9" for confidence_numeric)
+        probs: Probability array; shape depends on task
         mapping: For delegate task, the mapping {"1": "Answer"/"Delegate", "2": ...}
-        task_type: "confidence" or "delegate"
+        task_type: "confidence" | "confidence_numeric" | "delegate"
     """
     if task_type == "delegate":
         # For delegate task, confidence = P(Answer)
-        # Need to account for alternating mapping
         if probs is not None and len(probs) >= 2 and mapping is not None:
-            # Find which option corresponds to "Answer"
             if mapping.get("1") == "Answer":
-                return float(probs[0])  # P("1") = P(Answer)
+                return float(probs[0])
             else:
-                return float(probs[1])  # P("2") = P(Answer)
+                return float(probs[1])
         elif probs is not None and len(probs) >= 1:
-            # Fallback: assume position 0 is Answer (old behavior)
             return float(probs[0])
-        # Fallback if only response is known (no probs)
         if mapping is not None:
             return 1.0 if mapping.get(response) == "Answer" else 0.0
         return 1.0 if response == "1" else 0.0
-    else:
-        # For confidence task, use the midpoint lookup
-        return STATED_CONFIDENCE_MIDPOINTS.get(response, 0.5)
+
+    if task_type == "confidence_numeric":
+        # Prefer the soft signal when full probs are provided (1-9 array)
+        if probs is not None and len(probs) == len(NUMERIC_CONFIDENCE_OPTIONS):
+            return get_numeric_confidence_signal(np.asarray(probs))
+        return NUMERIC_CONFIDENCE_MIDPOINTS.get(response, 0.5)
+
+    # Default: letter-scale confidence. Prefer the soft signal when full probs are provided.
+    if probs is not None and len(probs) == len(STATED_CONFIDENCE_OPTIONS):
+        return get_stated_confidence_signal(np.asarray(probs))
+    return STATED_CONFIDENCE_MIDPOINTS.get(response, 0.5)
 
 
 # ============================================================================
