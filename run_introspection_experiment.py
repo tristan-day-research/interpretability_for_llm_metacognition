@@ -80,7 +80,8 @@ load_dotenv()
 BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
 # BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B"
 
-MODEL_NAME = BASE_MODEL_NAME  # Set to adapter path if using fine-tuned model
+# MODEL_NAME = BASE_MODEL_NAME  # Set to adapter path if using fine-tuned model
+MODEL_NAME = "Tristan-Day/ect_20251222_215412_v0uei7y1_2000"   # Set to adapter path if using fine-tuned model
 
 # Lists of datasets and meta_tasks to process (will iterate through all combinations)
 # Set to a single-item list for single runs, or multiple items to batch process
