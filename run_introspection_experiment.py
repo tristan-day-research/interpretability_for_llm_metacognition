@@ -85,8 +85,8 @@ load_dotenv()
 
 
 # Configuration
-BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B"
-# BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
+# BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B"
+BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
 
 
 MODEL_NAME = BASE_MODEL_NAME  # Set to adapter path if using fine-tuned model
@@ -3507,8 +3507,29 @@ def run_single_experiment(
         json.dump(results_to_save, f, indent=2)
     print(f"Saved results to {metric_prefix}_results.json")
 
-    # Print and plot results
-    print_results(results, behavioral, other_confidence_analysis)
+    # Print and plot results. Tee stdout so the human-readable summary is
+    # also saved to disk as `{metric_prefix}_results.txt`.
+    import sys as _sys
+
+    class _Tee:
+        def __init__(self, *streams):
+            self._streams = streams
+        def write(self, data):
+            for s in self._streams:
+                s.write(data)
+        def flush(self):
+            for s in self._streams:
+                s.flush()
+
+    _results_txt_path = f"{metric_prefix}_results.txt"
+    with open(_results_txt_path, "w") as _fh:
+        _orig_stdout = _sys.stdout
+        _sys.stdout = _Tee(_orig_stdout, _fh)
+        try:
+            print_results(results, behavioral, other_confidence_analysis)
+        finally:
+            _sys.stdout = _orig_stdout
+    print(f"Saved results summary to {_results_txt_path}")
     plot_results(
         results, behavioral,
         direct_target, test_idx,

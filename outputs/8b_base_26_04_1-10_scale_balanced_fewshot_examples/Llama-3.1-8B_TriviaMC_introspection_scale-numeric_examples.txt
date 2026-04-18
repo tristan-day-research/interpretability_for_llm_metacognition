@@ -1,0 +1,970 @@
+================================================================================
+Model: meta-llama/Llama-3.1-8B
+Dataset: TriviaMC   Meta task: confidence   Scale: numeric   is_base: True   use_chat_template: False
+Few-shot mode: fixed
+Showing first 10 of 800 examples.
+================================================================================
+
+================================================================================
+EXAMPLE 1 / 10   (id: triviamc_1243)
+================================================================================
+Question: In the poem ‘Monday’s Child’, what is Wednesday’s child full of?
+  A: Woe
+  B: Joy
+  C: Sorrow
+  D: Grace
+Correct answer: A
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: In the poem ‘Monday’s Child’, what is Wednesday’s child full of?
+  A: Woe
+  B: Joy
+  C: Sorrow
+  D: Grace
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.265  B=0.469  C=0.068  D=0.198
+Chosen (argmax): B   Correct? no
+Uncertainty: entropy=1.211  logit_gap=0.570  margin=0.204  top_prob=0.469
+
+--- META PROMPT (sent to model) ---
+For each question, rate your confidence from 1 (not confident at all) to 10 (completely sure) that you know the correct answer.
+
+Question: What is the capital of Australia?
+  A: Sydney
+  B: Melbourne
+  C: Canberra
+  D: Perth
+Confidence: 7
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Confidence: 10
+
+Question: In what year was the Magna Carta signed?
+  A: 1066
+  B: 1215
+  C: 1348
+  D: 1492
+Confidence: 4
+
+Question: What is the 21 trillionth digit of pi?
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+Confidence: 1
+
+Question: Who wrote the play 'Romeo and Juliet'?
+  A: Charles Dickens
+  B: William Shakespeare
+  C: Jane Austen
+  D: Mark Twain
+Confidence: 9
+
+Question: In the poem ‘Monday’s Child’, what is Wednesday’s child full of?
+  A: Woe
+  B: Joy
+  C: Sorrow
+  D: Grace
+Confidence:
+
+--- META RESPONSE ---
+Option probs: 1=0.149  2=0.127  3=0.116  4=0.073  5=0.102  6=0.073  7=0.098  8=0.078  9=0.044  10=0.140
+Chosen (argmax): 1
+Soft confidence (probability-weighted): 0.460
+
+================================================================================
+EXAMPLE 2 / 10   (id: triviamc_1866)
+================================================================================
+Question: Which city is the ‘de facto capital’ of the European Union?
+  A: Luxembourg City
+  B: Strasbourg
+  C: Frankfurt
+  D: Brussels
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: Which city is the ‘de facto capital’ of the European Union?
+  A: Luxembourg City
+  B: Strasbourg
+  C: Frankfurt
+  D: Brussels
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.006  B=0.008  C=0.007  D=0.978
+Chosen (argmax): D   Correct? YES
+Uncertainty: entropy=0.130  logit_gap=4.750  margin=0.970  top_prob=0.978
+
+--- META PROMPT (sent to model) ---
+For each question, rate your confidence from 1 (not confident at all) to 10 (completely sure) that you know the correct answer.
+
+Question: What is the 21 trillionth digit of pi?
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+Confidence: 1
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Confidence: 10
+
+Question: Who wrote the play 'Romeo and Juliet'?
+  A: Charles Dickens
+  B: William Shakespeare
+  C: Jane Austen
+  D: Mark Twain
+Confidence: 9
+
+Question: In what year was the Magna Carta signed?
+  A: 1066
+  B: 1215
+  C: 1348
+  D: 1492
+Confidence: 4
+
+Question: What is the capital of Australia?
+  A: Sydney
+  B: Melbourne
+  C: Canberra
+  D: Perth
+Confidence: 7
+
+Question: Which city is the ‘de facto capital’ of the European Union?
+  A: Luxembourg City
+  B: Strasbourg
+  C: Frankfurt
+  D: Brussels
+Confidence:
+
+--- META RESPONSE ---
+Option probs: 1=0.056  2=0.063  3=0.067  4=0.059  5=0.097  6=0.079  7=0.127  8=0.114  9=0.092  10=0.245
+Chosen (argmax): 10
+Soft confidence (probability-weighted): 0.616
+
+================================================================================
+EXAMPLE 3 / 10   (id: triviamc_2582)
+================================================================================
+Question: Who retired from the ‘Eggheads’ team in May 2014?
+  A: Daphne Fowler
+  B: Kevin Ashman
+  C: CJ de Mooi
+  D: Judith Keppel
+Correct answer: A
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: Who retired from the ‘Eggheads’ team in May 2014?
+  A: Daphne Fowler
+  B: Kevin Ashman
+  C: CJ de Mooi
+  D: Judith Keppel
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.265  B=0.192  C=0.312  D=0.232
+Chosen (argmax): C   Correct? no
+Uncertainty: entropy=1.371  logit_gap=0.164  margin=0.047  top_prob=0.312
+
+--- META PROMPT (sent to model) ---
+For each question, rate your confidence from 1 (not confident at all) to 10 (completely sure) that you know the correct answer.
+
+Question: What is the capital of Australia?
+  A: Sydney
+  B: Melbourne
+  C: Canberra
+  D: Perth
+Confidence: 7
+
+Question: Who wrote the play 'Romeo and Juliet'?
+  A: Charles Dickens
+  B: William Shakespeare
+  C: Jane Austen
+  D: Mark Twain
+Confidence: 9
+
+Question: What is the 21 trillionth digit of pi?
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+Confidence: 1
+
+Question: In what year was the Magna Carta signed?
+  A: 1066
+  B: 1215
+  C: 1348
+  D: 1492
+Confidence: 4
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Confidence: 10
+
+Question: Who retired from the ‘Eggheads’ team in May 2014?
+  A: Daphne Fowler
+  B: Kevin Ashman
+  C: CJ de Mooi
+  D: Judith Keppel
+Confidence:
+
+--- META RESPONSE ---
+Option probs: 1=0.159  2=0.120  3=0.109  4=0.084  5=0.090  6=0.065  7=0.068  8=0.077  9=0.048  10=0.180
+Chosen (argmax): 10
+Soft confidence (probability-weighted): 0.473
+
+================================================================================
+EXAMPLE 4 / 10   (id: triviamc_463)
+================================================================================
+Question: The Kray twins were convicted of the murder of George Cornell in the East End of London in 1966. What was the name of the pub in which he was shot?
+  A: The Ten Bells
+  B: The Prospect of Whitby
+  C: The George Tavern
+  D: The Blind Beggar
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: The Kray twins were convicted of the murder of George Cornell in the East End of London in 1966. What was the name of the pub in which he was shot?
+  A: The Ten Bells
+  B: The Prospect of Whitby
+  C: The George Tavern
+  D: The Blind Beggar
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.116  B=0.094  C=0.011  D=0.779
+Chosen (argmax): D   Correct? YES
+Uncertainty: entropy=0.716  logit_gap=1.906  margin=0.663  top_prob=0.779
+
+--- META PROMPT (sent to model) ---
+For each question, rate your confidence from 1 (not confident at all) to 10 (completely sure) that you know the correct answer.
+
+Question: In what year was the Magna Carta signed?
+  A: 1066
+  B: 1215
+  C: 1348
+  D: 1492
+Confidence: 4
+
+Question: What is the 21 trillionth digit of pi?
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+Confidence: 1
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Confidence: 10
+
+Question: Who wrote the play 'Romeo and Juliet'?
+  A: Charles Dickens
+  B: William Shakespeare
+  C: Jane Austen
+  D: Mark Twain
+Confidence: 9
+
+Question: What is the capital of Australia?
+  A: Sydney
+  B: Melbourne
+  C: Canberra
+  D: Perth
+Confidence: 7
+
+Question: The Kray twins were convicted of the murder of George Cornell in the East End of London in 1966. What was the name of the pub in which he was shot?
+  A: The Ten Bells
+  B: The Prospect of Whitby
+  C: The George Tavern
+  D: The Blind Beggar
+Confidence:
+
+--- META RESPONSE ---
+Option probs: 1=0.081  2=0.091  3=0.089  4=0.079  5=0.094  6=0.079  7=0.091  8=0.100  9=0.071  10=0.224
+Chosen (argmax): 10
+Soft confidence (probability-weighted): 0.561
+
+================================================================================
+EXAMPLE 5 / 10   (id: triviamc_850)
+================================================================================
+Question: Which British monarch famously said ‘I don’t wish to open windows into men’s souls’?
+  A: James I
+  B: Henry VIII
+  C: Elizabeth I
+  D: Charles I
+Correct answer: C
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: Which British monarch famously said ‘I don’t wish to open windows into men’s souls’?
+  A: James I
+  B: Henry VIII
+  C: Elizabeth I
+  D: Charles I
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.054  B=0.040  C=0.653  D=0.254
+Chosen (argmax): C   Correct? YES
+Uncertainty: entropy=0.912  logit_gap=0.945  margin=0.399  top_prob=0.653
+
+--- META PROMPT (sent to model) ---
+For each question, rate your confidence from 1 (not confident at all) to 10 (completely sure) that you know the correct answer.
+
+Question: In what year was the Magna Carta signed?
+  A: 1066
+  B: 1215
+  C: 1348
+  D: 1492
+Confidence: 4
+
+Question: Who wrote the play 'Romeo and Juliet'?
+  A: Charles Dickens
+  B: William Shakespeare
+  C: Jane Austen
+  D: Mark Twain
+Confidence: 9
+
+Question: What is the capital of Australia?
+  A: Sydney
+  B: Melbourne
+  C: Canberra
+  D: Perth
+Confidence: 7
+
+Question: What is the 21 trillionth digit of pi?
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+Confidence: 1
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Confidence: 10
+
+Question: Which British monarch famously said ‘I don’t wish to open windows into men’s souls’?
+  A: James I
+  B: Henry VIII
+  C: Elizabeth I
+  D: Charles I
+Confidence:
+
+--- META RESPONSE ---
+Option probs: 1=0.089  2=0.075  3=0.083  4=0.064  5=0.095  6=0.087  7=0.131  8=0.116  9=0.081  10=0.178
+Chosen (argmax): 10
+Soft confidence (probability-weighted): 0.560
+
+================================================================================
+EXAMPLE 6 / 10   (id: triviamc_1215)
+================================================================================
+Question: In cooking, 190 degrees Celsius is the equivalent to which Gas Mark?
+  A: 7
+  B: 4
+  C: 6
+  D: 5
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: In cooking, 190 degrees Celsius is the equivalent to which Gas Mark?
+  A: 7
+  B: 4
+  C: 6
+  D: 5
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.324  B=0.171  C=0.178  D=0.327
+Chosen (argmax): D   Correct? YES
+Uncertainty: entropy=1.340  logit_gap=0.008  margin=0.002  top_prob=0.327
+
+--- META PROMPT (sent to model) ---
+For each question, rate your confidence from 1 (not confident at all) to 10 (completely sure) that you know the correct answer.
+
+Question: What is the 21 trillionth digit of pi?
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+Confidence: 1
+
+Question: In what year was the Magna Carta signed?
+  A: 1066
+  B: 1215
+  C: 1348
+  D: 1492
+Confidence: 4
+
+Question: What is the capital of Australia?
+  A: Sydney
+  B: Melbourne
+  C: Canberra
+  D: Perth
+Confidence: 7
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Confidence: 10
+
+Question: Who wrote the play 'Romeo and Juliet'?
+  A: Charles Dickens
+  B: William Shakespeare
+  C: Jane Austen
+  D: Mark Twain
+Confidence: 9
+
+Question: In cooking, 190 degrees Celsius is the equivalent to which Gas Mark?
+  A: 7
+  B: 4
+  C: 6
+  D: 5
+Confidence:
+
+--- META RESPONSE ---
+Option probs: 1=0.098  2=0.089  3=0.093  4=0.092  5=0.096  6=0.079  7=0.094  8=0.099  9=0.059  10=0.202
+Chosen (argmax): 10
+Soft confidence (probability-weighted): 0.538
+
+================================================================================
+EXAMPLE 7 / 10   (id: triviamc_571)
+================================================================================
+Question: Scarlett O'Hara was not beautiful, but men seldom realised it when caught by her charm as the Tarleton twins were
+  A: Pride and Prejudice
+  B: Wuthering Heights
+  C: Jane Eyre
+  D: Gone with the Wind
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: Scarlett O'Hara was not beautiful, but men seldom realised it when caught by her charm as the Tarleton twins were
+  A: Pride and Prejudice
+  B: Wuthering Heights
+  C: Jane Eyre
+  D: Gone with the Wind
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.004  B=0.007  C=0.011  D=0.978
+Chosen (argmax): D   Correct? YES
+Uncertainty: entropy=0.128  logit_gap=4.484  margin=0.967  top_prob=0.978
+
+--- META PROMPT (sent to model) ---
+For each question, rate your confidence from 1 (not confident at all) to 10 (completely sure) that you know the correct answer.
+
+Question: Who wrote the play 'Romeo and Juliet'?
+  A: Charles Dickens
+  B: William Shakespeare
+  C: Jane Austen
+  D: Mark Twain
+Confidence: 9
+
+Question: What is the 21 trillionth digit of pi?
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+Confidence: 1
+
+Question: In what year was the Magna Carta signed?
+  A: 1066
+  B: 1215
+  C: 1348
+  D: 1492
+Confidence: 4
+
+Question: What is the capital of Australia?
+  A: Sydney
+  B: Melbourne
+  C: Canberra
+  D: Perth
+Confidence: 7
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Confidence: 10
+
+Question: Scarlett O'Hara was not beautiful, but men seldom realised it when caught by her charm as the Tarleton twins were
+  A: Pride and Prejudice
+  B: Wuthering Heights
+  C: Jane Eyre
+  D: Gone with the Wind
+Confidence:
+
+--- META RESPONSE ---
+Option probs: 1=0.066  2=0.071  3=0.082  4=0.073  5=0.112  6=0.097  7=0.132  8=0.132  9=0.071  10=0.164
+Chosen (argmax): 10
+Soft confidence (probability-weighted): 0.565
+
+================================================================================
+EXAMPLE 8 / 10   (id: triviamc_132)
+================================================================================
+Question: Which film director guested as the FBI Director in The Silence of the Lambs?
+  A: Brian De Palma
+  B: Martin Scorsese
+  C: Roger Corman
+  D: Francis Ford Coppola
+Correct answer: C
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: Which film director guested as the FBI Director in The Silence of the Lambs?
+  A: Brian De Palma
+  B: Martin Scorsese
+  C: Roger Corman
+  D: Francis Ford Coppola
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.303  B=0.122  C=0.274  D=0.301
+Chosen (argmax): A   Correct? no
+Uncertainty: entropy=1.334  logit_gap=0.008  margin=0.002  top_prob=0.303
+
+--- META PROMPT (sent to model) ---
+For each question, rate your confidence from 1 (not confident at all) to 10 (completely sure) that you know the correct answer.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Confidence: 10
+
+Question: What is the 21 trillionth digit of pi?
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+Confidence: 1
+
+Question: Who wrote the play 'Romeo and Juliet'?
+  A: Charles Dickens
+  B: William Shakespeare
+  C: Jane Austen
+  D: Mark Twain
+Confidence: 9
+
+Question: What is the capital of Australia?
+  A: Sydney
+  B: Melbourne
+  C: Canberra
+  D: Perth
+Confidence: 7
+
+Question: In what year was the Magna Carta signed?
+  A: 1066
+  B: 1215
+  C: 1348
+  D: 1492
+Confidence: 4
+
+Question: Which film director guested as the FBI Director in The Silence of the Lambs?
+  A: Brian De Palma
+  B: Martin Scorsese
+  C: Roger Corman
+  D: Francis Ford Coppola
+Confidence:
+
+--- META RESPONSE ---
+Option probs: 1=0.086  2=0.112  3=0.099  4=0.093  5=0.105  6=0.084  7=0.108  8=0.097  9=0.049  10=0.167
+Chosen (argmax): 10
+Soft confidence (probability-weighted): 0.514
+
+================================================================================
+EXAMPLE 9 / 10   (id: triviamc_2113)
+================================================================================
+Question: Sofia Helin returned on BBC4 in the third series of which Scandinavian drama?
+  A: Wallander
+  B: The Bridge
+  C: Borgen
+  D: The Killing
+Correct answer: B
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: Sofia Helin returned on BBC4 in the third series of which Scandinavian drama?
+  A: Wallander
+  B: The Bridge
+  C: Borgen
+  D: The Killing
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.221  B=0.382  C=0.147  D=0.250
+Chosen (argmax): B   Correct? YES
+Uncertainty: entropy=1.330  logit_gap=0.422  margin=0.131  top_prob=0.382
+
+--- META PROMPT (sent to model) ---
+For each question, rate your confidence from 1 (not confident at all) to 10 (completely sure) that you know the correct answer.
+
+Question: Who wrote the play 'Romeo and Juliet'?
+  A: Charles Dickens
+  B: William Shakespeare
+  C: Jane Austen
+  D: Mark Twain
+Confidence: 9
+
+Question: What is the capital of Australia?
+  A: Sydney
+  B: Melbourne
+  C: Canberra
+  D: Perth
+Confidence: 7
+
+Question: In what year was the Magna Carta signed?
+  A: 1066
+  B: 1215
+  C: 1348
+  D: 1492
+Confidence: 4
+
+Question: What is the 21 trillionth digit of pi?
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+Confidence: 1
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Confidence: 10
+
+Question: Sofia Helin returned on BBC4 in the third series of which Scandinavian drama?
+  A: Wallander
+  B: The Bridge
+  C: Borgen
+  D: The Killing
+Confidence:
+
+--- META RESPONSE ---
+Option probs: 1=0.071  2=0.064  3=0.071  4=0.066  5=0.090  6=0.072  7=0.132  8=0.118  9=0.099  10=0.218
+Chosen (argmax): 10
+Soft confidence (probability-weighted): 0.599
+
+================================================================================
+EXAMPLE 10 / 10   (id: triviamc_2124)
+================================================================================
+Question: Which company was built into a world-wide organisation by Ray Kroc?
+  A: McDonald's
+  B: Kentucky Fried Chicken
+  C: Wendy's
+  D: Burger King
+Correct answer: A
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: Which company was built into a world-wide organisation by Ray Kroc?
+  A: McDonald's
+  B: Kentucky Fried Chicken
+  C: Wendy's
+  D: Burger King
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.993  B=0.003  C=0.002  D=0.002
+Chosen (argmax): A   Correct? YES
+Uncertainty: entropy=0.050  logit_gap=5.668  margin=0.989  top_prob=0.993
+
+--- META PROMPT (sent to model) ---
+For each question, rate your confidence from 1 (not confident at all) to 10 (completely sure) that you know the correct answer.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Confidence: 10
+
+Question: Who wrote the play 'Romeo and Juliet'?
+  A: Charles Dickens
+  B: William Shakespeare
+  C: Jane Austen
+  D: Mark Twain
+Confidence: 9
+
+Question: In what year was the Magna Carta signed?
+  A: 1066
+  B: 1215
+  C: 1348
+  D: 1492
+Confidence: 4
+
+Question: What is the 21 trillionth digit of pi?
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+Confidence: 1
+
+Question: What is the capital of Australia?
+  A: Sydney
+  B: Melbourne
+  C: Canberra
+  D: Perth
+Confidence: 7
+
+Question: Which company was built into a world-wide organisation by Ray Kroc?
+  A: McDonald's
+  B: Kentucky Fried Chicken
+  C: Wendy's
+  D: Burger King
+Confidence:
+
+--- META RESPONSE ---
+Option probs: 1=0.047  2=0.045  3=0.055  4=0.053  5=0.103  6=0.099  7=0.156  8=0.142  9=0.078  10=0.221
+Chosen (argmax): 10
+Soft confidence (probability-weighted): 0.627
+
+================================================================================
+END
+================================================================================
