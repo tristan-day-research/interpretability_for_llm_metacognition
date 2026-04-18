@@ -208,15 +208,21 @@ def format_numeric_confidence_prompt(
     tokenizer,
     use_chat_template: bool = True,
 ) -> Tuple[str, List[str]]:
-    """Format a numeric (1-9) stated-confidence meta-question for instruct/finetuned models.
+    """Format a numeric (1-10) stated-confidence meta-question for instruct/finetuned models.
 
     Uses the tokenizer's chat template when available so instruct models see
     the prompt the way they were trained to see user messages.
+
+    Note: we intentionally DO NOT render per-bin percentage labels inline; the
+    endpoint anchors ("1 = not confident at all, 10 = completely sure") in the
+    setup text are the only framing the model sees. The
+    NUMERIC_CONFIDENCE_MIDPOINTS mapping is still used internally to compute
+    the soft-signal scalar from the model's probability distribution.
     """
     q_text = _format_nested_question(
         question,
         NUMERIC_CONFIDENCE_QUESTION,
-        NUMERIC_CONFIDENCE_OPTIONS,
+        {},  # no per-bin labels rendered
     )
     options = list(NUMERIC_CONFIDENCE_OPTIONS.keys())
     llm_prompt = (
