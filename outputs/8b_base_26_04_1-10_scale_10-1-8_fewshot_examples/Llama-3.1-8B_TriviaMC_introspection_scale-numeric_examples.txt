@@ -1,0 +1,830 @@
+================================================================================
+Model: meta-llama/Llama-3.1-8B
+Dataset: TriviaMC   Meta task: confidence   Scale: numeric   is_base: True   use_chat_template: False
+Few-shot mode: fixed
+Showing first 10 of 800 examples.
+================================================================================
+
+================================================================================
+EXAMPLE 1 / 10   (id: triviamc_168)
+================================================================================
+Question: The Naismith Award is presented in which sport?
+  A: Baseball
+  B: Football
+  C: Hockey
+  D: Basketball
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: The Naismith Award is presented in which sport?
+  A: Baseball
+  B: Football
+  C: Hockey
+  D: Basketball
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.003  B=0.005  C=0.020  D=0.972
+Chosen (argmax): D   Correct? YES
+Uncertainty: entropy=0.148  logit_gap=3.875  margin=0.952  top_prob=0.972
+
+--- META PROMPT (sent to model) ---
+For each question, rate your confidence from 1 (not confident at all) to 10 (completely sure) that you know the correct answer.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Confidence: 10
+
+Question: What is the 21 trillionth digit of pi?
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+Confidence: 1
+
+Question: Who wrote the novel 'War and Peace'?
+  A: Charles Dickens
+  B: Leo Tolstoy
+  C: Mark Twain
+  D: Jane Austen
+Confidence: 8
+
+Question: The Naismith Award is presented in which sport?
+  A: Baseball
+  B: Football
+  C: Hockey
+  D: Basketball
+Confidence:
+
+--- META RESPONSE ---
+Option probs: 1=0.051  2=0.034  3=0.038  4=0.040  5=0.066  6=0.049  7=0.102  8=0.076  9=0.094  10=0.447
+Chosen (argmax): 10
+Soft confidence (probability-weighted): 0.717
+
+================================================================================
+EXAMPLE 2 / 10   (id: triviamc_1580)
+================================================================================
+Question: Which ‘S’ is a group of geese in flight?
+  A: String
+  B: Skein
+  C: Swarm
+  D: Squadron
+Correct answer: B
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: Which ‘S’ is a group of geese in flight?
+  A: String
+  B: Skein
+  C: Swarm
+  D: Squadron
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.031  B=0.267  C=0.017  D=0.686
+Chosen (argmax): D   Correct? no
+Uncertainty: entropy=0.786  logit_gap=0.945  margin=0.419  top_prob=0.686
+
+--- META PROMPT (sent to model) ---
+For each question, rate your confidence from 1 (not confident at all) to 10 (completely sure) that you know the correct answer.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Confidence: 10
+
+Question: What is the 21 trillionth digit of pi?
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+Confidence: 1
+
+Question: Who wrote the novel 'War and Peace'?
+  A: Charles Dickens
+  B: Leo Tolstoy
+  C: Mark Twain
+  D: Jane Austen
+Confidence: 8
+
+Question: Which ‘S’ is a group of geese in flight?
+  A: String
+  B: Skein
+  C: Swarm
+  D: Squadron
+Confidence:
+
+--- META RESPONSE ---
+Option probs: 1=0.090  2=0.070  3=0.067  4=0.064  5=0.093  6=0.063  7=0.107  8=0.061  9=0.076  10=0.308
+Chosen (argmax): 10
+Soft confidence (probability-weighted): 0.603
+
+================================================================================
+EXAMPLE 3 / 10   (id: triviamc_563)
+================================================================================
+Question: Gjetost is the national cheese of which country?
+  A: Norway
+  B: Switzerland
+  C: Denmark
+  D: Sweden
+Correct answer: A
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: Gjetost is the national cheese of which country?
+  A: Norway
+  B: Switzerland
+  C: Denmark
+  D: Sweden
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.987  B=0.004  C=0.003  D=0.006
+Chosen (argmax): A   Correct? YES
+Uncertainty: entropy=0.080  logit_gap=5.074  margin=0.981  top_prob=0.987
+
+--- META PROMPT (sent to model) ---
+For each question, rate your confidence from 1 (not confident at all) to 10 (completely sure) that you know the correct answer.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Confidence: 10
+
+Question: What is the 21 trillionth digit of pi?
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+Confidence: 1
+
+Question: Who wrote the novel 'War and Peace'?
+  A: Charles Dickens
+  B: Leo Tolstoy
+  C: Mark Twain
+  D: Jane Austen
+Confidence: 8
+
+Question: Gjetost is the national cheese of which country?
+  A: Norway
+  B: Switzerland
+  C: Denmark
+  D: Sweden
+Confidence:
+
+--- META RESPONSE ---
+Option probs: 1=0.125  2=0.095  3=0.083  4=0.073  5=0.099  6=0.062  7=0.104  8=0.055  9=0.055  10=0.249
+Chosen (argmax): 10
+Soft confidence (probability-weighted): 0.538
+
+================================================================================
+EXAMPLE 4 / 10   (id: triviamc_245)
+================================================================================
+Question: How was President Kennedy assassinated?
+  A: Poisoned
+  B: Strangled
+  C: Stabbed
+  D: Shot
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: How was President Kennedy assassinated?
+  A: Poisoned
+  B: Strangled
+  C: Stabbed
+  D: Shot
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.002  B=0.004  C=0.007  D=0.987
+Chosen (argmax): D   Correct? YES
+Uncertainty: entropy=0.080  logit_gap=4.969  margin=0.980  top_prob=0.987
+
+--- META PROMPT (sent to model) ---
+For each question, rate your confidence from 1 (not confident at all) to 10 (completely sure) that you know the correct answer.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Confidence: 10
+
+Question: What is the 21 trillionth digit of pi?
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+Confidence: 1
+
+Question: Who wrote the novel 'War and Peace'?
+  A: Charles Dickens
+  B: Leo Tolstoy
+  C: Mark Twain
+  D: Jane Austen
+Confidence: 8
+
+Question: How was President Kennedy assassinated?
+  A: Poisoned
+  B: Strangled
+  C: Stabbed
+  D: Shot
+Confidence:
+
+--- META RESPONSE ---
+Option probs: 1=0.065  2=0.048  3=0.050  4=0.047  5=0.077  6=0.056  7=0.098  8=0.066  9=0.096  10=0.397
+Chosen (argmax): 10
+Soft confidence (probability-weighted): 0.677
+
+================================================================================
+EXAMPLE 5 / 10   (id: triviamc_262)
+================================================================================
+Question: What is the name of the cathedral in Red Square, Moscow?
+  A: Dormition Cathedral
+  B: St. Basil's Cathedral
+  C: Cathedral of Christ the Saviour
+  D: Kazan Cathedral
+Correct answer: B
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: What is the name of the cathedral in Red Square, Moscow?
+  A: Dormition Cathedral
+  B: St. Basil's Cathedral
+  C: Cathedral of Christ the Saviour
+  D: Kazan Cathedral
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.114  B=0.757  C=0.093  D=0.036
+Chosen (argmax): B   Correct? YES
+Uncertainty: entropy=0.799  logit_gap=1.891  margin=0.643  top_prob=0.757
+
+--- META PROMPT (sent to model) ---
+For each question, rate your confidence from 1 (not confident at all) to 10 (completely sure) that you know the correct answer.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Confidence: 10
+
+Question: What is the 21 trillionth digit of pi?
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+Confidence: 1
+
+Question: Who wrote the novel 'War and Peace'?
+  A: Charles Dickens
+  B: Leo Tolstoy
+  C: Mark Twain
+  D: Jane Austen
+Confidence: 8
+
+Question: What is the name of the cathedral in Red Square, Moscow?
+  A: Dormition Cathedral
+  B: St. Basil's Cathedral
+  C: Cathedral of Christ the Saviour
+  D: Kazan Cathedral
+Confidence:
+
+--- META RESPONSE ---
+Option probs: 1=0.061  2=0.060  3=0.063  4=0.069  5=0.097  6=0.078  7=0.130  8=0.062  9=0.077  10=0.302
+Chosen (argmax): 10
+Soft confidence (probability-weighted): 0.622
+
+================================================================================
+EXAMPLE 6 / 10   (id: triviamc_730)
+================================================================================
+Question: What type of bird was the first released by Noah?
+  A: Dove
+  B: Eagle
+  C: Sparrow
+  D: Raven
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: What type of bird was the first released by Noah?
+  A: Dove
+  B: Eagle
+  C: Sparrow
+  D: Raven
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.938  B=0.019  C=0.011  D=0.032
+Chosen (argmax): A   Correct? no
+Uncertainty: entropy=0.295  logit_gap=3.387  margin=0.906  top_prob=0.938
+
+--- META PROMPT (sent to model) ---
+For each question, rate your confidence from 1 (not confident at all) to 10 (completely sure) that you know the correct answer.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Confidence: 10
+
+Question: What is the 21 trillionth digit of pi?
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+Confidence: 1
+
+Question: Who wrote the novel 'War and Peace'?
+  A: Charles Dickens
+  B: Leo Tolstoy
+  C: Mark Twain
+  D: Jane Austen
+Confidence: 8
+
+Question: What type of bird was the first released by Noah?
+  A: Dove
+  B: Eagle
+  C: Sparrow
+  D: Raven
+Confidence:
+
+--- META RESPONSE ---
+Option probs: 1=0.130  2=0.084  3=0.073  4=0.065  5=0.091  6=0.054  7=0.094  8=0.047  9=0.063  10=0.299
+Chosen (argmax): 10
+Soft confidence (probability-weighted): 0.565
+
+================================================================================
+EXAMPLE 7 / 10   (id: triviamc_2267)
+================================================================================
+Question: The Philtrum is located precisely where on the human body?
+  A: Between nose and upper lip
+  B: Behind the earlobe
+  C: Between lower lip and chin
+  D: Between the eyebrows
+Correct answer: A
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: The Philtrum is located precisely where on the human body?
+  A: Between nose and upper lip
+  B: Behind the earlobe
+  C: Between lower lip and chin
+  D: Between the eyebrows
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.974  B=0.006  C=0.008  D=0.011
+Chosen (argmax): A   Correct? YES
+Uncertainty: entropy=0.148  logit_gap=4.441  margin=0.963  top_prob=0.974
+
+--- META PROMPT (sent to model) ---
+For each question, rate your confidence from 1 (not confident at all) to 10 (completely sure) that you know the correct answer.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Confidence: 10
+
+Question: What is the 21 trillionth digit of pi?
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+Confidence: 1
+
+Question: Who wrote the novel 'War and Peace'?
+  A: Charles Dickens
+  B: Leo Tolstoy
+  C: Mark Twain
+  D: Jane Austen
+Confidence: 8
+
+Question: The Philtrum is located precisely where on the human body?
+  A: Between nose and upper lip
+  B: Behind the earlobe
+  C: Between lower lip and chin
+  D: Between the eyebrows
+Confidence:
+
+--- META RESPONSE ---
+Option probs: 1=0.111  2=0.084  3=0.076  4=0.071  5=0.097  6=0.062  7=0.105  8=0.051  9=0.061  10=0.281
+Chosen (argmax): 10
+Soft confidence (probability-weighted): 0.566
+
+================================================================================
+EXAMPLE 8 / 10   (id: triviamc_2637)
+================================================================================
+Question: Who presented the 1980 blockbuster documentary series, Cosmos: A Personal Voyage?
+  A: Carl Sagan
+  B: David Attenborough
+  C: Neil deGrasse Tyson
+  D: Jacob Bronowski
+Correct answer: A
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: Who presented the 1980 blockbuster documentary series, Cosmos: A Personal Voyage?
+  A: Carl Sagan
+  B: David Attenborough
+  C: Neil deGrasse Tyson
+  D: Jacob Bronowski
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.969  B=0.005  C=0.020  D=0.006
+Chosen (argmax): A   Correct? YES
+Uncertainty: entropy=0.165  logit_gap=3.871  margin=0.949  top_prob=0.969
+
+--- META PROMPT (sent to model) ---
+For each question, rate your confidence from 1 (not confident at all) to 10 (completely sure) that you know the correct answer.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Confidence: 10
+
+Question: What is the 21 trillionth digit of pi?
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+Confidence: 1
+
+Question: Who wrote the novel 'War and Peace'?
+  A: Charles Dickens
+  B: Leo Tolstoy
+  C: Mark Twain
+  D: Jane Austen
+Confidence: 8
+
+Question: Who presented the 1980 blockbuster documentary series, Cosmos: A Personal Voyage?
+  A: Carl Sagan
+  B: David Attenborough
+  C: Neil deGrasse Tyson
+  D: Jacob Bronowski
+Confidence:
+
+--- META RESPONSE ---
+Option probs: 1=0.024  2=0.018  3=0.022  4=0.029  5=0.051  6=0.044  7=0.096  8=0.066  9=0.115  10=0.536
+Chosen (argmax): 10
+Soft confidence (probability-weighted): 0.785
+
+================================================================================
+EXAMPLE 9 / 10   (id: triviamc_1640)
+================================================================================
+Question: What is the name of the character played by actor Nicholas Lyndhurst in the British television series ‘Goodnight Sweetheart’?
+  A: Donald Bamford
+  B: Reg Deadman
+  C: Ron Wheatcroft
+  D: Gary Sparrow
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: What is the name of the character played by actor Nicholas Lyndhurst in the British television series ‘Goodnight Sweetheart’?
+  A: Donald Bamford
+  B: Reg Deadman
+  C: Ron Wheatcroft
+  D: Gary Sparrow
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.035  B=0.090  C=0.020  D=0.855
+Chosen (argmax): D   Correct? YES
+Uncertainty: entropy=0.547  logit_gap=2.250  margin=0.765  top_prob=0.855
+
+--- META PROMPT (sent to model) ---
+For each question, rate your confidence from 1 (not confident at all) to 10 (completely sure) that you know the correct answer.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Confidence: 10
+
+Question: What is the 21 trillionth digit of pi?
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+Confidence: 1
+
+Question: Who wrote the novel 'War and Peace'?
+  A: Charles Dickens
+  B: Leo Tolstoy
+  C: Mark Twain
+  D: Jane Austen
+Confidence: 8
+
+Question: What is the name of the character played by actor Nicholas Lyndhurst in the British television series ‘Goodnight Sweetheart’?
+  A: Donald Bamford
+  B: Reg Deadman
+  C: Ron Wheatcroft
+  D: Gary Sparrow
+Confidence:
+
+--- META RESPONSE ---
+Option probs: 1=0.075  2=0.066  3=0.067  4=0.069  5=0.098  6=0.073  7=0.121  8=0.067  9=0.074  10=0.292
+Chosen (argmax): 10
+Soft confidence (probability-weighted): 0.606
+
+================================================================================
+EXAMPLE 10 / 10   (id: triviamc_864)
+================================================================================
+Question: What is a positively charged ion called?
+  A: Electron
+  B: Anion
+  C: Neutron
+  D: Cation
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: What is a positively charged ion called?
+  A: Electron
+  B: Anion
+  C: Neutron
+  D: Cation
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.002  B=0.006  C=0.006  D=0.986
+Chosen (argmax): D   Correct? YES
+Uncertainty: entropy=0.088  logit_gap=5.062  margin=0.979  top_prob=0.986
+
+--- META PROMPT (sent to model) ---
+For each question, rate your confidence from 1 (not confident at all) to 10 (completely sure) that you know the correct answer.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Confidence: 10
+
+Question: What is the 21 trillionth digit of pi?
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+Confidence: 1
+
+Question: Who wrote the novel 'War and Peace'?
+  A: Charles Dickens
+  B: Leo Tolstoy
+  C: Mark Twain
+  D: Jane Austen
+Confidence: 8
+
+Question: What is a positively charged ion called?
+  A: Electron
+  B: Anion
+  C: Neutron
+  D: Cation
+Confidence:
+
+--- META RESPONSE ---
+Option probs: 1=0.069  2=0.044  3=0.046  4=0.044  5=0.073  6=0.051  7=0.092  8=0.079  9=0.079  10=0.422
+Chosen (argmax): 10
+Soft confidence (probability-weighted): 0.686
+
+================================================================================
+END
+================================================================================

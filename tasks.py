@@ -251,31 +251,67 @@ def get_numeric_confidence_response(probs: np.ndarray) -> str:
     return options[int(np.argmax(probs))]
 
 
-# Base (non-instruct) few-shot prefix — calibrated exemplars on the 1-10 scale.
-BASE_NUMERIC_CONFIDENCE_FEW_SHOT = """For each question, rate your confidence from 1 (not confident at all) to 10 (completely sure) that you know the correct answer.
+# Base (non-instruct) few-shot exemplars — graded-difficulty (10 → 9 → 7 → 4 → 1).
+# Difficulty and confidence co-vary smoothly so the model sees a coherent pattern:
+# harder-looking question ⇒ lower confidence number. MC distractors match the
+# difficulty tier (trivial question has clearly-wrong distractors; harder
+# questions have plausible ones). Order is shuffled per prompt to avoid any
+# positional attention confound (e.g., model favoring the label value of the
+# last exemplar).
+NUMERIC_CONFIDENCE_EXEMPLARS = [
+    {
+        "question": "What planet is known as the Red Planet?",
+        "options": {"A": "Venus", "B": "Mars", "C": "Jupiter", "D": "Saturn"},
+        "confidence": "10",
+    },
+    {
+        "question": "Who wrote the play 'Romeo and Juliet'?",
+        "options": {"A": "Charles Dickens", "B": "William Shakespeare",
+                    "C": "Jane Austen", "D": "Mark Twain"},
+        "confidence": "9",
+    },
+    {
+        "question": "What is the capital of Australia?",
+        "options": {"A": "Sydney", "B": "Melbourne", "C": "Canberra", "D": "Perth"},
+        "confidence": "7",
+    },
+    {
+        "question": "In what year was the Magna Carta signed?",
+        "options": {"A": "1066", "B": "1215", "C": "1348", "D": "1492"},
+        "confidence": "4",
+    },
+    {
+        "question": "What is the 21 trillionth digit of pi?",
+        "options": {"A": "3", "B": "7", "C": "1", "D": "9"},
+        "confidence": "1",
+    },
+]
 
-Question: What planet is known as the Red Planet?
-  A: Venus
-  B: Mars
-  C: Jupiter
-  D: Saturn
-Confidence: 10
 
-Question: What is the 21 trillionth digit of pi?
-  A: 3
-  B: 7
-  C: 1
-  D: 9
-Confidence: 1
+def _format_numeric_confidence_few_shot(shuffle: bool = True) -> str:
+    """Build the numeric-scale few-shot prefix, optionally shuffling exemplar order.
 
-Question: Who wrote the novel 'War and Peace'?
-  A: Charles Dickens
-  B: Leo Tolstoy
-  C: Mark Twain
-  D: Jane Austen
-Confidence: 8
+    Uses the module-level ``random`` state so the shuffle is reproducible given
+    a fixed seed at script start.
+    """
+    exemplars = list(NUMERIC_CONFIDENCE_EXEMPLARS)
+    if shuffle:
+        random.shuffle(exemplars)
+    prefix = (
+        "For each question, rate your confidence from 1 (not confident at all) "
+        "to 10 (completely sure) that you know the correct answer.\n\n"
+    )
+    for ex in exemplars:
+        prefix += "Question: " + ex["question"] + "\n"
+        for key, value in ex["options"].items():
+            prefix += f"  {key}: {value}\n"
+        prefix += "Confidence: " + ex["confidence"] + "\n\n"
+    return prefix
 
-"""
+
+# Convenience: canonical (un-shuffled) prefix string for docs / quick inspection.
+# NOT used by format_numeric_confidence_prompt_base — that function shuffles per call.
+BASE_NUMERIC_CONFIDENCE_FEW_SHOT = _format_numeric_confidence_few_shot(shuffle=False)
 
 
 def format_numeric_confidence_prompt_base(
@@ -297,7 +333,8 @@ def format_numeric_confidence_prompt_base(
             "to 10 (completely sure) that you know the correct answer.\n\n"
         )
     elif mode == "fixed":
-        prefix = BASE_NUMERIC_CONFIDENCE_FEW_SHOT
+        # Order-shuffled each call to avoid positional attention confounds.
+        prefix = _format_numeric_confidence_few_shot(shuffle=True)
     else:
         raise ValueError(
             f"mode={mode!r} not supported for numeric scale yet. "
