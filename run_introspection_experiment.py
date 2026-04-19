@@ -3754,8 +3754,26 @@ def run_single_experiment(
                     if isinstance(v, np.ndarray):
                         inner[k] = v.tolist()
 
+    class _NumpyJSONEncoder(json.JSONEncoder):
+        """Encoder that handles numpy scalars/arrays without explicit pre-conversion.
+
+        Needed because behavioral / calibration_split / mc_answer_probe subtrees
+        can contain np.float32/np.int64 scalars (especially when direct metrics
+        were loaded from disk via _load_mc_data_for_reuse).
+        """
+        def default(self, o):
+            if isinstance(o, np.ndarray):
+                return o.tolist()
+            if isinstance(o, (np.floating,)):
+                return float(o)
+            if isinstance(o, (np.integer,)):
+                return int(o)
+            if isinstance(o, (np.bool_,)):
+                return bool(o)
+            return super().default(o)
+
     with open(f"{metric_prefix}_results.json", "w") as f:
-        json.dump(results_to_save, f, indent=2)
+        json.dump(results_to_save, f, indent=2, cls=_NumpyJSONEncoder)
     print(f"Saved results to {metric_prefix}_results.json")
 
     # Print and plot results. Tee stdout so the human-readable summary is
