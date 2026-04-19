@@ -1,0 +1,679 @@
+================================================================================
+Model: meta-llama/Llama-3.1-8B-Instruct
+Dataset: TriviaMC   Meta task: confidence   Scale: numeric   is_base: False   use_chat_template: True
+Showing first 10 of 800 examples.
+================================================================================
+
+================================================================================
+EXAMPLE 1 / 10   (id: triviamc_168)
+================================================================================
+Question: The Naismith Award is presented in which sport?
+  A: Baseball
+  B: Football
+  C: Hockey
+  D: Basketball
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+The Naismith Award is presented in which sport?
+----------
+  A: Baseball
+  B: Football
+  C: Hockey
+  D: Basketball
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.000  B=0.000  C=0.000  D=1.000
+Chosen (argmax): D   Correct? YES
+Uncertainty: entropy=0.004  logit_gap=8.344  margin=1.000  top_prob=1.000
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to show you a question, and I want you to tell me your level of confidence that you know the correct answer to this question, on a scale of 1 to 10 where 1 means "not confident at all" and 10 means "completely sure". Respond only with a number from 1 to 10; do NOT output any other text.
+
+------------------------------
+How confident are you that you know the correct answer (1-10)?
+----------
+The Naismith Award is presented in which sport?
+  A: Baseball
+  B: Football
+  C: Hockey
+  D: Basketball
+----------
+------------------------------
+Your choice (1-10):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: 1=0.000  2=0.001  3=0.001  4=0.002  5=0.006  6=0.037  7=0.064  8=0.494  9=0.245  10=0.151
+Chosen (argmax): 8
+Soft confidence (probability-weighted): 0.787
+
+================================================================================
+EXAMPLE 2 / 10   (id: triviamc_1580)
+================================================================================
+Question: Which ‘S’ is a group of geese in flight?
+  A: String
+  B: Skein
+  C: Swarm
+  D: Squadron
+Correct answer: B
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+Which ‘S’ is a group of geese in flight?
+----------
+  A: String
+  B: Skein
+  C: Swarm
+  D: Squadron
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.000  B=0.999  C=0.000  D=0.000
+Chosen (argmax): B   Correct? YES
+Uncertainty: entropy=0.008  logit_gap=7.953  margin=0.999  top_prob=0.999
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to show you a question, and I want you to tell me your level of confidence that you know the correct answer to this question, on a scale of 1 to 10 where 1 means "not confident at all" and 10 means "completely sure". Respond only with a number from 1 to 10; do NOT output any other text.
+
+------------------------------
+How confident are you that you know the correct answer (1-10)?
+----------
+Which ‘S’ is a group of geese in flight?
+  A: String
+  B: Skein
+  C: Swarm
+  D: Squadron
+----------
+------------------------------
+Your choice (1-10):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: 1=0.000  2=0.003  3=0.002  4=0.003  5=0.014  6=0.077  7=0.103  8=0.559  9=0.206  10=0.034
+Chosen (argmax): 8
+Soft confidence (probability-weighted): 0.743
+
+================================================================================
+EXAMPLE 3 / 10   (id: triviamc_563)
+================================================================================
+Question: Gjetost is the national cheese of which country?
+  A: Norway
+  B: Switzerland
+  C: Denmark
+  D: Sweden
+Correct answer: A
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+Gjetost is the national cheese of which country?
+----------
+  A: Norway
+  B: Switzerland
+  C: Denmark
+  D: Sweden
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=1.000  B=0.000  C=0.000  D=0.000
+Chosen (argmax): A   Correct? YES
+Uncertainty: entropy=0.000  logit_gap=11.688  margin=1.000  top_prob=1.000
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to show you a question, and I want you to tell me your level of confidence that you know the correct answer to this question, on a scale of 1 to 10 where 1 means "not confident at all" and 10 means "completely sure". Respond only with a number from 1 to 10; do NOT output any other text.
+
+------------------------------
+How confident are you that you know the correct answer (1-10)?
+----------
+Gjetost is the national cheese of which country?
+  A: Norway
+  B: Switzerland
+  C: Denmark
+  D: Sweden
+----------
+------------------------------
+Your choice (1-10):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: 1=0.000  2=0.001  3=0.001  4=0.001  5=0.009  6=0.058  7=0.090  8=0.622  9=0.173  10=0.046
+Chosen (argmax): 8
+Soft confidence (probability-weighted): 0.752
+
+================================================================================
+EXAMPLE 4 / 10   (id: triviamc_245)
+================================================================================
+Question: How was President Kennedy assassinated?
+  A: Poisoned
+  B: Strangled
+  C: Stabbed
+  D: Shot
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+How was President Kennedy assassinated?
+----------
+  A: Poisoned
+  B: Strangled
+  C: Stabbed
+  D: Shot
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.000  B=0.000  C=0.000  D=1.000
+Chosen (argmax): D   Correct? YES
+Uncertainty: entropy=0.001  logit_gap=9.484  margin=1.000  top_prob=1.000
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to show you a question, and I want you to tell me your level of confidence that you know the correct answer to this question, on a scale of 1 to 10 where 1 means "not confident at all" and 10 means "completely sure". Respond only with a number from 1 to 10; do NOT output any other text.
+
+------------------------------
+How confident are you that you know the correct answer (1-10)?
+----------
+How was President Kennedy assassinated?
+  A: Poisoned
+  B: Strangled
+  C: Stabbed
+  D: Shot
+----------
+------------------------------
+Your choice (1-10):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: 1=0.000  2=0.001  3=0.000  4=0.000  5=0.002  6=0.010  7=0.015  8=0.201  9=0.302  10=0.468
+Chosen (argmax): 10
+Soft confidence (probability-weighted): 0.869
+
+================================================================================
+EXAMPLE 5 / 10   (id: triviamc_262)
+================================================================================
+Question: What is the name of the cathedral in Red Square, Moscow?
+  A: Dormition Cathedral
+  B: St. Basil's Cathedral
+  C: Cathedral of Christ the Saviour
+  D: Kazan Cathedral
+Correct answer: B
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+What is the name of the cathedral in Red Square, Moscow?
+----------
+  A: Dormition Cathedral
+  B: St. Basil's Cathedral
+  C: Cathedral of Christ the Saviour
+  D: Kazan Cathedral
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.012  B=0.974  C=0.010  D=0.004
+Chosen (argmax): B   Correct? YES
+Uncertainty: entropy=0.146  logit_gap=4.391  margin=0.962  top_prob=0.974
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to show you a question, and I want you to tell me your level of confidence that you know the correct answer to this question, on a scale of 1 to 10 where 1 means "not confident at all" and 10 means "completely sure". Respond only with a number from 1 to 10; do NOT output any other text.
+
+------------------------------
+How confident are you that you know the correct answer (1-10)?
+----------
+What is the name of the cathedral in Red Square, Moscow?
+  A: Dormition Cathedral
+  B: St. Basil's Cathedral
+  C: Cathedral of Christ the Saviour
+  D: Kazan Cathedral
+----------
+------------------------------
+Your choice (1-10):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: 1=0.005  2=0.085  3=0.037  4=0.037  5=0.122  6=0.267  7=0.108  8=0.271  9=0.054  10=0.013
+Chosen (argmax): 8
+Soft confidence (probability-weighted): 0.569
+
+================================================================================
+EXAMPLE 6 / 10   (id: triviamc_730)
+================================================================================
+Question: What type of bird was the first released by Noah?
+  A: Dove
+  B: Eagle
+  C: Sparrow
+  D: Raven
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+What type of bird was the first released by Noah?
+----------
+  A: Dove
+  B: Eagle
+  C: Sparrow
+  D: Raven
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.999  B=0.000  C=0.000  D=0.000
+Chosen (argmax): A   Correct? no
+Uncertainty: entropy=0.009  logit_gap=7.859  margin=0.999  top_prob=0.999
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to show you a question, and I want you to tell me your level of confidence that you know the correct answer to this question, on a scale of 1 to 10 where 1 means "not confident at all" and 10 means "completely sure". Respond only with a number from 1 to 10; do NOT output any other text.
+
+------------------------------
+How confident are you that you know the correct answer (1-10)?
+----------
+What type of bird was the first released by Noah?
+  A: Dove
+  B: Eagle
+  C: Sparrow
+  D: Raven
+----------
+------------------------------
+Your choice (1-10):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: 1=0.006  2=0.050  3=0.032  4=0.018  5=0.169  6=0.156  7=0.099  8=0.374  9=0.054  10=0.043
+Chosen (argmax): 8
+Soft confidence (probability-weighted): 0.615
+
+================================================================================
+EXAMPLE 7 / 10   (id: triviamc_2267)
+================================================================================
+Question: The Philtrum is located precisely where on the human body?
+  A: Between nose and upper lip
+  B: Behind the earlobe
+  C: Between lower lip and chin
+  D: Between the eyebrows
+Correct answer: A
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+The Philtrum is located precisely where on the human body?
+----------
+  A: Between nose and upper lip
+  B: Behind the earlobe
+  C: Between lower lip and chin
+  D: Between the eyebrows
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=1.000  B=0.000  C=0.000  D=0.000
+Chosen (argmax): A   Correct? YES
+Uncertainty: entropy=0.000  logit_gap=10.906  margin=1.000  top_prob=1.000
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to show you a question, and I want you to tell me your level of confidence that you know the correct answer to this question, on a scale of 1 to 10 where 1 means "not confident at all" and 10 means "completely sure". Respond only with a number from 1 to 10; do NOT output any other text.
+
+------------------------------
+How confident are you that you know the correct answer (1-10)?
+----------
+The Philtrum is located precisely where on the human body?
+  A: Between nose and upper lip
+  B: Behind the earlobe
+  C: Between lower lip and chin
+  D: Between the eyebrows
+----------
+------------------------------
+Your choice (1-10):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: 1=0.000  2=0.001  3=0.000  4=0.000  5=0.001  6=0.030  7=0.053  8=0.533  9=0.333  10=0.049
+Chosen (argmax): 8
+Soft confidence (probability-weighted): 0.781
+
+================================================================================
+EXAMPLE 8 / 10   (id: triviamc_2637)
+================================================================================
+Question: Who presented the 1980 blockbuster documentary series, Cosmos: A Personal Voyage?
+  A: Carl Sagan
+  B: David Attenborough
+  C: Neil deGrasse Tyson
+  D: Jacob Bronowski
+Correct answer: A
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+Who presented the 1980 blockbuster documentary series, Cosmos: A Personal Voyage?
+----------
+  A: Carl Sagan
+  B: David Attenborough
+  C: Neil deGrasse Tyson
+  D: Jacob Bronowski
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=1.000  B=0.000  C=0.000  D=0.000
+Chosen (argmax): A   Correct? YES
+Uncertainty: entropy=0.000  logit_gap=13.094  margin=1.000  top_prob=1.000
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to show you a question, and I want you to tell me your level of confidence that you know the correct answer to this question, on a scale of 1 to 10 where 1 means "not confident at all" and 10 means "completely sure". Respond only with a number from 1 to 10; do NOT output any other text.
+
+------------------------------
+How confident are you that you know the correct answer (1-10)?
+----------
+Who presented the 1980 blockbuster documentary series, Cosmos: A Personal Voyage?
+  A: Carl Sagan
+  B: David Attenborough
+  C: Neil deGrasse Tyson
+  D: Jacob Bronowski
+----------
+------------------------------
+Your choice (1-10):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: 1=0.000  2=0.000  3=0.000  4=0.000  5=0.000  6=0.000  7=0.001  8=0.071  9=0.424  10=0.503
+Chosen (argmax): 10
+Soft confidence (probability-weighted): 0.893
+
+================================================================================
+EXAMPLE 9 / 10   (id: triviamc_1640)
+================================================================================
+Question: What is the name of the character played by actor Nicholas Lyndhurst in the British television series ‘Goodnight Sweetheart’?
+  A: Donald Bamford
+  B: Reg Deadman
+  C: Ron Wheatcroft
+  D: Gary Sparrow
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+What is the name of the character played by actor Nicholas Lyndhurst in the British television series ‘Goodnight Sweetheart’?
+----------
+  A: Donald Bamford
+  B: Reg Deadman
+  C: Ron Wheatcroft
+  D: Gary Sparrow
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.203  B=0.234  C=0.010  D=0.553
+Chosen (argmax): D   Correct? YES
+Uncertainty: entropy=1.036  logit_gap=0.859  margin=0.319  top_prob=0.553
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to show you a question, and I want you to tell me your level of confidence that you know the correct answer to this question, on a scale of 1 to 10 where 1 means "not confident at all" and 10 means "completely sure". Respond only with a number from 1 to 10; do NOT output any other text.
+
+------------------------------
+How confident are you that you know the correct answer (1-10)?
+----------
+What is the name of the character played by actor Nicholas Lyndhurst in the British television series ‘Goodnight Sweetheart’?
+  A: Donald Bamford
+  B: Reg Deadman
+  C: Ron Wheatcroft
+  D: Gary Sparrow
+----------
+------------------------------
+Your choice (1-10):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: 1=0.001  2=0.004  3=0.003  4=0.004  5=0.024  6=0.079  7=0.092  8=0.454  9=0.192  10=0.147
+Chosen (argmax): 8
+Soft confidence (probability-weighted): 0.761
+
+================================================================================
+EXAMPLE 10 / 10   (id: triviamc_864)
+================================================================================
+Question: What is a positively charged ion called?
+  A: Electron
+  B: Anion
+  C: Neutron
+  D: Cation
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+What is a positively charged ion called?
+----------
+  A: Electron
+  B: Anion
+  C: Neutron
+  D: Cation
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.000  B=0.000  C=0.000  D=1.000
+Chosen (argmax): D   Correct? YES
+Uncertainty: entropy=0.001  logit_gap=9.828  margin=1.000  top_prob=1.000
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to show you a question, and I want you to tell me your level of confidence that you know the correct answer to this question, on a scale of 1 to 10 where 1 means "not confident at all" and 10 means "completely sure". Respond only with a number from 1 to 10; do NOT output any other text.
+
+------------------------------
+How confident are you that you know the correct answer (1-10)?
+----------
+What is a positively charged ion called?
+  A: Electron
+  B: Anion
+  C: Neutron
+  D: Cation
+----------
+------------------------------
+Your choice (1-10):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: 1=0.000  2=0.000  3=0.000  4=0.000  5=0.000  6=0.001  7=0.002  8=0.042  9=0.245  10=0.710
+Chosen (argmax): 10
+Soft confidence (probability-weighted): 0.916
+
+================================================================================
+END
+================================================================================

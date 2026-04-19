@@ -668,6 +668,149 @@ def get_answer_or_delegate_response(probs: np.ndarray, mapping: Dict[str, str]) 
 
 
 # ============================================================================
+# ANSWER-OR-DELEGATE TASK — BASE (FEW-SHOT, NO CHAT TEMPLATE) VERSION
+# ============================================================================
+# Mirrors the instruct delegate prompt but drops the chat-style "Assistant:"
+# tokens and uses few-shot pattern completion so a base model can follow the
+# format. Demonstrates both 1=Answer and 1=Delegate mappings so the model
+# learns to read the mapping from each question's "Choices:" block.
+
+ANSWER_OR_DELEGATE_SETUP_BASE = """In this game, you see a multiple-choice question and decide whether to ANSWER it yourself or DELEGATE to a teammate (who answers ~50% correct).
+If you know the answer with high confidence, choose ANSWER. If you are uncertain, choose DELEGATE.
+Your response is the digit '1' or '2'; the meaning of each digit is printed under every question.
+
+"""
+
+# Fixed examples: two easy (Answer) + two obviously-unanswerable (Delegate).
+BASE_DELEGATE_FIXED_EXAMPLES = [
+    {
+        "question": "What is the capital of France?",
+        "options": {"A": "New York", "B": "London", "C": "Berlin", "D": "Paris"},
+        "decision": "Answer",
+    },
+    {
+        "question": "What is the chemical symbol for water?",
+        "options": {"A": "CO2", "B": "NaCl", "C": "H2O", "D": "O2"},
+        "decision": "Answer",
+    },
+    {
+        "question": "What is the 21 trillionth digit of pi?",
+        "options": {"A": "6", "B": "7", "C": "8", "D": "9"},
+        "decision": "Delegate",
+    },
+    {
+        "question": "What was the exact time (HH:MM:SS) of the first sunrise on Mars?",
+        "options": {"A": "04:12:33", "B": "05:47:09", "C": "06:21:41", "D": "07:03:58"},
+        "decision": "Delegate",
+    },
+]
+
+
+def _format_delegate_example(ex: Dict, mapping: Dict[str, str], decision: str) -> str:
+    """Render one few-shot delegate example block matching the test-question format."""
+    out = "-" * 30 + "\n"
+    out += "Question:\n" + ex["question"] + "\n"
+    out += "-" * 10 + "\n"
+    for key, value in ex["options"].items():
+        out += f"  {key}: {value}\n"
+    out += "-" * 30 + "\n"
+    out += f"Choices:\n  1: {mapping['1']}\n  2: {mapping['2']}\n"
+    # The response is whichever digit maps to the target decision under this mapping.
+    resp = "1" if mapping["1"] == decision else "2"
+    out += f"Your choice: {resp}\n\n"
+    return out
+
+
+def _build_delegate_few_shot_prefix_base(
+    mode: str = "fixed",
+    pool: Optional[List[Dict]] = None,
+    n_per_class: int = 2,
+) -> str:
+    """Build the few-shot prefix for the base-model delegate task.
+
+    mode="fixed":     shuffle BASE_DELEGATE_FIXED_EXAMPLES; assign alternating
+                      mappings across slots so both orderings (1=Answer and
+                      1=Delegate) are demonstrated.
+    mode="balanced":  from a confidence-style pool, pick n_per_class high-conf
+                      items (decision=Answer) and n_per_class low-conf items
+                      (decision=Delegate), shuffle, alternating mappings.
+    """
+    if mode == "fixed":
+        examples = list(BASE_DELEGATE_FIXED_EXAMPLES)
+        random.shuffle(examples)
+        tagged = [(ex, ex["decision"]) for ex in examples]
+
+    elif mode == "balanced":
+        if pool is None or len(pool) < 2 * n_per_class:
+            raise ValueError(
+                f"balanced mode requires a pool with \u2265 {2 * n_per_class} items; got "
+                f"{0 if pool is None else len(pool)}"
+            )
+
+        def _conf_scalar(ex: Dict) -> float:
+            c = str(ex.get("confidence", ""))
+            if c in STATED_CONFIDENCE_MIDPOINTS:
+                return STATED_CONFIDENCE_MIDPOINTS[c]
+            if c in NUMERIC_CONFIDENCE_MIDPOINTS:
+                return NUMERIC_CONFIDENCE_MIDPOINTS[c]
+            return 0.5
+
+        sorted_pool = sorted(pool, key=_conf_scalar)
+        # Draw from the extremes (with a bit of slack to avoid always picking the same items)
+        bottom_slice = sorted_pool[: max(n_per_class, n_per_class * 3)]
+        top_slice = sorted_pool[-max(n_per_class, n_per_class * 3):]
+        delegate_exs = random.sample(bottom_slice, min(n_per_class, len(bottom_slice)))
+        answer_exs = random.sample(top_slice, min(n_per_class, len(top_slice)))
+        tagged = [(ex, "Delegate") for ex in delegate_exs] + [(ex, "Answer") for ex in answer_exs]
+        random.shuffle(tagged)
+
+    else:
+        raise ValueError(f"Unknown delegate few-shot mode: {mode!r}. Use 'fixed' or 'balanced'.")
+
+    prefix = ANSWER_OR_DELEGATE_SETUP_BASE
+    prefix += "****************** Examples ******************\n"
+    for i, (ex, decision) in enumerate(tagged):
+        mapping = get_delegate_mapping(i)  # alternates 1=Answer vs 1=Delegate across slots
+        prefix += _format_delegate_example(ex, mapping, decision)
+    prefix += "**********************************************\n\n"
+    return prefix
+
+
+def format_answer_or_delegate_prompt_base(
+    question: Dict,
+    trial_index: int = 0,
+    mode: str = "fixed",
+    pool: Optional[List[Dict]] = None,
+    n_per_class: int = 2,
+) -> Tuple[str, List[str], Dict[str, str]]:
+    """
+    Base-model (few-shot, no chat template) version of the delegate prompt.
+
+    The test question uses `get_delegate_mapping(trial_index)` so the 1/2
+    assignment alternates across trials the same way the instruct version
+    does \u2014 this is what `get_answer_or_delegate_signal` expects when it
+    reads `meta_mappings[i]` to interpret probabilities.
+
+    Returns (full_prompt, ANSWER_OR_DELEGATE_OPTIONS, mapping).
+    """
+    mapping = get_delegate_mapping(trial_index)
+
+    prefix = _build_delegate_few_shot_prefix_base(mode=mode, pool=pool, n_per_class=n_per_class)
+
+    body = "-" * 30 + "\n"
+    body += "Question:\n" + question["question"] + "\n"
+    body += "-" * 10 + "\n"
+    for key, value in question["options"].items():
+        body += f"  {key}: {value}\n"
+    body += "-" * 30 + "\n"
+    body += f"Choices:\n  1: {mapping['1']}\n  2: {mapping['2']}\n"
+    body += "Your choice:"
+
+    full_prompt = prefix + body
+    return full_prompt, ANSWER_OR_DELEGATE_OPTIONS, mapping
+
+
+# ============================================================================
 # UNIFIED RESPONSE TO CONFIDENCE CONVERSION
 # ============================================================================
 

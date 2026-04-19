@@ -1,0 +1,679 @@
+================================================================================
+Model: meta-llama/Llama-3.1-8B-Instruct
+Dataset: SimpleMC   Meta task: confidence   Scale: numeric   is_base: False   use_chat_template: True
+Showing first 10 of 500 examples.
+================================================================================
+
+================================================================================
+EXAMPLE 1 / 10   (id: sqa_test_bc7821f5205adbb14e6ef8575414989c4c4c7453e4d082003455659ab5813a4c)
+================================================================================
+Question: Who composed the music for the song "We Rollin" by Punjabi singer Shubh?
+  A: Gupz Sehra
+  B: Byg Byrd
+  C: Anabolic Beatz.
+  D: Ikky Productions
+Correct answer: C
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+Who composed the music for the song "We Rollin" by Punjabi singer Shubh?
+----------
+  A: Gupz Sehra
+  B: Byg Byrd
+  C: Anabolic Beatz.
+  D: Ikky Productions
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.195  B=0.073  C=0.575  D=0.157
+Chosen (argmax): C   Correct? YES
+Uncertainty: entropy=1.119  logit_gap=1.078  margin=0.379  top_prob=0.575
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to show you a question, and I want you to tell me your level of confidence that you know the correct answer to this question, on a scale of 1 to 10 where 1 means "not confident at all" and 10 means "completely sure". Respond only with a number from 1 to 10; do NOT output any other text.
+
+------------------------------
+How confident are you that you know the correct answer (1-10)?
+----------
+Who composed the music for the song "We Rollin" by Punjabi singer Shubh?
+  A: Gupz Sehra
+  B: Byg Byrd
+  C: Anabolic Beatz.
+  D: Ikky Productions
+----------
+------------------------------
+Your choice (1-10):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: 1=0.024  2=0.190  3=0.121  4=0.048  5=0.319  6=0.135  7=0.056  8=0.090  9=0.008  10=0.008
+Chosen (argmax): 5
+Soft confidence (probability-weighted): 0.413
+
+================================================================================
+EXAMPLE 2 / 10   (id: sqa_test_f2ce67616cd40ccf513be3830e4f531b81656c5ab0cd11f946a84a2f83b8bd4f)
+================================================================================
+Question: What are the dimensions in centimeters of the painting "Moving House" by Vasnetsov?
+  A: 53.5 x 67.2 cm
+  B: 48.3 x 61.7 cm
+  C: 55.8 x 70.4 cm
+  D: 51.2 x 64.9 cm
+Correct answer: A
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+What are the dimensions in centimeters of the painting "Moving House" by Vasnetsov?
+----------
+  A: 53.5 x 67.2 cm
+  B: 48.3 x 61.7 cm
+  C: 55.8 x 70.4 cm
+  D: 51.2 x 64.9 cm
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.701  B=0.091  C=0.085  D=0.124
+Chosen (argmax): A   Correct? YES
+Uncertainty: entropy=0.935  logit_gap=1.734  margin=0.577  top_prob=0.701
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to show you a question, and I want you to tell me your level of confidence that you know the correct answer to this question, on a scale of 1 to 10 where 1 means "not confident at all" and 10 means "completely sure". Respond only with a number from 1 to 10; do NOT output any other text.
+
+------------------------------
+How confident are you that you know the correct answer (1-10)?
+----------
+What are the dimensions in centimeters of the painting "Moving House" by Vasnetsov?
+  A: 53.5 x 67.2 cm
+  B: 48.3 x 61.7 cm
+  C: 55.8 x 70.4 cm
+  D: 51.2 x 64.9 cm
+----------
+------------------------------
+Your choice (1-10):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: 1=0.117  2=0.265  3=0.102  4=0.024  5=0.351  6=0.072  7=0.022  8=0.039  9=0.004  10=0.005
+Chosen (argmax): 5
+Soft confidence (probability-weighted): 0.328
+
+================================================================================
+EXAMPLE 3 / 10   (id: sqa_test_06c8bafadff1502c95177fbbb80130e70a36b0cdf7261e434cc7879d779c3b75)
+================================================================================
+Question: What was the name of the first schoolhouse in Newbliss, Ontario, built around 1830?
+  A: S.S. #4 Newbliss School
+  B: S.S. #5 Newbliss School.
+  C: S.S. #7 Newbliss School
+  D: S.S. #3 Newbliss School
+Correct answer: B
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+What was the name of the first schoolhouse in Newbliss, Ontario, built around 1830?
+----------
+  A: S.S. #4 Newbliss School
+  B: S.S. #5 Newbliss School.
+  C: S.S. #7 Newbliss School
+  D: S.S. #3 Newbliss School
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.898  B=0.006  C=0.004  D=0.092
+Chosen (argmax): A   Correct? no
+Uncertainty: entropy=0.369  logit_gap=2.281  margin=0.806  top_prob=0.898
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to show you a question, and I want you to tell me your level of confidence that you know the correct answer to this question, on a scale of 1 to 10 where 1 means "not confident at all" and 10 means "completely sure". Respond only with a number from 1 to 10; do NOT output any other text.
+
+------------------------------
+How confident are you that you know the correct answer (1-10)?
+----------
+What was the name of the first schoolhouse in Newbliss, Ontario, built around 1830?
+  A: S.S. #4 Newbliss School
+  B: S.S. #5 Newbliss School.
+  C: S.S. #7 Newbliss School
+  D: S.S. #3 Newbliss School
+----------
+------------------------------
+Your choice (1-10):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: 1=0.076  2=0.265  3=0.120  4=0.027  5=0.346  6=0.078  7=0.028  8=0.049  9=0.006  10=0.006
+Chosen (argmax): 5
+Soft confidence (probability-weighted): 0.347
+
+================================================================================
+EXAMPLE 4 / 10   (id: sqa_test_4fc0736df125ee7b24955f99e8ec592b3a78f358e1d29162a5aee588f1e69951)
+================================================================================
+Question: Which football team won the first and only ELFA Challenge Cup competition in 1922?
+  A: Newcastle Ladies
+  B: Stoke Ladies
+  C: Birmingham Ladies
+  D: Preston Ladies
+Correct answer: B
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+Which football team won the first and only ELFA Challenge Cup competition in 1922?
+----------
+  A: Newcastle Ladies
+  B: Stoke Ladies
+  C: Birmingham Ladies
+  D: Preston Ladies
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.518  B=0.200  C=0.191  D=0.091
+Chosen (argmax): A   Correct? no
+Uncertainty: entropy=1.197  logit_gap=0.953  margin=0.318  top_prob=0.518
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to show you a question, and I want you to tell me your level of confidence that you know the correct answer to this question, on a scale of 1 to 10 where 1 means "not confident at all" and 10 means "completely sure". Respond only with a number from 1 to 10; do NOT output any other text.
+
+------------------------------
+How confident are you that you know the correct answer (1-10)?
+----------
+Which football team won the first and only ELFA Challenge Cup competition in 1922?
+  A: Newcastle Ladies
+  B: Stoke Ladies
+  C: Birmingham Ladies
+  D: Preston Ladies
+----------
+------------------------------
+Your choice (1-10):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: 1=0.245  2=0.261  3=0.093  4=0.025  5=0.241  6=0.071  7=0.018  8=0.031  9=0.004  10=0.009
+Chosen (argmax): 2
+Soft confidence (probability-weighted): 0.279
+
+================================================================================
+EXAMPLE 5 / 10   (id: sqa_test_acddb159d86f56aa594c5c78f8fa05ecf756694a2d1a867afd3bb2ee05592c3b)
+================================================================================
+Question: For which work was Richard F. Fenno Jr. awarded the D.B. Hardeman Prize?
+  A: The Making of a Senator: Dan Quayle
+  B: The Emergence of a Senate Leader: Pete Domenici
+  C: Home Style: House Members in Their Districts
+  D: Congress at the Grassroots: Representational Change in the South
+Correct answer: C
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+For which work was Richard F. Fenno Jr. awarded the D.B. Hardeman Prize?
+----------
+  A: The Making of a Senator: Dan Quayle
+  B: The Emergence of a Senate Leader: Pete Domenici
+  C: Home Style: House Members in Their Districts
+  D: Congress at the Grassroots: Representational Change in the South
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.002  B=0.001  C=0.996  D=0.001
+Chosen (argmax): C   Correct? YES
+Uncertainty: entropy=0.032  logit_gap=6.000  margin=0.993  top_prob=0.996
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to show you a question, and I want you to tell me your level of confidence that you know the correct answer to this question, on a scale of 1 to 10 where 1 means "not confident at all" and 10 means "completely sure". Respond only with a number from 1 to 10; do NOT output any other text.
+
+------------------------------
+How confident are you that you know the correct answer (1-10)?
+----------
+For which work was Richard F. Fenno Jr. awarded the D.B. Hardeman Prize?
+  A: The Making of a Senator: Dan Quayle
+  B: The Emergence of a Senate Leader: Pete Domenici
+  C: Home Style: House Members in Their Districts
+  D: Congress at the Grassroots: Representational Change in the South
+----------
+------------------------------
+Your choice (1-10):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: 1=0.000  2=0.010  3=0.012  4=0.009  5=0.053  6=0.132  7=0.136  8=0.461  9=0.154  10=0.032
+Chosen (argmax): 8
+Soft confidence (probability-weighted): 0.700
+
+================================================================================
+EXAMPLE 6 / 10   (id: sqa_test_993ee5e6c504c5d51a68ff98f0af064a400206631dee91b33e744edfd29dc096)
+================================================================================
+Question: Which fraternity did John Gilbert Layton become a part of while at McGill University?
+  A: Sigma Chi
+  B: Kappa Sigma
+  C: Phi Delta Theta
+  D: Alpha Tau Omega
+Correct answer: A
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+Which fraternity did John Gilbert Layton become a part of while at McGill University?
+----------
+  A: Sigma Chi
+  B: Kappa Sigma
+  C: Phi Delta Theta
+  D: Alpha Tau Omega
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.235  B=0.331  C=0.412  D=0.022
+Chosen (argmax): C   Correct? no
+Uncertainty: entropy=1.155  logit_gap=0.219  margin=0.081  top_prob=0.412
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to show you a question, and I want you to tell me your level of confidence that you know the correct answer to this question, on a scale of 1 to 10 where 1 means "not confident at all" and 10 means "completely sure". Respond only with a number from 1 to 10; do NOT output any other text.
+
+------------------------------
+How confident are you that you know the correct answer (1-10)?
+----------
+Which fraternity did John Gilbert Layton become a part of while at McGill University?
+  A: Sigma Chi
+  B: Kappa Sigma
+  C: Phi Delta Theta
+  D: Alpha Tau Omega
+----------
+------------------------------
+Your choice (1-10):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: 1=0.111  2=0.224  3=0.120  4=0.033  5=0.322  6=0.084  7=0.031  8=0.058  9=0.005  10=0.012
+Chosen (argmax): 5
+Soft confidence (probability-weighted): 0.351
+
+================================================================================
+EXAMPLE 7 / 10   (id: sqa_test_8e0c727193df07f376313ce19fb546c7b17d7edca78c72e82bede8974df7e994)
+================================================================================
+Question: How many Long-Evans rats were used in the scientific paper, "A role for anterior thalamic nuclei in affective cognition: interaction with environmental conditions," published in Hippocampus in May 2013?
+  A: 96
+  B: 78
+  C: 84
+  D: 102
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+How many Long-Evans rats were used in the scientific paper, "A role for anterior thalamic nuclei in affective cognition: interaction with environmental conditions," published in Hippocampus in May 2013?
+----------
+  A: 96
+  B: 78
+  C: 84
+  D: 102
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.450  B=0.197  C=0.334  D=0.019
+Chosen (argmax): A   Correct? no
+Uncertainty: entropy=1.120  logit_gap=0.297  margin=0.115  top_prob=0.450
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to show you a question, and I want you to tell me your level of confidence that you know the correct answer to this question, on a scale of 1 to 10 where 1 means "not confident at all" and 10 means "completely sure". Respond only with a number from 1 to 10; do NOT output any other text.
+
+------------------------------
+How confident are you that you know the correct answer (1-10)?
+----------
+How many Long-Evans rats were used in the scientific paper, "A role for anterior thalamic nuclei in affective cognition: interaction with environmental conditions," published in Hippocampus in May 2013?
+  A: 96
+  B: 78
+  C: 84
+  D: 102
+----------
+------------------------------
+Your choice (1-10):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: 1=0.190  2=0.334  3=0.115  4=0.032  5=0.229  6=0.050  7=0.017  8=0.027  9=0.002  10=0.004
+Chosen (argmax): 2
+Soft confidence (probability-weighted): 0.267
+
+================================================================================
+EXAMPLE 8 / 10   (id: sqa_test_ce816448ba08818b81f73e32a2ed03fff1d31ed1e7f07199bd42129b64b25d59)
+================================================================================
+Question: In what year was the mechanical engineer Lloyd Hamilton Donnell awarded the American Society of Mechanical Engineers Medal?
+  A: 1971
+  B: 1967
+  C: 1965
+  D: 1969
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+In what year was the mechanical engineer Lloyd Hamilton Donnell awarded the American Society of Mechanical Engineers Medal?
+----------
+  A: 1971
+  B: 1967
+  C: 1965
+  D: 1969
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.230  B=0.319  C=0.133  D=0.319
+Chosen (argmax): B   Correct? no
+Uncertainty: entropy=1.335  logit_gap=0.000  margin=0.000  top_prob=0.319
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to show you a question, and I want you to tell me your level of confidence that you know the correct answer to this question, on a scale of 1 to 10 where 1 means "not confident at all" and 10 means "completely sure". Respond only with a number from 1 to 10; do NOT output any other text.
+
+------------------------------
+How confident are you that you know the correct answer (1-10)?
+----------
+In what year was the mechanical engineer Lloyd Hamilton Donnell awarded the American Society of Mechanical Engineers Medal?
+  A: 1971
+  B: 1967
+  C: 1965
+  D: 1969
+----------
+------------------------------
+Your choice (1-10):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: 1=0.022  2=0.115  3=0.103  4=0.029  5=0.427  6=0.104  7=0.066  8=0.103  9=0.008  10=0.022
+Chosen (argmax): 5
+Soft confidence (probability-weighted): 0.452
+
+================================================================================
+EXAMPLE 9 / 10   (id: sqa_test_df33c2d3a04e34dd1801adbfad5c8a5c58d1b3cff29d342b59d03d1f18cfea17)
+================================================================================
+Question: What is the name and surname of the former President of South Africa who received a state funeral when he died on January 4, 2007?
+  A: Mbeki
+  B: Viljoen
+  C: De Klerk
+  D: Botha
+Correct answer: B
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+What is the name and surname of the former President of South Africa who received a state funeral when he died on January 4, 2007?
+----------
+  A: Mbeki
+  B: Viljoen
+  C: De Klerk
+  D: Botha
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.319  B=0.036  C=0.606  D=0.038
+Chosen (argmax): C   Correct? no
+Uncertainty: entropy=0.913  logit_gap=0.641  margin=0.287  top_prob=0.606
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to show you a question, and I want you to tell me your level of confidence that you know the correct answer to this question, on a scale of 1 to 10 where 1 means "not confident at all" and 10 means "completely sure". Respond only with a number from 1 to 10; do NOT output any other text.
+
+------------------------------
+How confident are you that you know the correct answer (1-10)?
+----------
+What is the name and surname of the former President of South Africa who received a state funeral when he died on January 4, 2007?
+  A: Mbeki
+  B: Viljoen
+  C: De Klerk
+  D: Botha
+----------
+------------------------------
+Your choice (1-10):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: 1=0.013  2=0.152  3=0.083  4=0.062  5=0.184  6=0.184  7=0.087  8=0.202  9=0.025  10=0.009
+Chosen (argmax): 8
+Soft confidence (probability-weighted): 0.487
+
+================================================================================
+EXAMPLE 10 / 10   (id: sqa_test_734b032ec773ee6cc8a6705500f0315641a98b1ae7bebac03c1b4c2106a1d8a6)
+================================================================================
+Question: What is the first and last name of the sculptor who created the statue of Christopher Codrington at All Souls College?
+  A: Sir John Bacon
+  B: Sir Henry Cheere
+  C: Sir William Kent
+  D: Sir Francis Chantrey
+Correct answer: B
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+What is the first and last name of the sculptor who created the statue of Christopher Codrington at All Souls College?
+----------
+  A: Sir John Bacon
+  B: Sir Henry Cheere
+  C: Sir William Kent
+  D: Sir Francis Chantrey
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.098  B=0.818  C=0.064  D=0.020
+Chosen (argmax): B   Correct? YES
+Uncertainty: entropy=0.646  logit_gap=2.125  margin=0.721  top_prob=0.818
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to show you a question, and I want you to tell me your level of confidence that you know the correct answer to this question, on a scale of 1 to 10 where 1 means "not confident at all" and 10 means "completely sure". Respond only with a number from 1 to 10; do NOT output any other text.
+
+------------------------------
+How confident are you that you know the correct answer (1-10)?
+----------
+What is the first and last name of the sculptor who created the statue of Christopher Codrington at All Souls College?
+  A: Sir John Bacon
+  B: Sir Henry Cheere
+  C: Sir William Kent
+  D: Sir Francis Chantrey
+----------
+------------------------------
+Your choice (1-10):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: 1=0.044  2=0.273  3=0.161  4=0.047  5=0.206  6=0.131  7=0.046  8=0.080  9=0.006  10=0.006
+Chosen (argmax): 2
+Soft confidence (probability-weighted): 0.365
+
+================================================================================
+END
+================================================================================

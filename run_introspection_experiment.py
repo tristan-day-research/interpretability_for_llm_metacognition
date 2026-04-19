@@ -76,6 +76,7 @@ from tasks import (
     ANSWER_OR_DELEGATE_SYSPROMPT,
     ANSWER_OR_DELEGATE_OPTIONS,
     format_answer_or_delegate_prompt,
+    format_answer_or_delegate_prompt_base,
     get_delegate_mapping,
     # Unified conversion
     response_to_confidence,
@@ -85,17 +86,17 @@ load_dotenv()
 
 
 # Configuration
-# BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B"
-BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
+BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B"
+# BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
 
 
 MODEL_NAME = BASE_MODEL_NAME  # Set to adapter path if using fine-tuned model
-MODEL_NAME = "Tristan-Day/ect_20251222_215412_v0uei7y1_2000"   # Set to adapter path if using fine-tuned model
+# MODEL_NAME = "Tristan-Day/ect_20251222_215412_v0uei7y1_2000"   # Set to adapter path if using fine-tuned model
 
 # Lists of datasets and meta_tasks to process (will iterate through all combinations)
 # Set to a single-item list for single runs, or multiple items to batch process
 DATASETS = ["SimpleMC", "TriviaMC"]  # Options: "SimpleMC", "TriviaMC", "GPQA", etc.
-META_TASKS = ["confidence", "delegate"]  # Options: "confidence", "delegate"
+META_TASKS = ["delegate"]  # Options: "confidence", "delegate"
 
 # Legacy single-value variables (used by functions that reference them)
 DATASET_NAME = DATASETS[0]  # Will be updated during iteration
@@ -121,7 +122,23 @@ LOAD_IN_8BIT = False
 # "random"     - Sample 3 stratified examples from pool
 # "balanced"   - Show all 8 levels (S-Z) with one example each
 # "scale_only" - Just show "S T U V W X Y Z" tokens
-FEW_SHOT_MODE = "fixed"
+FEW_SHOT_MODE = "balanced"
+
+# --- Delegate game: base-model few-shot configuration ---
+# "fixed"    - hard-coded BASE_DELEGATE_FIXED_EXAMPLES (2 Answer, 2 Delegate), shuffled per call
+# "balanced" - sample from BASE_DELEGATE_POOL_SOURCE (confidence-run JSON), 2 high-conf (Answer) +
+#              2 low-conf (Delegate), shuffled per call
+BASE_DELEGATE_MODE = "fixed"
+BASE_DELEGATE_POOL_SOURCE = None  # e.g. "outputs/ECT/..._ect_results.json" when BASE_DELEGATE_MODE=="balanced"
+
+# --- Reuse existing direct-prompt activations ---
+# When True AND META_TASK == "delegate", skip the direct forward pass for this run.
+# Instead load `direct_activations.npz` + `paired_data.json` from the confidence-mode
+# run in the same output folder, and only collect fresh delegate meta activations.
+# This also skips writing a duplicate `{base_prefix}_direct_activations.npz` to disk.
+# Use this when you already have confidence-mode results for a model/dataset and
+# only want to add delegate-mode data without re-running the MC pass.
+REUSE_DIRECT_FROM_CONFIDENCE = True
 
 # Confidence scale to use for the stated-confidence meta task.
 # "letters"  : S-Z 8-bin scale (original).
@@ -171,6 +188,34 @@ def get_model_short_name(model_name: str) -> str:
         parts = model_name.split("/")
         return parts[-1]
     return model_name
+
+
+def get_model_type_label() -> str:
+    """Return 'base', 'instruct', or 'finetuned' based on current config.
+
+    - 'finetuned' if an adapter is loaded (MODEL_NAME != BASE_MODEL_NAME)
+    - 'instruct' if BASE_MODEL_NAME contains 'Instruct' and no adapter
+    - 'base'     otherwise
+    """
+    if MODEL_NAME != BASE_MODEL_NAME:
+        return "finetuned"
+    if "Instruct" in BASE_MODEL_NAME:
+        return "instruct"
+    return "base"
+
+
+def get_model_display_label() -> str:
+    """Human-readable label for plot titles that distinguishes base/instruct/finetuned.
+
+    Example: 'finetuned (Llama-3.1-8B-Instruct + adapter-ect_20251222_215412_v0uei7y1_2000)'.
+    Unambiguous even when BASE_MODEL_NAME is the same for instruct and finetuned.
+    """
+    mtype = get_model_type_label()
+    base_short = get_model_short_name(BASE_MODEL_NAME)
+    if mtype == "finetuned":
+        adapter_short = get_model_short_name(MODEL_NAME)
+        return f"{mtype} ({base_short} + adapter-{adapter_short})"
+    return f"{mtype} ({base_short})"
 
 
 def get_output_prefix(metric: str = None) -> str:
@@ -294,9 +339,19 @@ def format_delegate_prompt(
     question: Dict,
     tokenizer,
     use_chat_template: bool = True,
-    trial_index: int = 0
+    trial_index: int = 0,
+    is_base: bool = False,
+    few_shot_mode: str = "fixed",
+    few_shot_pool: Optional[List[Dict]] = None,
 ) -> Tuple[str, List[str], Dict[str, str]]:
-    """Format a delegate question using centralized tasks.py logic."""
+    """Format a delegate question using centralized tasks.py logic.
+
+    For base models, routes to the few-shot no-chat-template version.
+    """
+    if is_base:
+        return format_answer_or_delegate_prompt_base(
+            question, trial_index=trial_index, mode=few_shot_mode, pool=few_shot_pool,
+        )
     return format_answer_or_delegate_prompt(
         question, tokenizer, trial_index=trial_index,
         alternate_mapping=True, use_chat_template=use_chat_template
@@ -354,6 +409,7 @@ def save_example_prompts_and_responses_txt(
     few_shot_mode: str,
     output_path: str,
     n_examples: int = 10,
+    delegate_pool: Optional[list] = None,
 ) -> None:
     """Save a human-readable .txt showing exact prompts and model responses.
 
@@ -435,7 +491,10 @@ def save_example_prompts_and_responses_txt(
         # Rebuild the exact meta prompt
         if META_TASK == "delegate":
             meta_prompt, meta_opts, _mapping = format_delegate_prompt(
-                q, tokenizer, use_chat_template, trial_index=i
+                q, tokenizer, use_chat_template, trial_index=i,
+                is_base=is_base,
+                few_shot_mode=BASE_DELEGATE_MODE if is_base else "fixed",
+                few_shot_pool=delegate_pool,
             )
         else:
             if is_base:
@@ -571,7 +630,7 @@ def save_quick_summary_png(data: dict, questions: list, output_path: str) -> Non
     ax.grid(True, alpha=0.3)
 
     plt.suptitle(
-        f"{get_model_short_name(BASE_MODEL_NAME)}  /  {DATASET_NAME}  /  "
+        f"{get_model_display_label()}  /  {DATASET_NAME}  /  "
         f"{META_TASK}  /  scale={CONFIDENCE_SCALE}",
         y=1.02, fontsize=10,
     )
@@ -1047,6 +1106,47 @@ def process_prompts_with_prefix_cache(
     return results_acts, results_probs, results_logits, results_metrics, results_responses
 
 
+def _load_mc_data_for_reuse(paired_data_path: Path, acts_path: Path) -> Tuple[Dict, Dict]:
+    """Load confidence-mode direct data for reuse in a delegate-only run.
+
+    Returns (mc_data, paired) where mc_data matches the shape expected by
+    collect_meta_only (direct_activations dict, metadata list of per-item
+    {probabilities, logits}, and optional direct_metrics dict), and paired is
+    the raw paired_data.json for sanity-checking / extracting is_correct etc.
+    """
+    with open(paired_data_path) as f:
+        paired = json.load(f)
+
+    with np.load(acts_path) as f:
+        direct_activations = {
+            int(k.split("_")[1]): f[k].astype(np.float32)
+            for k in f.files if k.startswith("layer_")
+        }
+
+    direct_probs = paired.get("direct_probs", []) or []
+    direct_logits = paired.get("direct_logits", []) or []
+    n_items = len(direct_probs) if direct_probs else len(paired.get("questions", []))
+    metadata = []
+    for i in range(n_items):
+        metadata.append({
+            "probabilities": direct_probs[i] if i < len(direct_probs) else [],
+            "logits": direct_logits[i] if i < len(direct_logits) else [],
+        })
+
+    direct_metrics_raw = paired.get("direct_metrics", {}) or {}
+    direct_metrics = {
+        k: np.asarray(v) for k, v in direct_metrics_raw.items()
+        if not isinstance(v, dict) and v is not None
+    }
+
+    mc_data = {
+        "direct_activations": direct_activations,
+        "metadata": metadata,
+        "direct_metrics": direct_metrics,
+    }
+    return mc_data, paired
+
+
 def collect_paired_data(
     questions: List[Dict],
     model,
@@ -1056,6 +1156,7 @@ def collect_paired_data(
     batch_size: int = BATCH_SIZE,
     is_base: bool = False,
     few_shot_mode: str = "fixed",
+    few_shot_pool: Optional[List[Dict]] = None,
 ) -> Dict:
     """
     Collect activations and uncertainty metrics for both direct and meta prompts.
@@ -1189,7 +1290,12 @@ def collect_paired_data(
             meta_option_token_ids = [tokenizer.encode(opt, add_special_tokens=False)[0] for opt in meta_options]
 
             for trial_idx, q in enumerate(tqdm(questions, desc="Delegate prompts")):
-                prompt, _, mapping = format_delegate_prompt(q, tokenizer, use_chat_template, trial_idx)
+                prompt, _, mapping = format_delegate_prompt(
+                    q, tokenizer, use_chat_template, trial_idx,
+                    is_base=is_base,
+                    few_shot_mode=BASE_DELEGATE_MODE if is_base else "fixed",
+                    few_shot_pool=few_shot_pool,
+                )
                 inputs = tokenizer(prompt, return_tensors="pt").to(DEVICE)
 
                 batch_acts, batch_probs, batch_logits, batch_metrics = extractor.extract_batch(
@@ -1305,6 +1411,7 @@ def collect_meta_only(
     batch_size: int = BATCH_SIZE,
     is_base: bool = False,
     few_shot_mode: str = "fixed",
+    few_shot_pool: Optional[List[Dict]] = None,
 ) -> Dict:
     """
     Collect only meta prompt data, reusing direct activations from mc_entropy_probe.py.
@@ -1334,7 +1441,12 @@ def collect_meta_only(
             meta_option_token_ids = [tokenizer.encode(opt, add_special_tokens=False)[0] for opt in meta_options]
 
             for trial_idx, q in enumerate(tqdm(questions, desc="Delegate prompts")):
-                prompt, _, mapping = format_delegate_prompt(q, tokenizer, use_chat_template, trial_idx)
+                prompt, _, mapping = format_delegate_prompt(
+                    q, tokenizer, use_chat_template, trial_idx,
+                    is_base=is_base,
+                    few_shot_mode=BASE_DELEGATE_MODE if is_base else "fixed",
+                    few_shot_pool=few_shot_pool,
+                )
                 inputs = tokenizer(prompt, return_tensors="pt").to(DEVICE)
 
                 batch_acts, batch_probs, batch_logits, batch_metrics = extractor.extract_batch(
@@ -2228,6 +2340,10 @@ def plot_calibration_split(
     ax2.legend(loc='best')
     ax2.grid(True, alpha=0.3)
 
+    plt.suptitle(
+        f"Calibration split — {get_model_display_label()} / {DATASET_NAME}",
+        y=1.02, fontsize=12,
+    )
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.close()
@@ -2291,6 +2407,10 @@ def plot_other_confidence_comparison(
     ax2.legend(loc='best')
     ax2.grid(True, alpha=0.3)
 
+    plt.suptitle(
+        f"Self vs Other confidence transfer — {get_model_display_label()} / {DATASET_NAME}",
+        y=1.02, fontsize=12,
+    )
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.close()
@@ -2820,7 +2940,7 @@ def plot_results(
     
     # --- Plotting ---
     fig, axes = plt.subplots(2, 2, figsize=(18, 12))
-    plt.suptitle(f'Introspection Analysis: {get_model_short_name(BASE_MODEL_NAME)} on {DATASET_NAME} ({META_TASK})', fontsize=16)
+    plt.suptitle(f'Introspection Analysis: {get_model_display_label()} on {DATASET_NAME} ({META_TASK})', fontsize=16)
 
     # Helper: Min-Max Normalization
     def normalize(data):
@@ -3052,13 +3172,65 @@ def run_single_experiment(
     print(f"Using chat template: {use_chat_template}")
     if is_base:
         print(f"Base model detected — using few-shot mode: {FEW_SHOT_MODE}")
+        if meta_task == "delegate":
+            print(f"Base delegate few-shot mode: {BASE_DELEGATE_MODE}")
 
-    # Always collect fresh paired data (direct and meta for each question)
-    # to ensure consistent quantization settings between direct and meta activations
-    data = collect_paired_data(
-        questions, model, tokenizer, num_layers, use_chat_template,
-        batch_size=batch_size, is_base=is_base, few_shot_mode=FEW_SHOT_MODE,
-    )
+    # Optionally load a pool of examples for balanced base-model delegate few-shot.
+    few_shot_pool = None
+    if is_base and meta_task == "delegate" and BASE_DELEGATE_MODE == "balanced" and BASE_DELEGATE_POOL_SOURCE:
+        print(f"Loading delegate few-shot pool from: {BASE_DELEGATE_POOL_SOURCE}")
+        with open(BASE_DELEGATE_POOL_SOURCE, "r") as f:
+            pool_src = json.load(f)
+        few_shot_pool = []
+        for item in pool_src.get("data", pool_src.get("questions", [])):
+            few_shot_pool.append({
+                "question": item.get("question"),
+                "options": item.get("options"),
+                "mc_answer": item.get("predicted_answer", item.get("mc_answer")),
+                "confidence": item.get("stated_confidence_response", item.get("confidence")),
+            })
+        print(f"  Loaded {len(few_shot_pool)} pool items")
+
+    # Reuse direct activations from a previous confidence-mode run if requested —
+    # only meaningful for META_TASK == 'delegate' (direct prompt is identical).
+    reuse_direct = REUSE_DIRECT_FROM_CONFIDENCE and meta_task == "delegate"
+    if reuse_direct:
+        # Build the confidence-mode prefix by temporarily swapping META_TASK
+        saved_meta = META_TASK
+        globals()["META_TASK"] = "confidence"
+        confidence_prefix = get_output_prefix()
+        globals()["META_TASK"] = saved_meta
+        paired_path = Path(f"{confidence_prefix}_paired_data.json")
+        acts_path = Path(f"{confidence_prefix}_direct_activations.npz")
+        if not paired_path.exists() or not acts_path.exists():
+            raise FileNotFoundError(
+                "REUSE_DIRECT_FROM_CONFIDENCE=True but confidence-mode files are missing:\n"
+                f"  {paired_path}\n  {acts_path}\n"
+                "Run META_TASK='confidence' for this (model, dataset) first, or set the flag to False."
+            )
+        print(f"\nReusing direct activations from:\n  {paired_path}\n  {acts_path}")
+        mc_data, existing_paired = _load_mc_data_for_reuse(paired_path, acts_path)
+        # Sanity-check that cached questions match the current ordering
+        existing_ids = [q.get("id") for q in existing_paired.get("questions", [])]
+        new_ids = [q.get("id") for q in questions]
+        if existing_ids and new_ids and existing_ids != new_ids:
+            raise ValueError(
+                "Question order mismatch between cached confidence-mode data and the fresh "
+                "load. Reuse requires identical (model, dataset, seed, NUM_QUESTIONS)."
+            )
+        data = collect_meta_only(
+            questions, model, tokenizer, num_layers, use_chat_template,
+            mc_data, batch_size=batch_size, is_base=is_base,
+            few_shot_mode=FEW_SHOT_MODE, few_shot_pool=few_shot_pool,
+        )
+    else:
+        # Always collect fresh paired data (direct and meta for each question)
+        # to ensure consistent quantization settings between direct and meta activations
+        data = collect_paired_data(
+            questions, model, tokenizer, num_layers, use_chat_template,
+            batch_size=batch_size, is_base=is_base, few_shot_mode=FEW_SHOT_MODE,
+            few_shot_pool=few_shot_pool,
+        )
 
     # Generate output prefixes
     # Base prefix for shared files (activations, paired data)
@@ -3076,11 +3248,14 @@ def run_single_experiment(
 
     # Save activations as float16 with ALL scalar metrics
     print("\nSaving activations (float16)...")
-    np.savez_compressed(
-        f"{base_prefix}_direct_activations.npz",
-        **{f"layer_{i}": acts.astype(np.float16) for i, acts in data["direct_activations"].items()},
-        **{k: v for k, v in data["direct_metrics"].items() if isinstance(v, np.ndarray)}
-    )
+    if not reuse_direct:
+        np.savez_compressed(
+            f"{base_prefix}_direct_activations.npz",
+            **{f"layer_{i}": acts.astype(np.float16) for i, acts in data["direct_activations"].items()},
+            **{k: v for k, v in data["direct_metrics"].items() if isinstance(v, np.ndarray)}
+        )
+    else:
+        print(f"  (skipping {base_prefix}_direct_activations.npz — reused from confidence-mode run)")
     np.savez_compressed(
         f"{base_prefix}_meta_activations.npz",
         **{f"layer_{i}": acts.astype(np.float16) for i, acts in data["meta_activations"].items()},
@@ -3106,6 +3281,7 @@ def run_single_experiment(
             few_shot_mode=FEW_SHOT_MODE,
             output_path=f"{base_prefix}_examples.txt",
             n_examples=10,
+            delegate_pool=few_shot_pool,
         )
     except Exception as e:
         print(f"⚠ examples.txt dump failed: {e}")
@@ -3119,7 +3295,12 @@ def run_single_experiment(
         else:
             direct_prompt, direct_options = format_direct_prompt(q, tokenizer, use_chat_template)
         if META_TASK == "delegate":
-            meta_prompt, meta_options_list, mapping = format_delegate_prompt(q, tokenizer, use_chat_template, trial_index=i)
+            meta_prompt, meta_options_list, mapping = format_delegate_prompt(
+                q, tokenizer, use_chat_template, trial_index=i,
+                is_base=is_base,
+                few_shot_mode=BASE_DELEGATE_MODE if is_base else "fixed",
+                few_shot_pool=few_shot_pool,
+            )
         else:
             if is_base:
                 meta_prompt, meta_options_list = format_meta_prompt_base(q, mode=FEW_SHOT_MODE)
@@ -3594,12 +3775,9 @@ def main():
             raise RuntimeError("\n".join(msg_lines))
         print(f"✓ Numeric scale tokenizer check passed: all of {list(NUMERIC_CONFIDENCE_OPTIONS)} are single-token.")
 
-    # Skip delegate task for base models (no few-shot delegate prompt exists)
-    is_base = is_base_model(BASE_MODEL_NAME)
+    # Base models now have a few-shot delegate prompt (format_answer_or_delegate_prompt_base),
+    # so we run delegate for all model types.
     meta_tasks = META_TASKS
-    if is_base and "delegate" in meta_tasks:
-        print("\nNote: Skipping 'delegate' meta-task for base model (no few-shot delegate prompt)")
-        meta_tasks = [t for t in meta_tasks if t != "delegate"]
 
     # Run all dataset/task combinations
     for dataset_name in DATASETS:
