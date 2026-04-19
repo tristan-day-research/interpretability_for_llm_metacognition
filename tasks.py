@@ -505,9 +505,15 @@ def get_other_confidence_response(probs: np.ndarray) -> str:
 # ANSWER OR DELEGATE TASK
 # ============================================================================
 
-# Full delegate prompt with game context and examples
-# Matches delegate_game_from_capabilities.py with DECISION_ONLY=True, ALT_DECISION_MAPPING=True
-ANSWER_OR_DELEGATE_SETUP = """Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
+# Default teammate accuracy used by the delegate task. Can be overridden per call.
+# 0.7 creates a meaningful decision boundary for strong models (~72% accuracy on TriviaMC);
+# 0.5 makes delegation anti-productive for capable models (reward is lower than self-answer).
+DEFAULT_TEAMMATE_ACCURACY = 0.5
+
+# Full delegate prompt with game context and examples.
+# Matches delegate_game_from_capabilities.py with DECISION_ONLY=True, ALT_DECISION_MAPPING=True.
+# Teammate accuracy is injected at runtime so we can tune the decision boundary.
+_ANSWER_OR_DELEGATE_SETUP_TEMPLATE = """Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
 The game consists of two phases:
 1. In phase 1, you and your teammate will answer questions independently.
 2. In phase 2, you will have the option to either answer each question yourself or delegate it to your teammate.
@@ -551,9 +557,18 @@ Assistant: 2
 **********************************************
 
 ========== Phase 1 Summary ==========
-In Phase 1, your teammate answered 50.0% of the questions correctly.
+In Phase 1, your teammate answered {teammate_pct:.1f}% of the questions correctly.
 ========================================
 """
+
+
+def build_answer_or_delegate_setup(teammate_accuracy: float = DEFAULT_TEAMMATE_ACCURACY) -> str:
+    """Render the delegate-task setup block with a configurable teammate accuracy."""
+    return _ANSWER_OR_DELEGATE_SETUP_TEMPLATE.format(teammate_pct=100.0 * teammate_accuracy)
+
+
+# Backward-compat: a module-level default string rendered at the default rate.
+ANSWER_OR_DELEGATE_SETUP = build_answer_or_delegate_setup(DEFAULT_TEAMMATE_ACCURACY)
 
 ANSWER_OR_DELEGATE_SYSPROMPT = "Respond ONLY with '1' or '2'. Do NOT output any other text. Do not offer any explanation or justification.\n"
 
@@ -583,7 +598,8 @@ def format_answer_or_delegate_prompt(
     tokenizer,
     trial_index: int = 0,
     alternate_mapping: bool = True,
-    use_chat_template: bool = True
+    use_chat_template: bool = True,
+    teammate_accuracy: float = DEFAULT_TEAMMATE_ACCURACY,
 ) -> Tuple[str, List[str], Dict[str, str]]:
     """
     Format an answer-or-delegate meta-question.
@@ -594,6 +610,8 @@ def format_answer_or_delegate_prompt(
         trial_index: 0-indexed trial number (for alternating mapping)
         alternate_mapping: If True, alternate which digit means Answer/Delegate
         use_chat_template: Whether to use chat template
+        teammate_accuracy: Fraction in [0,1] shown as the teammate's Phase 1
+            accuracy. 0.7 is the recommended decision-boundary setting.
 
     Returns:
         Tuple of (full_prompt, option_keys, mapping_dict)
@@ -628,7 +646,8 @@ def format_answer_or_delegate_prompt(
 
     # System prompt contains the response format instruction
     # User message contains the game setup + question
-    user_content = ANSWER_OR_DELEGATE_SETUP + "\n\n" + formatted
+    setup = build_answer_or_delegate_setup(teammate_accuracy)
+    user_content = setup + "\n\n" + formatted
 
     if use_chat_template:
         try:
@@ -675,11 +694,20 @@ def get_answer_or_delegate_response(probs: np.ndarray, mapping: Dict[str, str]) 
 # format. Demonstrates both 1=Answer and 1=Delegate mappings so the model
 # learns to read the mapping from each question's "Choices:" block.
 
-ANSWER_OR_DELEGATE_SETUP_BASE = """In this game, you see a multiple-choice question and decide whether to ANSWER it yourself or DELEGATE to a teammate (who answers ~50% correct).
+_ANSWER_OR_DELEGATE_SETUP_BASE_TEMPLATE = """In this game, you see a multiple-choice question and decide whether to ANSWER it yourself or DELEGATE to a teammate who answers ~{teammate_pct:.0f}% of questions correctly.
 If you know the answer with high confidence, choose ANSWER. If you are uncertain, choose DELEGATE.
 Your response is the digit '1' or '2'; the meaning of each digit is printed under every question.
 
 """
+
+
+def build_answer_or_delegate_setup_base(teammate_accuracy: float = DEFAULT_TEAMMATE_ACCURACY) -> str:
+    """Render the base-model delegate setup block with a configurable teammate accuracy."""
+    return _ANSWER_OR_DELEGATE_SETUP_BASE_TEMPLATE.format(teammate_pct=100.0 * teammate_accuracy)
+
+
+# Backward-compat constant rendered at the default rate.
+ANSWER_OR_DELEGATE_SETUP_BASE = build_answer_or_delegate_setup_base(DEFAULT_TEAMMATE_ACCURACY)
 
 # Fixed examples: two easy (Answer) + two obviously-unanswerable (Delegate).
 BASE_DELEGATE_FIXED_EXAMPLES = [
@@ -725,6 +753,7 @@ def _build_delegate_few_shot_prefix_base(
     mode: str = "fixed",
     pool: Optional[List[Dict]] = None,
     n_per_class: int = 2,
+    teammate_accuracy: float = DEFAULT_TEAMMATE_ACCURACY,
 ) -> str:
     """Build the few-shot prefix for the base-model delegate task.
 
@@ -767,7 +796,7 @@ def _build_delegate_few_shot_prefix_base(
     else:
         raise ValueError(f"Unknown delegate few-shot mode: {mode!r}. Use 'fixed' or 'balanced'.")
 
-    prefix = ANSWER_OR_DELEGATE_SETUP_BASE
+    prefix = build_answer_or_delegate_setup_base(teammate_accuracy)
     prefix += "****************** Examples ******************\n"
     for i, (ex, decision) in enumerate(tagged):
         mapping = get_delegate_mapping(i)  # alternates 1=Answer vs 1=Delegate across slots
@@ -782,6 +811,7 @@ def format_answer_or_delegate_prompt_base(
     mode: str = "fixed",
     pool: Optional[List[Dict]] = None,
     n_per_class: int = 2,
+    teammate_accuracy: float = DEFAULT_TEAMMATE_ACCURACY,
 ) -> Tuple[str, List[str], Dict[str, str]]:
     """
     Base-model (few-shot, no chat template) version of the delegate prompt.
@@ -795,7 +825,10 @@ def format_answer_or_delegate_prompt_base(
     """
     mapping = get_delegate_mapping(trial_index)
 
-    prefix = _build_delegate_few_shot_prefix_base(mode=mode, pool=pool, n_per_class=n_per_class)
+    prefix = _build_delegate_few_shot_prefix_base(
+        mode=mode, pool=pool, n_per_class=n_per_class,
+        teammate_accuracy=teammate_accuracy,
+    )
 
     body = "-" * 30 + "\n"
     body += "Question:\n" + question["question"] + "\n"

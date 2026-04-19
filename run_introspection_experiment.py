@@ -131,6 +131,11 @@ FEW_SHOT_MODE = "balanced"
 BASE_DELEGATE_MODE = "fixed"
 BASE_DELEGATE_POOL_SOURCE = None  # e.g. "outputs/ECT/..._ect_results.json" when BASE_DELEGATE_MODE=="balanced"
 
+# Teammate accuracy shown in the delegate prompt's Phase-1 summary.
+# 0.7 creates a meaningful decision boundary for strong models (TriviaMC ~72% accuracy);
+# 0.5 makes delegation anti-productive for capable models and can drive positional bias.
+TEAMMATE_ACCURACY = 0.7
+
 # --- Reuse existing direct-prompt activations ---
 # When True AND META_TASK == "delegate", skip the direct forward pass for this run.
 # Instead load `direct_activations.npz` + `paired_data.json` from the confidence-mode
@@ -343,18 +348,23 @@ def format_delegate_prompt(
     is_base: bool = False,
     few_shot_mode: str = "fixed",
     few_shot_pool: Optional[List[Dict]] = None,
+    teammate_accuracy: float = None,
 ) -> Tuple[str, List[str], Dict[str, str]]:
     """Format a delegate question using centralized tasks.py logic.
 
     For base models, routes to the few-shot no-chat-template version.
     """
+    if teammate_accuracy is None:
+        teammate_accuracy = TEAMMATE_ACCURACY
     if is_base:
         return format_answer_or_delegate_prompt_base(
             question, trial_index=trial_index, mode=few_shot_mode, pool=few_shot_pool,
+            teammate_accuracy=teammate_accuracy,
         )
     return format_answer_or_delegate_prompt(
         question, tokenizer, trial_index=trial_index,
-        alternate_mapping=True, use_chat_template=use_chat_template
+        alternate_mapping=True, use_chat_template=use_chat_template,
+        teammate_accuracy=teammate_accuracy,
     )
 
 
@@ -561,13 +571,33 @@ def save_quick_summary_png(data: dict, questions: list, output_path: str) -> Non
     # Meta-side
     meta_probs = data.get("meta_probs", [])
     meta_resp = data.get("meta_responses", [])
+    meta_mappings = data.get("meta_mappings", []) or [None] * n
     entropies = np.asarray(data.get("direct_metrics", {}).get("entropy", [np.nan] * n))
-    # Scale-aware stated_confidence_numeric (soft signal; robust to argmax collapse)
-    stated_num = np.array(
-        [get_meta_signal(np.asarray(p)) if p else np.nan for p in meta_probs]
-    )
 
-    confidence_options = list(_scale_options().keys())
+    # Delegate mode has a 2-option meta response; confidence has an 8/10-option scale.
+    # Build stated_num and the option legend accordingly so the shapes line up.
+    if META_TASK == "delegate":
+        confidence_options = ANSWER_OR_DELEGATE_OPTIONS  # ["1", "2"]
+        stated_num = np.full(n, np.nan)
+        for i, p in enumerate(meta_probs):
+            if not p:
+                continue
+            p_arr = np.asarray(p, dtype=float)
+            m = meta_mappings[i] if i < len(meta_mappings) and meta_mappings[i] else None
+            if m:
+                tokens = sorted(m.keys())  # ['1', '2']
+                ans_col = next((j for j, t in enumerate(tokens) if m.get(t) == "Answer"), None)
+                if ans_col is not None and p_arr.shape[0] >= 2:
+                    stated_num[i] = float(p_arr[ans_col])
+            else:
+                stated_num[i] = float(p_arr[0]) if p_arr.shape[0] >= 1 else np.nan
+        stated_ylabel = "P(Answer)"
+    else:
+        confidence_options = list(_scale_options().keys())
+        stated_num = np.array(
+            [get_meta_signal(np.asarray(p)) if p else np.nan for p in meta_probs]
+        )
+        stated_ylabel = "stated_confidence_numeric (soft)"
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 4.2))
 
@@ -589,7 +619,7 @@ def save_quick_summary_png(data: dict, questions: list, output_path: str) -> Non
     ax.set_ylim(0, 1)
     ax.grid(True, alpha=0.3, axis="y")
 
-    # --- Panel 2: Confidence response distribution (scale-aware) ---
+    # --- Panel 2: Meta response distribution (scale-aware) ---
     ax = axes[1]
     conf_counts = [meta_resp.count(k) for k in confidence_options]
     ax.bar(range(len(confidence_options)), np.array(conf_counts) / max(n, 1),
@@ -597,21 +627,25 @@ def save_quick_summary_png(data: dict, questions: list, output_path: str) -> Non
     ax.set_xticks(range(len(confidence_options)))
     ax.set_xticklabels(confidence_options, fontsize=9)
     ax.set_ylabel("fraction of responses")
-    scale_title = f"{CONFIDENCE_SCALE} scale"
-    ax.set_title(f"Stated confidence  ({scale_title})")
+    panel2_title = (
+        "Delegate digit distribution  ('1' vs '2')" if META_TASK == "delegate"
+        else f"Stated confidence  ({CONFIDENCE_SCALE} scale)"
+    )
+    ax.set_title(panel2_title)
     ax.set_ylim(0, 1)
     ax.grid(True, alpha=0.3, axis="y")
-    # Show mean numeric value
+    # Show mean numeric value / mean P(Answer)
     valid_num = stated_num[~np.isnan(stated_num)]
     if len(valid_num):
+        label = "P(Answer)" if META_TASK == "delegate" else "stated_num"
         ax.text(
             0.98, 0.95,
-            f"mean = {valid_num.mean():.3f}\nstd  = {valid_num.std():.3f}",
+            f"mean {label} = {valid_num.mean():.3f}\nstd  = {valid_num.std():.3f}",
             ha="right", va="top", transform=ax.transAxes, fontsize=8,
             bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="0.7"),
         )
 
-    # --- Panel 3: Entropy vs stated confidence scatter ---
+    # --- Panel 3: Entropy vs stated confidence / P(Answer) scatter ---
     ax = axes[2]
     mask = (~np.isnan(entropies)) & (~np.isnan(stated_num))
     if mask.sum() > 10:
@@ -621,9 +655,13 @@ def save_quick_summary_png(data: dict, questions: list, output_path: str) -> Non
         r = rho = float("nan"); p_r = p_rho = float("nan")
     ax.scatter(entropies[mask], stated_num[mask], alpha=0.35, s=12)
     ax.set_xlabel("MC entropy (nats)")
-    ax.set_ylabel("stated_confidence_numeric (soft)")
+    ax.set_ylabel(stated_ylabel)
+    panel3_head = (
+        "Entropy  vs  P(Answer)" if META_TASK == "delegate"
+        else "Entropy  vs  stated confidence"
+    )
     ax.set_title(
-        f"Entropy  vs  stated confidence\n"
+        f"{panel3_head}\n"
         f"Pearson r = {r:+.3f}  (p={p_r:.1e})\n"
         f"Spearman ρ = {rho:+.3f}  (p={p_rho:.1e})"
     )
@@ -2625,11 +2663,12 @@ def analyze_behavioral_introspection(
             result["self_answer_accuracy"] = float(self_answer_accuracy)
             result["self_correct"] = self_correct
 
-            # Teammate accuracy is fixed at 50% (by design of the game)
-            result["teammate_accuracy"] = 0.5
+            # Teammate accuracy: reads from the same module-level constant used
+            # when building the prompt, so behavioral stats match what the model saw.
+            result["teammate_accuracy"] = float(TEAMMATE_ACCURACY)
 
-            # Team score: self-answered correct + delegated * 0.5
-            team_score = self_correct + sum(delegated) * 0.5
+            # Team score: self-answered correct + delegated * teammate_accuracy
+            team_score = self_correct + sum(delegated) * TEAMMATE_ACCURACY
             result["team_score"] = float(team_score)
             result["team_score_normalized"] = float(team_score / len(delegated)) if delegated else 0.0
 
@@ -2848,8 +2887,26 @@ def print_results(results: Dict, behavioral: Dict, other_confidence_analysis: Di
         print(f"  Delegation rate:      {behavioral['delegation_rate']:.1%} ({behavioral['num_delegated']} delegated, {behavioral['num_self_answered']} self-answered)")
         if "self_answer_accuracy" in behavioral:
             print(f"  Self-answer accuracy: {behavioral['self_answer_accuracy']:.1%} ({behavioral['self_correct']}/{behavioral['num_self_answered']} correct)")
-            print(f"  Teammate accuracy:    {behavioral['teammate_accuracy']:.1%} (by design)")
+            print(f"  Teammate accuracy:    {behavioral['teammate_accuracy']:.1%} (configured)")
             print(f"  Team score:           {behavioral['team_score']:.1f} / {behavioral['num_delegated'] + behavioral['num_self_answered']} ({behavioral['team_score_normalized']:.1%})")
+            always_answer = float(np.mean(data.get('is_correct', [])) if 'is_correct' in data else 0.0)
+            always_delegate = float(behavioral['teammate_accuracy'])
+            print(f"  Baselines:            always-answer = {always_answer:.1%}, always-delegate = {always_delegate:.1%}")
+
+        # Positional-bias diagnostic: if meta_responses is nearly constant, the model
+        # isn't really deciding — the 50/50 delegate rate is an alternating-mapping artifact.
+        meta_resp = [str(r) for r in data.get('meta_responses', [])]
+        if meta_resp:
+            n1 = sum(1 for r in meta_resp if r == '1')
+            n2 = sum(1 for r in meta_resp if r == '2')
+            skew = max(n1, n2) / len(meta_resp)
+            print(f"  Meta-response digits: '1'={n1}, '2'={n2}  (skew={skew:.1%})")
+            if skew > 0.9:
+                print(
+                    "  \u26a0  WARNING: model almost always picks one digit \u2014 the observed "
+                    "delegation rate is a positional-bias artifact, not a metacognitive signal. "
+                    "Raising TEAMMATE_ACCURACY or changing the prompt framing may help."
+                )
 
     print("\n--- Probe Analysis by Layer ---")
     print(f"{'Layer':<8} {'Direct→Direct':<15} {'D→M (fixed)':<15} {'D→M (orig)':<15} {'Meta→Meta':<15} {'Shuffled':<12}")
@@ -3154,7 +3211,7 @@ def run_single_experiment(
         print("  use_phase1_summary: True")
         print("  use_phase1_history: False")
         print("  use_examples: True")
-        print("  teammate_accuracy: 50%")
+        print(f"  teammate_accuracy: {TEAMMATE_ACCURACY:.0%}")
         print("  Options: 1/2 (alternating mapping per trial)")
         print("")
 
@@ -3286,12 +3343,25 @@ def run_single_experiment(
     except Exception as e:
         print(f"⚠ examples.txt dump failed: {e}")
 
-    # Generate example prompts for verification (first 2 questions)
+    # Generate example prompts for verification (first 2 questions).
+    # Wrapped: when reusing direct data and FEW_SHOT_MODE is a pool-requiring mode
+    # (e.g. "balanced") without a loaded MC pool, direct-prompt rendering fails.
+    # We fall back to "fixed" mode here — this block is purely diagnostic and does
+    # not affect the saved activations.
+    def _render_direct_prompt(_q):
+        if not is_base:
+            return format_direct_prompt(_q, tokenizer, use_chat_template)
+        try:
+            return format_direct_prompt_base(_q, mode=FEW_SHOT_MODE)
+        except Exception as e:
+            print(f"  (example-prompt fallback: direct MC '{FEW_SHOT_MODE}' mode failed ({e}); using 'fixed')")
+            return format_direct_prompt_base(_q, mode="fixed")
+
     example_prompts = []
     for i in range(min(2, len(questions))):
         q = questions[i]
         if is_base:
-            direct_prompt, direct_options = format_direct_prompt_base(q, mode=FEW_SHOT_MODE)
+            direct_prompt, direct_options = _render_direct_prompt(q)
         else:
             direct_prompt, direct_options = format_direct_prompt(q, tokenizer, use_chat_template)
         if META_TASK == "delegate":
@@ -3420,7 +3490,7 @@ def run_single_experiment(
                 "use_phase1_summary": True,
                 "use_phase1_history": False,
                 "use_examples": True,
-                "teammate_accuracy": 0.5,
+                "teammate_accuracy": float(TEAMMATE_ACCURACY),
             } if META_TASK == "delegate" else None,
         }
     }
