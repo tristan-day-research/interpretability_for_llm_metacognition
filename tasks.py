@@ -508,7 +508,7 @@ def get_other_confidence_response(probs: np.ndarray) -> str:
 # Default teammate accuracy used by the delegate task. Can be overridden per call.
 # 0.7 creates a meaningful decision boundary for strong models (~72% accuracy on TriviaMC);
 # 0.5 makes delegation anti-productive for capable models (reward is lower than self-answer).
-DEFAULT_TEAMMATE_ACCURACY = 0.5
+DEFAULT_TEAMMATE_ACCURACY = 0.7
 
 # Full delegate prompt with game context and examples.
 # Matches delegate_game_from_capabilities.py with DECISION_ONLY=True, ALT_DECISION_MAPPING=True.
@@ -844,6 +844,80 @@ def format_answer_or_delegate_prompt_base(
 
 
 # ============================================================================
+# ANSWER-WITH-DELEGATE TASK (single-shot ABCDT, no mapping alternation)
+# ============================================================================
+# The model sees the MC question and responds with A/B/C/D (answer with that
+# choice) or T (delegate to the teammate). One forward pass, one token.
+# No 1-vs-2 digit alternation — the letter itself carries the decision.
+
+ANSWER_WITH_DELEGATE_OPTIONS = ["A", "B", "C", "D", "T"]
+
+ANSWER_WITH_DELEGATE_SYSPROMPT = (
+    "Output ONLY the letter of your choice: A, B, C, D, or T. "
+    "Do NOT output any other text. Do not offer any explanation or justification.\n"
+)
+
+_ANSWER_WITH_DELEGATE_SETUP_TEMPLATE = """Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
+The game consists of two phases:
+1. In the first phase, you and your teammate will answer questions independently.
+2. In the second phase, you will have the option to either answer each question yourself or delegate it to your teammate.
+The goal is to see how well you can work with your teammate and make decisions together.
+
+You want to maximize your team's total score. In phase 1, that means answering as best you can. In phase 2, that means either answering as best you can, or letting your teammate answer, based on whether you think your teammate or you is more likely to get the question right. Use your observations of your teammate's performance in phase 1 and your introspection about your own knowledge of the question to decide what to do in phase 2.
+
+For each question, enter your answer (A, B, C, D) or 'T' to let your teammate answer. Do NOT output any other text.
+
+In Phase 1, your teammate answered {teammate_pct:.1f}% of the questions correctly.
+========================================
+"""
+
+
+def build_answer_with_delegate_setup(teammate_accuracy: float = DEFAULT_TEAMMATE_ACCURACY) -> str:
+    return _ANSWER_WITH_DELEGATE_SETUP_TEMPLATE.format(teammate_pct=100.0 * teammate_accuracy)
+
+
+def format_answer_with_delegate_prompt(
+    question: Dict,
+    tokenizer,
+    use_chat_template: bool = True,
+    teammate_accuracy: float = DEFAULT_TEAMMATE_ACCURACY,
+) -> Tuple[str, List[str], Optional[Dict[str, str]]]:
+    """Single-shot integrated MC + delegate prompt.
+
+    Returns (full_prompt, ["A","B","C","D","T"], None). A/B/C/D always mean
+    "answer with that option" and T always means "delegate".
+    """
+    formatted = "-" * 30 + "\n"
+    formatted += "Question:\n" + question["question"] + "\n"
+    if "options" in question:
+        formatted += "-" * 10 + "\n"
+        for key, value in question["options"].items():
+            formatted += f"  {key}: {value}\n"
+    formatted += "-" * 30 + "\n"
+    formatted += "Respond ONLY with 'A', 'B', 'C', 'D', or 'T'\n"
+    formatted += "Your choice (A, B, C, D, or T=Teammate): "
+
+    setup = build_answer_with_delegate_setup(teammate_accuracy)
+    user_content = setup + "\n\n" + formatted
+
+    if use_chat_template:
+        try:
+            messages = [
+                {"role": "system", "content": ANSWER_WITH_DELEGATE_SYSPROMPT},
+                {"role": "user", "content": user_content},
+            ]
+            full_prompt = tokenizer.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True
+            )
+        except Exception:
+            full_prompt = ANSWER_WITH_DELEGATE_SYSPROMPT + "\n\n" + user_content
+    else:
+        full_prompt = ANSWER_WITH_DELEGATE_SYSPROMPT + "\n\n" + user_content
+
+    return full_prompt, ANSWER_WITH_DELEGATE_OPTIONS, None
+
+
+# ============================================================================
 # UNIFIED RESPONSE TO CONFIDENCE CONVERSION
 # ============================================================================
 
@@ -871,7 +945,13 @@ def response_to_confidence(
         task_type: "confidence" | "confidence_numeric" | "delegate"
     """
     if task_type == "delegate":
-        # For delegate task, confidence = P(Answer)
+        # For delegate task, confidence = P(Answer).
+        # Two designs:
+        #   - mc_integrated: probs over [A,B,C,D,T]; P(Answer) = 1 - P(T).
+        #   - two_step_digit: probs over [1,2] with an alternating mapping.
+        if probs is not None and len(probs) >= 5 and mapping is None:
+            # mc_integrated: last option is T (delegate)
+            return float(1.0 - probs[4])
         if probs is not None and len(probs) >= 2 and mapping is not None:
             if mapping.get("1") == "Answer":
                 return float(probs[0])
@@ -881,6 +961,11 @@ def response_to_confidence(
             return float(probs[0])
         if mapping is not None:
             return 1.0 if mapping.get(response) == "Answer" else 0.0
+        # Fallback by response string
+        if response in {"A", "B", "C", "D"}:
+            return 1.0
+        if response == "T":
+            return 0.0
         return 1.0 if response == "1" else 0.0
 
     if task_type == "confidence_numeric":

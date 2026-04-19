@@ -67,44 +67,43 @@ class RunConfig:
         return self.intro_dir / f"{self.intro_stem}_paired_data.json"
 
 
+# run_introspection_for_ablation.py writes all artifacts to outputs/ directly,
+# so every RunConfig points at OUTPUT_DIR rather than a model-specific subfolder.
 RUNS: List[RunConfig] = [
-    # --- base (1-10 scale, balanced few-shot examples) ---
     RunConfig(
         label="base_SimpleMC",
         base_model=BASE_MODEL, adapter=None, dataset="SimpleMC",
-        intro_dir=OUTPUT_DIR / "8b_base_26_04_1-10_scale_balanced_fewshot_examples",
+        intro_dir=OUTPUT_DIR,
         intro_stem="Llama-3.1-8B_SimpleMC_introspection_scale-numeric",
     ),
     RunConfig(
         label="base_TriviaMC",
         base_model=BASE_MODEL, adapter=None, dataset="TriviaMC",
-        intro_dir=OUTPUT_DIR / "8b_base_26_04_1-10_scale_balanced_fewshot_examples",
+        intro_dir=OUTPUT_DIR,
         intro_stem="Llama-3.1-8B_TriviaMC_introspection_scale-numeric",
     ),
-    # --- instruct (1-10 scale, no explicit percentage bins; parity with finetuned) ---
     RunConfig(
         label="instruct_SimpleMC",
         base_model=INSTRUCT_MODEL, adapter=None, dataset="SimpleMC",
-        intro_dir=OUTPUT_DIR / "8b_instruct_26_04_scale_1-10_no_explicit_percentage_bins",
+        intro_dir=OUTPUT_DIR,
         intro_stem="Llama-3.1-8B-Instruct_SimpleMC_introspection_scale-numeric",
     ),
     RunConfig(
         label="instruct_TriviaMC",
         base_model=INSTRUCT_MODEL, adapter=None, dataset="TriviaMC",
-        intro_dir=OUTPUT_DIR / "8b_instruct_26_04_scale_1-10_no_explicit_percentage_bins",
+        intro_dir=OUTPUT_DIR,
         intro_stem="Llama-3.1-8B-Instruct_TriviaMC_introspection_scale-numeric",
     ),
-    # --- finetuned (1-10 scale) ---
     RunConfig(
         label="finetuned_SimpleMC",
         base_model=INSTRUCT_MODEL, adapter=FINETUNE_ADAPTER, dataset="SimpleMC",
-        intro_dir=OUTPUT_DIR / "8b_finetuned_26_04_scale_1-10_no_explicit_percentage_bins",
+        intro_dir=OUTPUT_DIR,
         intro_stem=f"{FINETUNE_STEM_PREFIX}_SimpleMC_introspection_scale-numeric",
     ),
     RunConfig(
         label="finetuned_TriviaMC",
         base_model=INSTRUCT_MODEL, adapter=FINETUNE_ADAPTER, dataset="TriviaMC",
-        intro_dir=OUTPUT_DIR / "8b_finetuned_26_04_scale_1-10_no_explicit_percentage_bins",
+        intro_dir=OUTPUT_DIR,
         intro_stem=f"{FINETUNE_STEM_PREFIX}_TriviaMC_introspection_scale-numeric",
     ),
 ]

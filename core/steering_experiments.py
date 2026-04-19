@@ -55,27 +55,73 @@ class SteeringExperimentConfig:
 def extract_cache_tensors(past_key_values) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
     """
     Extract raw tensors from past_key_values (tuple or DynamicCache).
-    Uses robust indexing (cache[i]) instead of attribute access.
     Returns (key_tensors, value_tensors) where each is a list of tensors.
+
+    Hugging Face cache layouts differ by version: some DynamicCache objects
+    support len() but not integer __getitem__; others expose .key_cache /
+    .value_cache or .layers instead of legacy (k, v) tuples per layer.
     """
-    keys = []
-    values = []
+    if past_key_values is None:
+        raise ValueError("past_key_values is None")
 
-    # Robustly determine number of layers
+    # 1. DynamicCache with .key_cache / .value_cache (common)
+    if hasattr(past_key_values, "key_cache") and hasattr(past_key_values, "value_cache"):
+        return list(past_key_values.key_cache), list(past_key_values.value_cache)
+
+    # 2. DynamicCache with .layers (newer transformers)
+    if hasattr(past_key_values, "layers"):
+        keys, values = [], []
+        for layer in past_key_values.layers:
+            if hasattr(layer, "keys") and hasattr(layer, "values"):
+                keys.append(layer.keys)
+                values.append(layer.values)
+            elif hasattr(layer, "key_cache") and hasattr(layer, "value_cache"):
+                keys.append(layer.key_cache)
+                values.append(layer.value_cache)
+            elif isinstance(layer, tuple) and len(layer) == 2:
+                keys.append(layer[0])
+                values.append(layer[1])
+            else:
+                tensor_attrs = [
+                    a
+                    for a in dir(layer)
+                    if not a.startswith("_")
+                    and isinstance(getattr(layer, a, None), torch.Tensor)
+                ]
+                if len(tensor_attrs) >= 2:
+                    keys.append(getattr(layer, tensor_attrs[0]))
+                    values.append(getattr(layer, tensor_attrs[1]))
+                else:
+                    raise ValueError(
+                        f"Cannot extract k/v from {type(layer).__name__}. "
+                        f"Tensor attrs: {tensor_attrs}"
+                    )
+        return keys, values
+
+    # 3. Iterable cache yielding (key, value) per layer
+    if hasattr(past_key_values, "__iter__") and hasattr(past_key_values, "__len__"):
+        keys, values = [], []
+        for item in past_key_values:
+            if isinstance(item, tuple) and len(item) == 2:
+                keys.append(item[0])
+                values.append(item[1])
+            else:
+                raise ValueError(f"Unexpected cache item type: {type(item)}")
+        return keys, values
+
+    # 4. Legacy: to_legacy_cache() then tuple indexing
+    if hasattr(past_key_values, "to_legacy_cache"):
+        return extract_cache_tensors(past_key_values.to_legacy_cache())
+
+    keys, values = [], []
     try:
-        num_layers = len(past_key_values)
-    except TypeError:
-        # Fallback for weird objects (e.g. some PEFT proxies)
-        if hasattr(past_key_values, "to_legacy_cache"):
-            return extract_cache_tensors(past_key_values.to_legacy_cache())
-        raise ValueError(f"Cannot determine length of cache: {type(past_key_values)}")
-
-    for i in range(num_layers):
-        # Indexing returns (key_state, value_state) for layer i
+        n = len(past_key_values)
+    except TypeError as e:
+        raise ValueError(f"Cannot determine length of cache: {type(past_key_values)}") from e
+    for i in range(n):
         k, v = past_key_values[i]
         keys.append(k)
         values.append(v)
-
     return keys, values
 
 

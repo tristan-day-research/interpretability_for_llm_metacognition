@@ -52,6 +52,10 @@ def _apply_run_overrides(run: RunConfig, *, dry_run: bool) -> None:
     rac.DIRECTION_METRIC = "stated_confidence"
     rac.TARGET_METRIC = "entropy"
     rac.META_TASK = "confidence"  # emits stated_confidence_numeric signal
+    # Must match the scale the introspection run used when producing the
+    # direction file. run_introspection_for_ablation.py fixes this at "numeric".
+    rac.CONFIDENCE_SCALE = "numeric"
+    rac.BASE_CONFIDENCE_FEW_SHOT_MODE = "fixed"
 
     if dry_run:
         rac.LAYERS = [20]

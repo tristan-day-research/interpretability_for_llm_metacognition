@@ -56,12 +56,17 @@ from core.steering_experiments import (
 from core.metrics import metric_sign_for_confidence
 from tasks import (
     format_stated_confidence_prompt,
+    format_stated_confidence_prompt_base,
     get_stated_confidence_signal,
     format_answer_or_delegate_prompt,
     get_answer_or_delegate_signal,
     STATED_CONFIDENCE_OPTIONS,
     ANSWER_OR_DELEGATE_OPTIONS,
     find_mc_positions,
+    format_numeric_confidence_prompt,
+    format_numeric_confidence_prompt_base,
+    get_numeric_confidence_signal,
+    NUMERIC_CONFIDENCE_OPTIONS,
 )
 
 # =============================================================================
@@ -79,6 +84,16 @@ DIRECTION_METRIC = "entropy"
 # entropy after the direction is ablated.
 TARGET_METRIC = "entropy"
 META_TASK = "delegate"  # "confidence" or "delegate"
+
+# Confidence scale to use when META_TASK == "confidence". Must match the scale
+# the direction file was fit on, otherwise the ablation forward pass uses a
+# different prompt distribution from the one that produced the direction.
+#   "numeric" = 1-10 digits
+#   "letters" = S-Z 8-bin
+CONFIDENCE_SCALE = "numeric"
+# Few-shot mode passed to the base-model numeric prompt. Only "fixed" and
+# "none" are supported by format_numeric_confidence_prompt_base.
+BASE_CONFIDENCE_FEW_SHOT_MODE = "fixed"
 
 
 # Confidence signal used as the meta-task output target.
@@ -290,10 +305,32 @@ def load_dataset(base_name: str) -> Dict:
 # META-TASK HELPERS
 # =============================================================================
 
+def _confidence_format_fn(question, tokenizer, use_chat_template=True):
+    """Confidence-task prompt picker. Dispatches on CONFIDENCE_SCALE and whether
+    the model wants a chat template (proxy for "is this a base model?").
+
+    Matches the dispatch in run_introspection_experiment.format_meta_prompt /
+    format_meta_prompt_base so the ablation-time prompt is identical to what
+    the introspection pipeline used when producing the direction."""
+    if CONFIDENCE_SCALE == "numeric":
+        if use_chat_template:
+            return format_numeric_confidence_prompt(question, tokenizer, use_chat_template)
+        # Base model path: no chat template, few-shot exemplars.
+        return format_numeric_confidence_prompt_base(
+            question, mode=BASE_CONFIDENCE_FEW_SHOT_MODE, pool=None
+        )
+    # Letter (S-Z) scale
+    if use_chat_template:
+        return format_stated_confidence_prompt(question, tokenizer, use_chat_template)
+    return format_stated_confidence_prompt_base(
+        question, mode=BASE_CONFIDENCE_FEW_SHOT_MODE, pool=None
+    )
+
+
 def get_format_fn(meta_task: str):
     """Get prompt formatting function for meta-task."""
     if meta_task == "confidence":
-        return format_stated_confidence_prompt
+        return _confidence_format_fn
     elif meta_task == "delegate":
         return format_answer_or_delegate_prompt
     else:
@@ -307,7 +344,8 @@ def get_signal_fn(meta_task: str):
     For confidence task, mapping is ignored.
     """
     if meta_task == "confidence":
-        # Wrap to match (probs, mapping) signature
+        if CONFIDENCE_SCALE == "numeric":
+            return lambda p, m: get_numeric_confidence_signal(p)
         return lambda p, m: get_stated_confidence_signal(p)
     elif meta_task == "delegate":
         return get_answer_or_delegate_signal
@@ -318,6 +356,8 @@ def get_signal_fn(meta_task: str):
 def get_options(meta_task: str) -> List[str]:
     """Get response options for meta-task."""
     if meta_task == "confidence":
+        if CONFIDENCE_SCALE == "numeric":
+            return list(NUMERIC_CONFIDENCE_OPTIONS.keys())
         return list(STATED_CONFIDENCE_OPTIONS.keys())
     elif meta_task == "delegate":
         return ANSWER_OR_DELEGATE_OPTIONS
@@ -1302,7 +1342,16 @@ def plot_ablation_results(analysis: Dict, method: str, output_path: Path):
         return
 
     fig, axes = plt.subplots(3, 1, figsize=(20, 14))
-    fig.suptitle(f"Ablation Results: {method.upper()} directions ({analysis['metric']})", fontsize=14)
+    # Build a title that identifies the run (model + dataset + direction/target metrics)
+    model_short = get_model_short_name(MODEL)
+    adapter_tag = f" + {get_model_short_name(ADAPTER)}" if ADAPTER else ""
+    title_bits = [
+        f"Ablation: {method.upper()} ({DIRECTION_METRIC} direction)",
+        f"target={TARGET_METRIC}",
+        f"model={model_short}{adapter_tag}",
+        f"input={INPUT_BASE_NAME}",
+    ]
+    fig.suptitle(" | ".join(title_bits), fontsize=12)
 
     x = np.arange(len(layers))
 
@@ -1318,10 +1367,19 @@ def plot_ablation_results(analysis: Dict, method: str, output_path: Path):
     ablt_lo = np.array([per[l]["ablated_corr_ci95"][0] for l in layers], dtype=np.float32)
     ablt_hi = np.array([per[l]["ablated_corr_ci95"][1] for l in layers], dtype=np.float32)
 
-    ax1.plot(x, baseline_corrs, '-', label='Baseline', color='blue', linewidth=1.5, marker='o', markersize=3)
+    # Marker size: single-layer (e.g. dry-run) needs larger markers — a 1-point
+    # line segment has zero length and is invisible without markers.
+    _ms = max(4.0, min(10.0, 60.0 / max(len(layers), 1)))
+    ax1.plot(
+        x, baseline_corrs, "-", label="Baseline", color="blue", linewidth=1.5,
+        marker="o", markersize=_ms, markeredgecolor="navy", markeredgewidth=0.4,
+    )
     ax1.fill_between(x, base_lo, base_hi, color='blue', alpha=0.15, label='Baseline 95% CI')
 
-    ax1.plot(x, ablated_corrs, '-', label=f'{method} ablated', color='red', linewidth=1.5, marker='s', markersize=3)
+    ax1.plot(
+        x, ablated_corrs, "-", label=f"{method} ablated", color="red", linewidth=1.5,
+        marker="s", markersize=_ms, markeredgecolor="darkred", markeredgewidth=0.4,
+    )
     ax1.fill_between(x, ablt_lo, ablt_hi, color='red', alpha=0.15, label='Ablated 95% CI')
 
     ax1.axhline(y=0, color='black', linestyle=':', alpha=0.3)
@@ -1350,7 +1408,8 @@ def plot_ablation_results(analysis: Dict, method: str, output_path: Path):
     p_fdr = np.array([per[l]["p_value_bootstrap_fdr"] for l in layers], dtype=np.float32)
     colors = ['red' if p < 0.05 else 'orange' if p < 0.1 else 'gray' for p in p_fdr]
 
-    ax2.bar(x, delta, color=colors, alpha=0.7, edgecolor='black', linewidth=0.5)
+    _bar_w = min(0.85, 6.0 / max(len(layers), 1))
+    ax2.bar(x, delta, width=_bar_w, color=colors, alpha=0.7, edgecolor='black', linewidth=0.5)
     ax2.errorbar(x, delta, yerr=yerr, fmt='none', ecolor='black', capsize=2, alpha=0.5, linewidth=1)
 
     ax2.axhline(y=0, color='black', linestyle='-', linewidth=1)
@@ -1754,7 +1813,12 @@ def main():
 
         # Incremental save after each position completes (crash protection)
         model_short = get_model_short_name(MODEL)
-        base_output = f"{model_short}_{INPUT_BASE_NAME.split('_')[-1]}_ablation_{META_TASK}_{DIRECTION_METRIC}"
+        # INPUT_BASE_NAME is like "Llama-3.1-8B-Instruct_SimpleMC_scale-numeric".
+        # Drop the model-short prefix (the first chunk) and use the rest as the
+        # dataset/scale tag so SimpleMC and TriviaMC end up in different files.
+        _parts = INPUT_BASE_NAME.split("_")
+        _run_tag = "_".join(_parts[1:]) if len(_parts) > 1 else INPUT_BASE_NAME
+        base_output = f"{model_short}_{_run_tag}_ablation_{META_TASK}_{DIRECTION_METRIC}"
         checkpoint_path = OUTPUT_DIR / f"{base_output}_checkpoint.json"
         checkpoint_json = {
             "config": {
@@ -1789,9 +1853,12 @@ def main():
         # Use first available position
         all_analyses = all_analyses_by_pos[PROBE_POSITIONS[0]]
 
-    # Generate output filename
+    # Generate output filename — include everything after the model-short prefix
+    # so SimpleMC and TriviaMC outputs don't collide.
     model_short = get_model_short_name(MODEL)
-    base_output = f"{model_short}_{INPUT_BASE_NAME.split('_')[-1]}_ablation_{META_TASK}_{DIRECTION_METRIC}"
+    _parts = INPUT_BASE_NAME.split("_")
+    _run_tag = "_".join(_parts[1:]) if len(_parts) > 1 else INPUT_BASE_NAME
+    base_output = f"{model_short}_{_run_tag}_ablation_{META_TASK}_{DIRECTION_METRIC}"
 
     # Save JSON results
     print("\nSaving results...")

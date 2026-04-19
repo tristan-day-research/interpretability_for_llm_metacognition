@@ -78,6 +78,9 @@ from tasks import (
     format_answer_or_delegate_prompt,
     format_answer_or_delegate_prompt_base,
     get_delegate_mapping,
+    # Single-shot ABCDT delegate task
+    ANSWER_WITH_DELEGATE_OPTIONS,
+    format_answer_with_delegate_prompt,
     # Unified conversion
     response_to_confidence,
 )
@@ -86,16 +89,16 @@ load_dotenv()
 
 
 # Configuration
-BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B"
-# BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
+# BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B"
+BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
 
 
 MODEL_NAME = BASE_MODEL_NAME  # Set to adapter path if using fine-tuned model
-# MODEL_NAME = "Tristan-Day/ect_20251222_215412_v0uei7y1_2000"   # Set to adapter path if using fine-tuned model
+MODEL_NAME = "Tristan-Day/ect_20251222_215412_v0uei7y1_2000"   # Set to adapter path if using fine-tuned model
 
 # Lists of datasets and meta_tasks to process (will iterate through all combinations)
 # Set to a single-item list for single runs, or multiple items to batch process
-DATASETS = ["SimpleMC", "TriviaMC"]  # Options: "SimpleMC", "TriviaMC", "GPQA", etc.
+DATASETS = ["TriviaMC"]  # Options: "SimpleMC", "TriviaMC", "GPQA", etc.
 META_TASKS = ["delegate"]  # Options: "confidence", "delegate"
 
 # Legacy single-value variables (used by functions that reference them)
@@ -136,6 +139,16 @@ BASE_DELEGATE_POOL_SOURCE = None  # e.g. "outputs/ECT/..._ect_results.json" when
 # 0.5 makes delegation anti-productive for capable models and can drive positional bias.
 TEAMMATE_ACCURACY = 0.7
 
+# Delegate prompt design.
+# "mc_integrated" (default): single-shot A/B/C/D/T prompt; T delegates, A/B/C/D
+#                            answer with that option. Meta forward pass yields a
+#                            distribution over 5 letters. No mapping alternation.
+# "two_step_digit" (legacy): separate 1-vs-2 decision prompt with per-trial
+#                            alternating mapping (1=Answer on odd, 1=Delegate on
+#                            even). Produces a 50/50 artifact when the model has
+#                            a fixed digit preference.
+DELEGATE_PROMPT_DESIGN = "mc_integrated"
+
 # --- Reuse existing direct-prompt activations ---
 # When True AND META_TASK == "delegate", skip the direct forward pass for this run.
 # Instead load `direct_activations.npz` + `paired_data.json` from the confidence-mode
@@ -143,7 +156,7 @@ TEAMMATE_ACCURACY = 0.7
 # This also skips writing a duplicate `{base_prefix}_direct_activations.npz` to disk.
 # Use this when you already have confidence-mode results for a model/dataset and
 # only want to add delegate-mode data without re-running the MC pass.
-REUSE_DIRECT_FROM_CONFIDENCE = True
+REUSE_DIRECT_FROM_CONFIDENCE = False
 
 # Confidence scale to use for the stated-confidence meta task.
 # "letters"  : S-Z 8-bin scale (original).
@@ -349,13 +362,31 @@ def format_delegate_prompt(
     few_shot_mode: str = "fixed",
     few_shot_pool: Optional[List[Dict]] = None,
     teammate_accuracy: float = None,
-) -> Tuple[str, List[str], Dict[str, str]]:
+) -> Tuple[str, List[str], Optional[Dict[str, str]]]:
     """Format a delegate question using centralized tasks.py logic.
 
-    For base models, routes to the few-shot no-chat-template version.
+    Routes on DELEGATE_PROMPT_DESIGN:
+    - "mc_integrated": single-shot A/B/C/D/T prompt (instruct/finetuned only).
+      Returns (prompt, ["A","B","C","D","T"], None).
+    - "two_step_digit": legacy 1-vs-2 decision with alternating mapping.
+      Base models supported via few-shot.
     """
     if teammate_accuracy is None:
         teammate_accuracy = TEAMMATE_ACCURACY
+
+    if DELEGATE_PROMPT_DESIGN == "mc_integrated":
+        if is_base:
+            raise NotImplementedError(
+                "mc_integrated delegate prompt is not implemented for base models yet. "
+                "Set DELEGATE_PROMPT_DESIGN='two_step_digit' for base-model runs."
+            )
+        return format_answer_with_delegate_prompt(
+            question, tokenizer,
+            use_chat_template=use_chat_template,
+            teammate_accuracy=teammate_accuracy,
+        )
+
+    # Legacy two-step digit design
     if is_base:
         return format_answer_or_delegate_prompt_base(
             question, trial_index=trial_index, mode=few_shot_mode, pool=few_shot_pool,
@@ -379,6 +410,8 @@ def get_meta_prompt_formatter():
 def get_meta_options():
     """Return the meta options based on META_TASK and CONFIDENCE_SCALE."""
     if META_TASK == "delegate":
+        if DELEGATE_PROMPT_DESIGN == "mc_integrated":
+            return ANSWER_WITH_DELEGATE_OPTIONS
         return DELEGATE_OPTIONS
     # Confidence task — scale-dependent
     return list(_scale_options().keys())
@@ -574,9 +607,21 @@ def save_quick_summary_png(data: dict, questions: list, output_path: str) -> Non
     meta_mappings = data.get("meta_mappings", []) or [None] * n
     entropies = np.asarray(data.get("direct_metrics", {}).get("entropy", [np.nan] * n))
 
-    # Delegate mode has a 2-option meta response; confidence has an 8/10-option scale.
+    # Delegate mode: either 2-option digit probs (legacy) or 5-option A/B/C/D/T
+    # probs (mc_integrated). Confidence has an 8/10-option scale.
     # Build stated_num and the option legend accordingly so the shapes line up.
-    if META_TASK == "delegate":
+    if META_TASK == "delegate" and DELEGATE_PROMPT_DESIGN == "mc_integrated":
+        confidence_options = ANSWER_WITH_DELEGATE_OPTIONS  # ["A","B","C","D","T"]
+        t_idx = confidence_options.index("T")
+        stated_num = np.full(n, np.nan)
+        for i, p in enumerate(meta_probs):
+            if not p:
+                continue
+            p_arr = np.asarray(p, dtype=float)
+            if p_arr.shape[0] >= len(confidence_options):
+                stated_num[i] = 1.0 - float(p_arr[t_idx])  # P(Answer) = 1 - P(T)
+        stated_ylabel = "P(Answer)"
+    elif META_TASK == "delegate":
         confidence_options = ANSWER_OR_DELEGATE_OPTIONS  # ["1", "2"]
         stated_num = np.full(n, np.nan)
         for i, p in enumerate(meta_probs):
@@ -627,10 +672,12 @@ def save_quick_summary_png(data: dict, questions: list, output_path: str) -> Non
     ax.set_xticks(range(len(confidence_options)))
     ax.set_xticklabels(confidence_options, fontsize=9)
     ax.set_ylabel("fraction of responses")
-    panel2_title = (
-        "Delegate digit distribution  ('1' vs '2')" if META_TASK == "delegate"
-        else f"Stated confidence  ({CONFIDENCE_SCALE} scale)"
-    )
+    if META_TASK == "delegate" and DELEGATE_PROMPT_DESIGN == "mc_integrated":
+        panel2_title = "Answer-with-delegate distribution  (A/B/C/D/T)"
+    elif META_TASK == "delegate":
+        panel2_title = "Delegate digit distribution  ('1' vs '2')"
+    else:
+        panel2_title = f"Stated confidence  ({CONFIDENCE_SCALE} scale)"
     ax.set_title(panel2_title)
     ax.set_ylim(0, 1)
     ax.grid(True, alpha=0.3, axis="y")
@@ -2629,34 +2676,55 @@ def analyze_behavioral_introspection(
     }
 
     # Delegate-specific metrics
-    if META_TASK == "delegate" and meta_mappings is not None:
-        # Determine delegation decisions based on response and mapping
+    if META_TASK == "delegate":
+        # Determine delegation decisions: mc_integrated uses the response letter
+        # directly (T = delegate); two_step_digit uses the alternating mapping.
         delegated = []
         self_answers = []
-        for i, (response, mapping) in enumerate(zip(meta_responses, meta_mappings)):
-            if mapping is not None:
-                decision = mapping.get(response, "Unknown")
-                is_delegated = (decision == "Delegate")
+        if DELEGATE_PROMPT_DESIGN == "mc_integrated":
+            for i, response in enumerate(meta_responses):
+                is_delegated = (str(response) == "T")
                 delegated.append(is_delegated)
                 if not is_delegated:
                     self_answers.append(i)
+        elif meta_mappings is not None:
+            for i, (response, mapping) in enumerate(zip(meta_responses, meta_mappings)):
+                if mapping is not None:
+                    decision = mapping.get(response, "Unknown")
+                    is_delegated = (decision == "Delegate")
+                    delegated.append(is_delegated)
+                    if not is_delegated:
+                        self_answers.append(i)
 
         delegation_rate = sum(delegated) / len(delegated) if delegated else 0.0
         result["delegation_rate"] = float(delegation_rate)
         result["num_delegated"] = sum(delegated)
         result["num_self_answered"] = len(self_answers)
+        # Record raw response distribution so print_results can show response-collapse warnings.
+        result["response_distribution"] = {
+            r: sum(1 for x in meta_responses if str(x) == r)
+            for r in set(str(x) for x in meta_responses)
+        }
 
         # Compute self-answer accuracy if we have the data
-        if direct_probs is not None and questions is not None and self_answers:
+        if questions is not None and self_answers:
             self_correct = 0
             for idx in self_answers:
-                if idx < len(direct_probs) and idx < len(questions):
+                if idx >= len(questions):
+                    continue
+                q = questions[idx]
+                correct = q.get("correct_answer")
+                if correct is None:
+                    continue
+                if DELEGATE_PROMPT_DESIGN == "mc_integrated":
+                    # Under mc_integrated, the self-answer IS the meta response letter.
+                    if idx < len(meta_responses) and str(meta_responses[idx]) == correct:
+                        self_correct += 1
+                elif direct_probs is not None and idx < len(direct_probs):
                     probs = direct_probs[idx]
-                    q = questions[idx]
-                    if probs and "correct_answer" in q and "options" in q:
+                    if probs and "options" in q:
                         options = list(q["options"].keys())
-                        predicted_answer = options[np.argmax(probs)]
-                        if predicted_answer == q["correct_answer"]:
+                        if options[np.argmax(probs)] == correct:
                             self_correct += 1
 
             self_answer_accuracy = self_correct / len(self_answers)
@@ -2674,18 +2742,19 @@ def analyze_behavioral_introspection(
 
             # Overall MC accuracy = the "always-answer" baseline (grade every question).
             # Useful next to team_score_normalized and teammate_accuracy in the summary.
-            overall_correct = 0
-            overall_graded = 0
-            for idx in range(min(len(direct_probs), len(questions))):
-                probs = direct_probs[idx]
-                q = questions[idx]
-                if probs and "correct_answer" in q and "options" in q:
-                    options = list(q["options"].keys())
-                    if options[np.argmax(probs)] == q["correct_answer"]:
-                        overall_correct += 1
-                    overall_graded += 1
-            if overall_graded:
-                result["overall_accuracy"] = float(overall_correct / overall_graded)
+            if direct_probs is not None:
+                overall_correct = 0
+                overall_graded = 0
+                for idx in range(min(len(direct_probs), len(questions))):
+                    probs = direct_probs[idx]
+                    q = questions[idx]
+                    if probs and "correct_answer" in q and "options" in q:
+                        options = list(q["options"].keys())
+                        if options[np.argmax(probs)] == q["correct_answer"]:
+                            overall_correct += 1
+                        overall_graded += 1
+                if overall_graded:
+                    result["overall_accuracy"] = float(overall_correct / overall_graded)
 
     # Include stated_confidence for downstream analysis (e.g., calibration split)
     result["stated_confidence"] = stated_confidence.tolist()
@@ -2912,18 +2981,20 @@ def print_results(results: Dict, behavioral: Dict, other_confidence_analysis: Di
             else:
                 print(f"  Baselines:            always-delegate = {always_delegate:.1%}  (always-answer baseline: see notebook)")
 
-        # Positional-bias diagnostic: if meta_responses is nearly constant, the model
-        # isn't really deciding — the 50/50 delegate rate is an alternating-mapping artifact.
-        meta_resp = [str(r) for r in data.get('meta_responses', [])]
-        if meta_resp:
-            n1 = sum(1 for r in meta_resp if r == '1')
-            n2 = sum(1 for r in meta_resp if r == '2')
-            skew = max(n1, n2) / len(meta_resp)
-            print(f"  Meta-response digits: '1'={n1}, '2'={n2}  (skew={skew:.1%})")
+        # Response-collapse diagnostic: if the model almost always picks the same
+        # letter/digit, the delegate rate is a prompt-format artifact.
+        dist = behavioral.get('response_distribution') or {}
+        if dist:
+            total = sum(dist.values()) or 1
+            items = sorted(dist.items(), key=lambda kv: -kv[1])
+            pretty = ", ".join(f"'{k}'={v}" for k, v in items)
+            top_key, top_cnt = items[0]
+            skew = top_cnt / total
+            print(f"  Meta-response distribution: {pretty}  (top '{top_key}' = {skew:.1%})")
             if skew > 0.9:
                 print(
-                    "  \u26a0  WARNING: model almost always picks one digit \u2014 the observed "
-                    "delegation rate is a positional-bias artifact, not a metacognitive signal. "
+                    "  \u26a0  WARNING: model almost always picks one option \u2014 the observed "
+                    "delegation rate is a prompt-format artifact, not a metacognitive signal. "
                     "Raising TEAMMATE_ACCURACY or changing the prompt framing may help."
                 )
 
@@ -3224,14 +3295,18 @@ def run_single_experiment(
     # Print delegate parameters if using delegate task
     if meta_task == "delegate":
         print("\n--- Delegate Task Parameters ---")
-        print("  (Matching delegate_game_from_capabilities.py)")
-        print("  decision_only: True")
-        print("  alternate_decision_mapping: True")
+        print(f"  prompt_design: {DELEGATE_PROMPT_DESIGN}")
+        if DELEGATE_PROMPT_DESIGN == "mc_integrated":
+            print("  Options: A/B/C/D (answer) or T (delegate) — single-shot")
+        else:
+            print("  (Matching delegate_game_from_capabilities.py)")
+            print("  decision_only: True")
+            print("  alternate_decision_mapping: True")
+            print("  Options: 1/2 (alternating mapping per trial)")
         print("  use_phase1_summary: True")
         print("  use_phase1_history: False")
         print("  use_examples: True")
         print(f"  teammate_accuracy: {TEAMMATE_ACCURACY:.0%}")
-        print("  Options: 1/2 (alternating mapping per trial)")
         print("")
 
     # Load questions
@@ -3449,6 +3524,23 @@ def run_single_experiment(
     accuracy = sum(is_correct) / len(is_correct) if is_correct else 0
     print(f"\nDirect accuracy: {accuracy:.1%} ({sum(is_correct)}/{len(is_correct)})")
 
+    # In-game correctness — only meaningful under mc_integrated delegate design,
+    # where the meta pass itself produces the MC letter (or T for delegate).
+    game_is_correct = None
+    if META_TASK == "delegate" and DELEGATE_PROMPT_DESIGN == "mc_integrated":
+        game_is_correct = [
+            bool((resp != "T") and (resp == q.get("correct_answer")))
+            for resp, q in zip(meta_responses, data["questions"])
+        ]
+        n_answered = sum(1 for r in meta_responses if r != "T")
+        n_correct = sum(game_is_correct)
+        game_acc = (n_correct / n_answered) if n_answered else 0.0
+        print(
+            f"In-game accuracy (self-answered only): {game_acc:.1%} "
+            f"({n_correct}/{n_answered}); delegate rate: "
+            f"{(1 - n_answered / len(meta_responses)):.1%}"
+        )
+
     # Run-level metadata
     try:
         import subprocess
@@ -3471,6 +3563,7 @@ def run_single_experiment(
         # New per-example fields
         "direct_responses": direct_responses,
         "is_correct": is_correct,
+        "game_is_correct": game_is_correct,
         "stated_confidence_numeric": stated_confidence_numeric,
         # Extended metrics (full-vocab)
         "direct_extended": data.get("direct_extended", {}),
@@ -3504,8 +3597,10 @@ def run_single_experiment(
             "tokenizer_name": tokenizer.name_or_path if hasattr(tokenizer, 'name_or_path') else BASE_MODEL_NAME,
             # Delegate task parameters (matches delegate_game_from_capabilities.py)
             "delegate_params": {
-                "decision_only": True,
-                "alternate_decision_mapping": True,
+                "prompt_design": DELEGATE_PROMPT_DESIGN,
+                "meta_option_keys": list(get_meta_options()),
+                "decision_only": DELEGATE_PROMPT_DESIGN == "two_step_digit",
+                "alternate_decision_mapping": DELEGATE_PROMPT_DESIGN == "two_step_digit",
                 "use_phase1_summary": True,
                 "use_phase1_history": False,
                 "use_examples": True,

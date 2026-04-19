@@ -22,6 +22,7 @@ Usage:
 
 import json
 import sys
+import traceback
 from pathlib import Path
 from typing import Dict, List
 
@@ -265,6 +266,7 @@ def main(argv: List[str]) -> int:
                 n_success += 1
         except Exception as exc:
             print(f"[{run.label}] FAILED: {type(exc).__name__}: {exc}")
+            traceback.print_exc()
     print(f"\nBuild complete: {n_success}/{n_total} runs succeeded.")
     return 0 if n_success == n_total else 1
 
