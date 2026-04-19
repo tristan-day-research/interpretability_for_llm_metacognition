@@ -2672,6 +2672,21 @@ def analyze_behavioral_introspection(
             result["team_score"] = float(team_score)
             result["team_score_normalized"] = float(team_score / len(delegated)) if delegated else 0.0
 
+            # Overall MC accuracy = the "always-answer" baseline (grade every question).
+            # Useful next to team_score_normalized and teammate_accuracy in the summary.
+            overall_correct = 0
+            overall_graded = 0
+            for idx in range(min(len(direct_probs), len(questions))):
+                probs = direct_probs[idx]
+                q = questions[idx]
+                if probs and "correct_answer" in q and "options" in q:
+                    options = list(q["options"].keys())
+                    if options[np.argmax(probs)] == q["correct_answer"]:
+                        overall_correct += 1
+                    overall_graded += 1
+            if overall_graded:
+                result["overall_accuracy"] = float(overall_correct / overall_graded)
+
     # Include stated_confidence for downstream analysis (e.g., calibration split)
     result["stated_confidence"] = stated_confidence.tolist()
 
@@ -2889,9 +2904,13 @@ def print_results(results: Dict, behavioral: Dict, other_confidence_analysis: Di
             print(f"  Self-answer accuracy: {behavioral['self_answer_accuracy']:.1%} ({behavioral['self_correct']}/{behavioral['num_self_answered']} correct)")
             print(f"  Teammate accuracy:    {behavioral['teammate_accuracy']:.1%} (configured)")
             print(f"  Team score:           {behavioral['team_score']:.1f} / {behavioral['num_delegated'] + behavioral['num_self_answered']} ({behavioral['team_score_normalized']:.1%})")
-            always_answer = float(np.mean(data.get('is_correct', [])) if 'is_correct' in data else 0.0)
+            # "Always delegate" baseline = teammate_accuracy, directly comparable to team_score_normalized.
             always_delegate = float(behavioral['teammate_accuracy'])
-            print(f"  Baselines:            always-answer = {always_answer:.1%}, always-delegate = {always_delegate:.1%}")
+            if 'overall_accuracy' in behavioral:
+                always_answer = float(behavioral['overall_accuracy'])
+                print(f"  Baselines:            always-answer = {always_answer:.1%}, always-delegate = {always_delegate:.1%}")
+            else:
+                print(f"  Baselines:            always-delegate = {always_delegate:.1%}  (always-answer baseline: see notebook)")
 
         # Positional-bias diagnostic: if meta_responses is nearly constant, the model
         # isn't really deciding — the 50/50 delegate rate is an alternating-mapping artifact.

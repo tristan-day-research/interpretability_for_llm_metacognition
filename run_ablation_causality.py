@@ -14,9 +14,15 @@ Key features:
 Usage:
     python run_ablation_causality.py
 
-Expects outputs from identify_mc_correlate.py:
-    outputs/{INPUT_BASE_NAME}_mc_{METRIC}_directions.npz
+Expects outputs from identify_mc_correlate.py (or build_mc_inputs_from_introspection.py):
+    outputs/{INPUT_BASE_NAME}_mc_{DIRECTION_METRIC}_directions.npz
     outputs/{INPUT_BASE_NAME}_mc_dataset.json
+
+DIRECTION_METRIC picks the direction file to ablate (e.g. "entropy" or
+"stated_confidence"). TARGET_METRIC picks the field the per-question dataset
+item is correlated against (e.g. "entropy"). They can differ — e.g. ablate the
+stated_confidence direction during the meta pass while measuring whether the
+resulting stated-confidence output still correlates with direct-pass entropy.
 """
 
 import torch
@@ -66,7 +72,12 @@ MODEL = "meta-llama/Llama-3.1-8B-Instruct"
 # ADAPTER = "Tristan-Day/ect_20251222_215412_v0uei7y1_2000"
 ADAPTER = None
 INPUT_BASE_NAME = "Llama-3.1-8B-Instruct_TriviaMC"
-METRIC = "entropy"  # Which metric's directions to test
+# Which direction file to ablate: outputs/{INPUT_BASE_NAME}_mc_{DIRECTION_METRIC}_directions.npz
+DIRECTION_METRIC = "entropy"
+# Which per-question dataset field to use as the correlation target. Almost
+# always "entropy" — we want to measure how the meta-task output tracks MC-pass
+# entropy after the direction is ablated.
+TARGET_METRIC = "entropy"
 META_TASK = "delegate"  # "confidence" or "delegate"
 
 
@@ -1558,7 +1569,8 @@ def main():
     print(f"\nModel: {MODEL}")
     print(f"Adapter: {ADAPTER}")
     print(f"Input: {INPUT_BASE_NAME}")
-    print(f"Metric: {METRIC}")
+    print(f"Direction metric (ablated): {DIRECTION_METRIC}")
+    print(f"Target metric (correlated): {TARGET_METRIC}")
     print(f"Meta-task: {META_TASK}")
     print(f"Questions: {NUM_QUESTIONS}")
     print(f"Controls: {NUM_CONTROLS} (final), {NUM_CONTROLS_NONFINAL} (non-final)")
@@ -1566,7 +1578,7 @@ def main():
 
     # Load directions
     print("\nLoading directions...")
-    all_directions = load_directions(INPUT_BASE_NAME, METRIC)
+    all_directions = load_directions(INPUT_BASE_NAME, DIRECTION_METRIC)
     available_methods = list(all_directions.keys())
     print(f"  Found methods: {available_methods}")
 
@@ -1608,10 +1620,10 @@ def main():
 
     # Extract questions (each item has question, options, correct_answer, etc.)
     questions = data_items
-    # Extract metric values from each item
-    metric_values = np.array([item[METRIC] for item in data_items])
+    # Extract metric values from each item (correlation target, not ablation target)
+    metric_values = np.array([item[TARGET_METRIC] for item in data_items])
     print(f"  Questions: {len(questions)}")
-    print(f"  {METRIC}: mean={metric_values.mean():.3f}, std={metric_values.std():.3f}")
+    print(f"  {TARGET_METRIC}: mean={metric_values.mean():.3f}, std={metric_values.std():.3f}")
 
     # Load transfer results for layer selection (non-final positions)
     transfer_data = load_transfer_results(INPUT_BASE_NAME, META_TASK)
@@ -1623,12 +1635,12 @@ def main():
                 print(f"  {pos}: all layers (no R² filter)")
             else:
                 for method in methods:
-                    pos_layers = get_layers_from_transfer(transfer_data, METRIC, pos, TRANSFER_R2_THRESHOLD, method)
+                    pos_layers = get_layers_from_transfer(transfer_data, TARGET_METRIC, pos, TRANSFER_R2_THRESHOLD, method)
                     if pos_layers:
-                        print(f"  {pos}/{method}: {len(pos_layers)} layers with {METRIC} R²≥{TRANSFER_R2_THRESHOLD}: {pos_layers}")
+                        print(f"  {pos}/{method}: {len(pos_layers)} layers with {TARGET_METRIC} R²≥{TRANSFER_R2_THRESHOLD}: {pos_layers}")
                     else:
                         # Try fallback to final
-                        fallback_layers = get_layers_from_transfer(transfer_data, METRIC, "final", TRANSFER_R2_THRESHOLD, method)
+                        fallback_layers = get_layers_from_transfer(transfer_data, TARGET_METRIC, "final", TRANSFER_R2_THRESHOLD, method)
                         if fallback_layers:
                             print(f"  {pos}/{method}: no position-specific data, using final: {len(fallback_layers)} layers")
                         else:
@@ -1688,12 +1700,12 @@ def main():
                 # Non-final position: select based on transfer R² for THIS method
                 if transfer_data is not None:
                     method_layers = get_layers_from_transfer(
-                        transfer_data, METRIC, position, TRANSFER_R2_THRESHOLD, method
+                        transfer_data, TARGET_METRIC, position, TRANSFER_R2_THRESHOLD, method
                     )
                     if not method_layers:
                         # Fall back to "final" position transfer data if position-specific not available
                         method_layers = get_layers_from_transfer(
-                            transfer_data, METRIC, "final", TRANSFER_R2_THRESHOLD, method
+                            transfer_data, TARGET_METRIC, "final", TRANSFER_R2_THRESHOLD, method
                         )
                 else:
                     method_layers = all_available_layers
@@ -1701,9 +1713,9 @@ def main():
                 if not method_layers:
                     print("\n" + "!"*70)
                     print("!!! WARNING: FALLING BACK TO ALL LAYERS !!!")
-                    print(f"!!! No layers meet R²≥{TRANSFER_R2_THRESHOLD} threshold for {method}/{METRIC}")
+                    print(f"!!! No layers meet R²≥{TRANSFER_R2_THRESHOLD} threshold for {method}/{TARGET_METRIC}")
                     print(f"!!! This will test {len(all_available_layers)} layers instead of ~50")
-                    print(f"!!! Check that METRIC and method match transfer results")
+                    print(f"!!! Check that TARGET_METRIC and method match transfer results")
                     print("!"*70)
                     print("Continuing in 3 seconds (Ctrl+C to abort)...")
                     import time
@@ -1733,7 +1745,7 @@ def main():
 
             # Analyze results
             print(f"\n  Analyzing results...")
-            analysis = analyze_ablation_results(results, METRIC)
+            analysis = analyze_ablation_results(results, TARGET_METRIC)
             all_analyses_by_pos[position][method] = analysis
 
             summary = analysis["summary"]
@@ -1742,14 +1754,15 @@ def main():
 
         # Incremental save after each position completes (crash protection)
         model_short = get_model_short_name(MODEL)
-        base_output = f"{model_short}_{INPUT_BASE_NAME.split('_')[-1]}_ablation_{META_TASK}_{METRIC}"
+        base_output = f"{model_short}_{INPUT_BASE_NAME.split('_')[-1]}_ablation_{META_TASK}_{DIRECTION_METRIC}"
         checkpoint_path = OUTPUT_DIR / f"{base_output}_checkpoint.json"
         checkpoint_json = {
             "config": {
                 "model": MODEL,
                 "adapter": ADAPTER,
                 "input_base_name": INPUT_BASE_NAME,
-                "metric": METRIC,
+                "direction_metric": DIRECTION_METRIC,
+                "target_metric": TARGET_METRIC,
                 "meta_task": META_TASK,
                 "num_questions": len(questions),
                 "use_transfer_split": USE_TRANSFER_SPLIT,
@@ -1778,7 +1791,7 @@ def main():
 
     # Generate output filename
     model_short = get_model_short_name(MODEL)
-    base_output = f"{model_short}_{INPUT_BASE_NAME.split('_')[-1]}_ablation_{META_TASK}_{METRIC}"
+    base_output = f"{model_short}_{INPUT_BASE_NAME.split('_')[-1]}_ablation_{META_TASK}_{DIRECTION_METRIC}"
 
     # Save JSON results
     print("\nSaving results...")
@@ -1798,7 +1811,8 @@ def main():
                 "model": MODEL,
                 "adapter": ADAPTER,
                 "input_base_name": INPUT_BASE_NAME,
-                "metric": METRIC,
+                "direction_metric": DIRECTION_METRIC,
+                "target_metric": TARGET_METRIC,
                 "meta_task": META_TASK,
                 "num_questions": len(questions),
                 "use_transfer_split": USE_TRANSFER_SPLIT,
