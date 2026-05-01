@@ -1,0 +1,1430 @@
+================================================================================
+Model: meta-llama/Llama-3.1-8B
+Dataset: TriviaMC   Meta task: delegate   Scale: numeric   is_base: True   use_chat_template: False
+Few-shot mode: fixed
+Showing first 10 of 800 examples.
+================================================================================
+
+================================================================================
+EXAMPLE 1 / 10   (id: triviamc_1712)
+================================================================================
+Question: A quadruped is an animal with how many feet?
+  A: Six
+  B: Two
+  C: Four
+  D: Eight
+Correct answer: C
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: A quadruped is an animal with how many feet?
+  A: Six
+  B: Two
+  C: Four
+  D: Eight
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.024  B=0.086  C=0.826  D=0.064
+Chosen (argmax): C   Correct? YES
+Uncertainty: entropy=0.634  logit_gap=2.258  margin=0.740  top_prob=0.826
+
+--- META PROMPT (sent to model) ---
+In this game, you see a multiple-choice question and answer it yourself (with A, B, C, or D) or delegate it to your teammate (with T). Your teammate answers ~70% of questions correctly.
+If you know the answer with high confidence, respond with the correct letter. If you are uncertain, respond with T to delegate.
+
+****************** Examples ******************
+------------------------------
+Question:
+What is the chemical symbol for water?
+----------
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): C
+
+------------------------------
+Question:
+What is the 21 trillionth digit of pi?
+----------
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+------------------------------
+Question:
+Who wrote the play 'Romeo and Juliet'?
+----------
+  A: Charles Dickens
+  B: William Shakespeare
+  C: Jane Austen
+  D: Mark Twain
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): B
+
+------------------------------
+Question:
+What planet is known as the Red Planet?
+----------
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): B
+
+------------------------------
+Question:
+What was the exact time (HH:MM:SS) of the first sunrise on Mars?
+----------
+  A: 04:12:33
+  B: 05:47:09
+  C: 06:21:41
+  D: 07:03:58
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+------------------------------
+Question:
+What was the average rainfall in Lisbon during March 1847?
+----------
+  A: 12 mm
+  B: 34 mm
+  C: 58 mm
+  D: 73 mm
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+**********************************************
+
+------------------------------
+Question:
+A quadruped is an animal with how many feet?
+----------
+  A: Six
+  B: Two
+  C: Four
+  D: Eight
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):
+
+--- META RESPONSE ---
+Option probs: A=0.075  B=0.156  C=0.353  D=0.130  T=0.286
+Chosen (argmax): C
+Soft confidence (probability-weighted): 0.714
+
+================================================================================
+EXAMPLE 2 / 10   (id: triviamc_951)
+================================================================================
+Question: The Free Officers Movement was composed of young junior army officers committed to unseating the monarchy of which African country?
+  A: Sudan
+  B: Morocco
+  C: Egypt
+  D: Libya
+Correct answer: C
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: The Free Officers Movement was composed of young junior army officers committed to unseating the monarchy of which African country?
+  A: Sudan
+  B: Morocco
+  C: Egypt
+  D: Libya
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.006  B=0.007  C=0.973  D=0.014
+Chosen (argmax): C   Correct? YES
+Uncertainty: entropy=0.152  logit_gap=4.273  margin=0.959  top_prob=0.973
+
+--- META PROMPT (sent to model) ---
+In this game, you see a multiple-choice question and answer it yourself (with A, B, C, or D) or delegate it to your teammate (with T). Your teammate answers ~70% of questions correctly.
+If you know the answer with high confidence, respond with the correct letter. If you are uncertain, respond with T to delegate.
+
+****************** Examples ******************
+------------------------------
+Question:
+Who wrote the play 'Romeo and Juliet'?
+----------
+  A: Charles Dickens
+  B: William Shakespeare
+  C: Jane Austen
+  D: Mark Twain
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): B
+
+------------------------------
+Question:
+What was the exact time (HH:MM:SS) of the first sunrise on Mars?
+----------
+  A: 04:12:33
+  B: 05:47:09
+  C: 06:21:41
+  D: 07:03:58
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+------------------------------
+Question:
+What planet is known as the Red Planet?
+----------
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): B
+
+------------------------------
+Question:
+What is the 21 trillionth digit of pi?
+----------
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+------------------------------
+Question:
+What is the chemical symbol for water?
+----------
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): C
+
+------------------------------
+Question:
+What was the average rainfall in Lisbon during March 1847?
+----------
+  A: 12 mm
+  B: 34 mm
+  C: 58 mm
+  D: 73 mm
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+**********************************************
+
+------------------------------
+Question:
+The Free Officers Movement was composed of young junior army officers committed to unseating the monarchy of which African country?
+----------
+  A: Sudan
+  B: Morocco
+  C: Egypt
+  D: Libya
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):
+
+--- META RESPONSE ---
+Option probs: A=0.065  B=0.119  C=0.275  D=0.089  T=0.453
+Chosen (argmax): T
+Soft confidence (probability-weighted): 0.547
+
+================================================================================
+EXAMPLE 3 / 10   (id: triviamc_1125)
+================================================================================
+Question: Who played Frankenstein in the 1994 film of the same name?
+  A: Kenneth Branagh
+  B: Ralph Fiennes
+  C: Robert De Niro
+  D: Gary Oldman
+Correct answer: A
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: Who played Frankenstein in the 1994 film of the same name?
+  A: Kenneth Branagh
+  B: Ralph Fiennes
+  C: Robert De Niro
+  D: Gary Oldman
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.074  B=0.272  C=0.021  D=0.633
+Chosen (argmax): D   Correct? no
+Uncertainty: entropy=0.918  logit_gap=0.844  margin=0.361  top_prob=0.633
+
+--- META PROMPT (sent to model) ---
+In this game, you see a multiple-choice question and answer it yourself (with A, B, C, or D) or delegate it to your teammate (with T). Your teammate answers ~70% of questions correctly.
+If you know the answer with high confidence, respond with the correct letter. If you are uncertain, respond with T to delegate.
+
+****************** Examples ******************
+------------------------------
+Question:
+Who wrote the play 'Romeo and Juliet'?
+----------
+  A: Charles Dickens
+  B: William Shakespeare
+  C: Jane Austen
+  D: Mark Twain
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): B
+
+------------------------------
+Question:
+What was the average rainfall in Lisbon during March 1847?
+----------
+  A: 12 mm
+  B: 34 mm
+  C: 58 mm
+  D: 73 mm
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+------------------------------
+Question:
+What planet is known as the Red Planet?
+----------
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): B
+
+------------------------------
+Question:
+What is the 21 trillionth digit of pi?
+----------
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+------------------------------
+Question:
+What was the exact time (HH:MM:SS) of the first sunrise on Mars?
+----------
+  A: 04:12:33
+  B: 05:47:09
+  C: 06:21:41
+  D: 07:03:58
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+------------------------------
+Question:
+What is the chemical symbol for water?
+----------
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): C
+
+**********************************************
+
+------------------------------
+Question:
+Who played Frankenstein in the 1994 film of the same name?
+----------
+  A: Kenneth Branagh
+  B: Ralph Fiennes
+  C: Robert De Niro
+  D: Gary Oldman
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):
+
+--- META RESPONSE ---
+Option probs: A=0.119  B=0.190  C=0.079  D=0.252  T=0.359
+Chosen (argmax): T
+Soft confidence (probability-weighted): 0.641
+
+================================================================================
+EXAMPLE 4 / 10   (id: triviamc_1785)
+================================================================================
+Question: The Florentine Girdle was a type of what?
+  A: Religious vestment
+  B: Corset
+  C: Armor piece
+  D: Chastity belt
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: The Florentine Girdle was a type of what?
+  A: Religious vestment
+  B: Corset
+  C: Armor piece
+  D: Chastity belt
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.096  B=0.405  C=0.055  D=0.444
+Chosen (argmax): D   Correct? YES
+Uncertainty: entropy=1.110  logit_gap=0.094  margin=0.040  top_prob=0.444
+
+--- META PROMPT (sent to model) ---
+In this game, you see a multiple-choice question and answer it yourself (with A, B, C, or D) or delegate it to your teammate (with T). Your teammate answers ~70% of questions correctly.
+If you know the answer with high confidence, respond with the correct letter. If you are uncertain, respond with T to delegate.
+
+****************** Examples ******************
+------------------------------
+Question:
+What was the exact time (HH:MM:SS) of the first sunrise on Mars?
+----------
+  A: 04:12:33
+  B: 05:47:09
+  C: 06:21:41
+  D: 07:03:58
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+------------------------------
+Question:
+Who wrote the play 'Romeo and Juliet'?
+----------
+  A: Charles Dickens
+  B: William Shakespeare
+  C: Jane Austen
+  D: Mark Twain
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): B
+
+------------------------------
+Question:
+What was the average rainfall in Lisbon during March 1847?
+----------
+  A: 12 mm
+  B: 34 mm
+  C: 58 mm
+  D: 73 mm
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+------------------------------
+Question:
+What is the chemical symbol for water?
+----------
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): C
+
+------------------------------
+Question:
+What planet is known as the Red Planet?
+----------
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): B
+
+------------------------------
+Question:
+What is the 21 trillionth digit of pi?
+----------
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+**********************************************
+
+------------------------------
+Question:
+The Florentine Girdle was a type of what?
+----------
+  A: Religious vestment
+  B: Corset
+  C: Armor piece
+  D: Chastity belt
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):
+
+--- META RESPONSE ---
+Option probs: A=0.123  B=0.198  C=0.091  D=0.319  T=0.269
+Chosen (argmax): D
+Soft confidence (probability-weighted): 0.731
+
+================================================================================
+EXAMPLE 5 / 10   (id: triviamc_2851)
+================================================================================
+Question: In which Lake District town would you find the Cumberland Pencil Museum?
+  A: Ambleside
+  B: Windermere
+  C: Grasmere
+  D: Keswick
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: In which Lake District town would you find the Cumberland Pencil Museum?
+  A: Ambleside
+  B: Windermere
+  C: Grasmere
+  D: Keswick
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.007  B=0.011  C=0.013  D=0.970
+Chosen (argmax): D   Correct? YES
+Uncertainty: entropy=0.168  logit_gap=4.320  margin=0.957  top_prob=0.970
+
+--- META PROMPT (sent to model) ---
+In this game, you see a multiple-choice question and answer it yourself (with A, B, C, or D) or delegate it to your teammate (with T). Your teammate answers ~70% of questions correctly.
+If you know the answer with high confidence, respond with the correct letter. If you are uncertain, respond with T to delegate.
+
+****************** Examples ******************
+------------------------------
+Question:
+What is the 21 trillionth digit of pi?
+----------
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+------------------------------
+Question:
+What is the chemical symbol for water?
+----------
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): C
+
+------------------------------
+Question:
+Who wrote the play 'Romeo and Juliet'?
+----------
+  A: Charles Dickens
+  B: William Shakespeare
+  C: Jane Austen
+  D: Mark Twain
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): B
+
+------------------------------
+Question:
+What was the average rainfall in Lisbon during March 1847?
+----------
+  A: 12 mm
+  B: 34 mm
+  C: 58 mm
+  D: 73 mm
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+------------------------------
+Question:
+What planet is known as the Red Planet?
+----------
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): B
+
+------------------------------
+Question:
+What was the exact time (HH:MM:SS) of the first sunrise on Mars?
+----------
+  A: 04:12:33
+  B: 05:47:09
+  C: 06:21:41
+  D: 07:03:58
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+**********************************************
+
+------------------------------
+Question:
+In which Lake District town would you find the Cumberland Pencil Museum?
+----------
+  A: Ambleside
+  B: Windermere
+  C: Grasmere
+  D: Keswick
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):
+
+--- META RESPONSE ---
+Option probs: A=0.138  B=0.146  C=0.130  D=0.346  T=0.240
+Chosen (argmax): D
+Soft confidence (probability-weighted): 0.760
+
+================================================================================
+EXAMPLE 6 / 10   (id: triviamc_2828)
+================================================================================
+Question: In 1992 Durham joined the County Cricket Championship; which county was the last one to join before Durham?
+  A: Somerset
+  B: Worcestershire
+  C: Northamptonshire
+  D: Glamorgan
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: In 1992 Durham joined the County Cricket Championship; which county was the last one to join before Durham?
+  A: Somerset
+  B: Worcestershire
+  C: Northamptonshire
+  D: Glamorgan
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.319  B=0.207  C=0.193  D=0.281
+Chosen (argmax): A   Correct? no
+Uncertainty: entropy=1.365  logit_gap=0.125  margin=0.038  top_prob=0.319
+
+--- META PROMPT (sent to model) ---
+In this game, you see a multiple-choice question and answer it yourself (with A, B, C, or D) or delegate it to your teammate (with T). Your teammate answers ~70% of questions correctly.
+If you know the answer with high confidence, respond with the correct letter. If you are uncertain, respond with T to delegate.
+
+****************** Examples ******************
+------------------------------
+Question:
+What planet is known as the Red Planet?
+----------
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): B
+
+------------------------------
+Question:
+What was the exact time (HH:MM:SS) of the first sunrise on Mars?
+----------
+  A: 04:12:33
+  B: 05:47:09
+  C: 06:21:41
+  D: 07:03:58
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+------------------------------
+Question:
+Who wrote the play 'Romeo and Juliet'?
+----------
+  A: Charles Dickens
+  B: William Shakespeare
+  C: Jane Austen
+  D: Mark Twain
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): B
+
+------------------------------
+Question:
+What is the 21 trillionth digit of pi?
+----------
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+------------------------------
+Question:
+What is the chemical symbol for water?
+----------
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): C
+
+------------------------------
+Question:
+What was the average rainfall in Lisbon during March 1847?
+----------
+  A: 12 mm
+  B: 34 mm
+  C: 58 mm
+  D: 73 mm
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+**********************************************
+
+------------------------------
+Question:
+In 1992 Durham joined the County Cricket Championship; which county was the last one to join before Durham?
+----------
+  A: Somerset
+  B: Worcestershire
+  C: Northamptonshire
+  D: Glamorgan
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):
+
+--- META RESPONSE ---
+Option probs: A=0.115  B=0.174  C=0.096  D=0.171  T=0.444
+Chosen (argmax): T
+Soft confidence (probability-weighted): 0.556
+
+================================================================================
+EXAMPLE 7 / 10   (id: triviamc_2352)
+================================================================================
+Question: The town of Vittoria and the city of Ragusa can be found on which island?
+  A: Sardinia
+  B: Corsica
+  C: Crete
+  D: Sicily
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: The town of Vittoria and the city of Ragusa can be found on which island?
+  A: Sardinia
+  B: Corsica
+  C: Crete
+  D: Sicily
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.005  B=0.007  C=0.006  D=0.982
+Chosen (argmax): D   Correct? YES
+Uncertainty: entropy=0.107  logit_gap=4.922  margin=0.975  top_prob=0.982
+
+--- META PROMPT (sent to model) ---
+In this game, you see a multiple-choice question and answer it yourself (with A, B, C, or D) or delegate it to your teammate (with T). Your teammate answers ~70% of questions correctly.
+If you know the answer with high confidence, respond with the correct letter. If you are uncertain, respond with T to delegate.
+
+****************** Examples ******************
+------------------------------
+Question:
+What is the 21 trillionth digit of pi?
+----------
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+------------------------------
+Question:
+Who wrote the play 'Romeo and Juliet'?
+----------
+  A: Charles Dickens
+  B: William Shakespeare
+  C: Jane Austen
+  D: Mark Twain
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): B
+
+------------------------------
+Question:
+What was the average rainfall in Lisbon during March 1847?
+----------
+  A: 12 mm
+  B: 34 mm
+  C: 58 mm
+  D: 73 mm
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+------------------------------
+Question:
+What was the exact time (HH:MM:SS) of the first sunrise on Mars?
+----------
+  A: 04:12:33
+  B: 05:47:09
+  C: 06:21:41
+  D: 07:03:58
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+------------------------------
+Question:
+What is the chemical symbol for water?
+----------
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): C
+
+------------------------------
+Question:
+What planet is known as the Red Planet?
+----------
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): B
+
+**********************************************
+
+------------------------------
+Question:
+The town of Vittoria and the city of Ragusa can be found on which island?
+----------
+  A: Sardinia
+  B: Corsica
+  C: Crete
+  D: Sicily
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):
+
+--- META RESPONSE ---
+Option probs: A=0.093  B=0.069  C=0.058  D=0.479  T=0.302
+Chosen (argmax): D
+Soft confidence (probability-weighted): 0.698
+
+================================================================================
+EXAMPLE 8 / 10   (id: triviamc_1219)
+================================================================================
+Question: In medicine, algology is the study of what?
+  A: Algae
+  B: Pain
+  C: Alkaloids
+  D: Allergies
+Correct answer: B
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: In medicine, algology is the study of what?
+  A: Algae
+  B: Pain
+  C: Alkaloids
+  D: Allergies
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.906  B=0.054  C=0.017  D=0.023
+Chosen (argmax): A   Correct? no
+Uncertainty: entropy=0.404  logit_gap=2.820  margin=0.852  top_prob=0.906
+
+--- META PROMPT (sent to model) ---
+In this game, you see a multiple-choice question and answer it yourself (with A, B, C, or D) or delegate it to your teammate (with T). Your teammate answers ~70% of questions correctly.
+If you know the answer with high confidence, respond with the correct letter. If you are uncertain, respond with T to delegate.
+
+****************** Examples ******************
+------------------------------
+Question:
+What was the exact time (HH:MM:SS) of the first sunrise on Mars?
+----------
+  A: 04:12:33
+  B: 05:47:09
+  C: 06:21:41
+  D: 07:03:58
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+------------------------------
+Question:
+What was the average rainfall in Lisbon during March 1847?
+----------
+  A: 12 mm
+  B: 34 mm
+  C: 58 mm
+  D: 73 mm
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+------------------------------
+Question:
+Who wrote the play 'Romeo and Juliet'?
+----------
+  A: Charles Dickens
+  B: William Shakespeare
+  C: Jane Austen
+  D: Mark Twain
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): B
+
+------------------------------
+Question:
+What planet is known as the Red Planet?
+----------
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): B
+
+------------------------------
+Question:
+What is the 21 trillionth digit of pi?
+----------
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+------------------------------
+Question:
+What is the chemical symbol for water?
+----------
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): C
+
+**********************************************
+
+------------------------------
+Question:
+In medicine, algology is the study of what?
+----------
+  A: Algae
+  B: Pain
+  C: Alkaloids
+  D: Allergies
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):
+
+--- META RESPONSE ---
+Option probs: A=0.414  B=0.161  C=0.050  D=0.081  T=0.293
+Chosen (argmax): A
+Soft confidence (probability-weighted): 0.707
+
+================================================================================
+EXAMPLE 9 / 10   (id: triviamc_462)
+================================================================================
+Question: What former X-Factor contestant had a top ten hit album called Picture Of You in 2007?
+  A: Ben Mills
+  B: Ray Quinn
+  C: Eton Road
+  D: Robert Allen
+Correct answer: A
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: What former X-Factor contestant had a top ten hit album called Picture Of You in 2007?
+  A: Ben Mills
+  B: Ray Quinn
+  C: Eton Road
+  D: Robert Allen
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.393  B=0.341  C=0.128  D=0.138
+Chosen (argmax): A   Correct? YES
+Uncertainty: entropy=1.271  logit_gap=0.141  margin=0.052  top_prob=0.393
+
+--- META PROMPT (sent to model) ---
+In this game, you see a multiple-choice question and answer it yourself (with A, B, C, or D) or delegate it to your teammate (with T). Your teammate answers ~70% of questions correctly.
+If you know the answer with high confidence, respond with the correct letter. If you are uncertain, respond with T to delegate.
+
+****************** Examples ******************
+------------------------------
+Question:
+What was the average rainfall in Lisbon during March 1847?
+----------
+  A: 12 mm
+  B: 34 mm
+  C: 58 mm
+  D: 73 mm
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+------------------------------
+Question:
+What is the 21 trillionth digit of pi?
+----------
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+------------------------------
+Question:
+What was the exact time (HH:MM:SS) of the first sunrise on Mars?
+----------
+  A: 04:12:33
+  B: 05:47:09
+  C: 06:21:41
+  D: 07:03:58
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+------------------------------
+Question:
+Who wrote the play 'Romeo and Juliet'?
+----------
+  A: Charles Dickens
+  B: William Shakespeare
+  C: Jane Austen
+  D: Mark Twain
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): B
+
+------------------------------
+Question:
+What is the chemical symbol for water?
+----------
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): C
+
+------------------------------
+Question:
+What planet is known as the Red Planet?
+----------
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): B
+
+**********************************************
+
+------------------------------
+Question:
+What former X-Factor contestant had a top ten hit album called Picture Of You in 2007?
+----------
+  A: Ben Mills
+  B: Ray Quinn
+  C: Eton Road
+  D: Robert Allen
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):
+
+--- META RESPONSE ---
+Option probs: A=0.151  B=0.339  C=0.073  D=0.117  T=0.321
+Chosen (argmax): B
+Soft confidence (probability-weighted): 0.679
+
+================================================================================
+EXAMPLE 10 / 10   (id: triviamc_1487)
+================================================================================
+Question: Who created the Star Wars series of films?
+  A: Francis Ford Coppola
+  B: Ron Howard
+  C: Steven Spielberg
+  D: George Lucas
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+The following are multiple choice questions with answers.
+
+Question: What planet is known as the Red Planet?
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+Answer: B
+
+Question: What is the chemical symbol for water?
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+Answer: C
+
+Question: In which year did World War II end?
+  A: 1943
+  B: 1944
+  C: 1945
+  D: 1946
+Answer: C
+
+Question: Who created the Star Wars series of films?
+  A: Francis Ford Coppola
+  B: Ron Howard
+  C: Steven Spielberg
+  D: George Lucas
+Answer:
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.001  B=0.003  C=0.002  D=0.994
+Chosen (argmax): D   Correct? YES
+Uncertainty: entropy=0.046  logit_gap=5.906  margin=0.991  top_prob=0.994
+
+--- META PROMPT (sent to model) ---
+In this game, you see a multiple-choice question and answer it yourself (with A, B, C, or D) or delegate it to your teammate (with T). Your teammate answers ~70% of questions correctly.
+If you know the answer with high confidence, respond with the correct letter. If you are uncertain, respond with T to delegate.
+
+****************** Examples ******************
+------------------------------
+Question:
+What was the average rainfall in Lisbon during March 1847?
+----------
+  A: 12 mm
+  B: 34 mm
+  C: 58 mm
+  D: 73 mm
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+------------------------------
+Question:
+What is the chemical symbol for water?
+----------
+  A: CO2
+  B: NaCl
+  C: H2O
+  D: O2
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): C
+
+------------------------------
+Question:
+Who wrote the play 'Romeo and Juliet'?
+----------
+  A: Charles Dickens
+  B: William Shakespeare
+  C: Jane Austen
+  D: Mark Twain
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): B
+
+------------------------------
+Question:
+What planet is known as the Red Planet?
+----------
+  A: Venus
+  B: Mars
+  C: Jupiter
+  D: Saturn
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): B
+
+------------------------------
+Question:
+What was the exact time (HH:MM:SS) of the first sunrise on Mars?
+----------
+  A: 04:12:33
+  B: 05:47:09
+  C: 06:21:41
+  D: 07:03:58
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+------------------------------
+Question:
+What is the 21 trillionth digit of pi?
+----------
+  A: 3
+  B: 7
+  C: 1
+  D: 9
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate): T
+
+**********************************************
+
+------------------------------
+Question:
+Who created the Star Wars series of films?
+----------
+  A: Francis Ford Coppola
+  B: Ron Howard
+  C: Steven Spielberg
+  D: George Lucas
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):
+
+--- META RESPONSE ---
+Option probs: A=0.039  B=0.030  C=0.015  D=0.763  T=0.153
+Chosen (argmax): D
+Soft confidence (probability-weighted): 0.847
+
+================================================================================
+END
+================================================================================

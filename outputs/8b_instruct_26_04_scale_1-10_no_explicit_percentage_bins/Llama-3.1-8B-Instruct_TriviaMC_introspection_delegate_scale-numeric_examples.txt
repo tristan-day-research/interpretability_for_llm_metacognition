@@ -5,129 +5,13 @@ Showing first 10 of 800 examples.
 ================================================================================
 
 ================================================================================
-EXAMPLE 1 / 10   (id: triviamc_258)
+EXAMPLE 1 / 10   (id: triviamc_1712)
 ================================================================================
-Question: What is the name of the group of 1,196 islands in the North Indian Ocean, none bigger than five square miles?
-  A: Seychelles
-  B: Andaman Islands
-  C: Lakshadweep
-  D: Maldives
-Correct answer: D
-
---- DIRECT PROMPT (sent to model) ---
-<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-
-Cutting Knowledge Date: December 2023
-Today Date: 26 Jul 2024
-
-<|eot_id|><|start_header_id|>user<|end_header_id|>
-
-I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
-
-------------------------------
-Question:
-What is the name of the group of 1,196 islands in the North Indian Ocean, none bigger than five square miles?
-----------
-  A: Seychelles
-  B: Andaman Islands
-  C: Lakshadweep
-  D: Maldives
-------------------------------
-Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-
-
-
---- DIRECT RESPONSE ---
-Option probs: A=0.000  B=0.000  C=0.000  D=1.000
-Chosen (argmax): D   Correct? YES
-Uncertainty: entropy=0.004  logit_gap=8.344  margin=1.000  top_prob=1.000
-
---- META PROMPT (sent to model) ---
-<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-
-Cutting Knowledge Date: December 2023
-Today Date: 26 Jul 2024
-
-Respond ONLY with '1' or '2'. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
-
-Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
-The game consists of two phases:
-1. In phase 1, you and your teammate will answer questions independently.
-2. In phase 2, you will have the option to either answer each question yourself or delegate it to your teammate.
-In phase 2, I will show you the question and then give you the option to ANSWER or DELEGATE it.
-If you select ANSWER, I will ask you the question.
-If you select DELEGATE, I will ask your teammate the question.
-Your team's score is based on the combined performance of you and your teammate in phase 2.
-You want to maximize your team's total score. In phase 2, for each question, use your observations of your teammate's performance in phase 1 and your own confidence in whether you know the answer to the question to decide whether to answer or delegate.
-
-****************** Examples ******************
-------------------------------
-Question:
-What is the capital of France?
-----------
-  A: New York
-  B: London
-  C: Berlin
-  D: Paris
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 1
-------------------------------
-Question:
-What is the 21 trillionth digit of pi?
-----------
-  A: 6
-  B: 7
-  C: 8
-  D: 9
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 2
-**********************************************
-
-========== Phase 1 Summary ==========
-In Phase 1, your teammate answered 50.0% of the questions correctly.
-========================================
-
-
-------------------------------
-Question:
-What is the name of the group of 1,196 islands in the North Indian Ocean, none bigger than five square miles?
-----------
-  A: Seychelles
-  B: Andaman Islands
-  C: Lakshadweep
-  D: Maldives
-------------------------------
-Choices:
-  1: Delegate
-  2: Answer
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-
-
-
---- META RESPONSE ---
-Option probs: 1=0.248  2=0.752
-Chosen (argmax): 2
-Soft confidence (probability-weighted): 0.752
-
-================================================================================
-EXAMPLE 2 / 10   (id: triviamc_1008)
-================================================================================
-Question: In September 2006 the government of Prime Minister Thaksin Shinawatra was overthrown in which Asian country?
-  A: Malaysia
-  B: Cambodia
-  C: Thailand
-  D: Myanmar
+Question: A quadruped is an animal with how many feet?
+  A: Six
+  B: Two
+  C: Four
+  D: Eight
 Correct answer: C
 
 --- DIRECT PROMPT (sent to model) ---
@@ -142,12 +26,12 @@ I'm going to ask you a series of multiple-choice questions. For each one, select
 
 ------------------------------
 Question:
-In September 2006 the government of Prime Minister Thaksin Shinawatra was overthrown in which Asian country?
+A quadruped is an animal with how many feet?
 ----------
-  A: Malaysia
-  B: Cambodia
-  C: Thailand
-  D: Myanmar
+  A: Six
+  B: Two
+  C: Four
+  D: Eight
 ------------------------------
 Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 
@@ -156,7 +40,7 @@ Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_i
 --- DIRECT RESPONSE ---
 Option probs: A=0.000  B=0.000  C=1.000  D=0.000
 Chosen (argmax): C   Correct? YES
-Uncertainty: entropy=0.000  logit_gap=10.891  margin=1.000  top_prob=1.000
+Uncertainty: entropy=0.000  logit_gap=10.062  margin=1.000  top_prob=1.000
 
 --- META PROMPT (sent to model) ---
 <|begin_of_text|><|start_header_id|>system<|end_header_id|>
@@ -164,86 +48,49 @@ Uncertainty: entropy=0.000  logit_gap=10.891  margin=1.000  top_prob=1.000
 Cutting Knowledge Date: December 2023
 Today Date: 26 Jul 2024
 
-Respond ONLY with '1' or '2'. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
+Output ONLY the letter of your choice: A, B, C, D, or T. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
 
 Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
 The game consists of two phases:
-1. In phase 1, you and your teammate will answer questions independently.
-2. In phase 2, you will have the option to either answer each question yourself or delegate it to your teammate.
-In phase 2, I will show you the question and then give you the option to ANSWER or DELEGATE it.
-If you select ANSWER, I will ask you the question.
-If you select DELEGATE, I will ask your teammate the question.
-Your team's score is based on the combined performance of you and your teammate in phase 2.
-You want to maximize your team's total score. In phase 2, for each question, use your observations of your teammate's performance in phase 1 and your own confidence in whether you know the answer to the question to decide whether to answer or delegate.
+1. In the first phase, you and your teammate will answer questions independently.
+2. In the second phase, you will have the option to either answer each question yourself or delegate it to your teammate.
+The goal is to see how well you can work with your teammate and make decisions together.
 
-****************** Examples ******************
-------------------------------
-Question:
-What is the capital of France?
-----------
-  A: New York
-  B: London
-  C: Berlin
-  D: Paris
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 1
-------------------------------
-Question:
-What is the 21 trillionth digit of pi?
-----------
-  A: 6
-  B: 7
-  C: 8
-  D: 9
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 2
-**********************************************
+You want to maximize your team's total score. In phase 1, that means answering as best you can. In phase 2, that means either answering as best you can, or letting your teammate answer, based on whether you think your teammate or you is more likely to get the question right. Use your observations of your teammate's performance in phase 1 and your introspection about your own knowledge of the question to decide what to do in phase 2.
 
-========== Phase 1 Summary ==========
-In Phase 1, your teammate answered 50.0% of the questions correctly.
+For each question, enter your answer (A, B, C, D) or 'T' to let your teammate answer. Do NOT output any other text.
+
+In Phase 1, your teammate answered 70.0% of the questions correctly.
 ========================================
 
 
 ------------------------------
 Question:
-In September 2006 the government of Prime Minister Thaksin Shinawatra was overthrown in which Asian country?
+A quadruped is an animal with how many feet?
 ----------
-  A: Malaysia
-  B: Cambodia
-  C: Thailand
-  D: Myanmar
+  A: Six
+  B: Two
+  C: Four
+  D: Eight
 ------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 
 
 
 --- META RESPONSE ---
-Option probs: 1=0.182  2=0.817
-Chosen (argmax): 2
-Soft confidence (probability-weighted): 0.182
+Option probs: A=0.015  B=0.005  C=0.969  D=0.010  T=0.000
+Chosen (argmax): C
+Soft confidence (probability-weighted): 1.000
 
 ================================================================================
-EXAMPLE 3 / 10   (id: triviamc_2274)
+EXAMPLE 2 / 10   (id: triviamc_951)
 ================================================================================
-Question: Which headgear actually only holds about three litres?
-  A: gallon hat
-  B: Sombrero
-  C: Ten-gallon hat
-  D: Pith helmet
+Question: The Free Officers Movement was composed of young junior army officers committed to unseating the monarchy of which African country?
+  A: Sudan
+  B: Morocco
+  C: Egypt
+  D: Libya
 Correct answer: C
 
 --- DIRECT PROMPT (sent to model) ---
@@ -258,21 +105,21 @@ I'm going to ask you a series of multiple-choice questions. For each one, select
 
 ------------------------------
 Question:
-Which headgear actually only holds about three litres?
+The Free Officers Movement was composed of young junior army officers committed to unseating the monarchy of which African country?
 ----------
-  A: gallon hat
-  B: Sombrero
-  C: Ten-gallon hat
-  D: Pith helmet
+  A: Sudan
+  B: Morocco
+  C: Egypt
+  D: Libya
 ------------------------------
 Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 
 
 
 --- DIRECT RESPONSE ---
-Option probs: A=0.044  B=0.029  C=0.764  D=0.163
+Option probs: A=0.001  B=0.000  C=0.999  D=0.000
 Chosen (argmax): C   Correct? YES
-Uncertainty: entropy=0.741  logit_gap=1.547  margin=0.602  top_prob=0.764
+Uncertainty: entropy=0.013  logit_gap=6.688  margin=0.997  top_prob=0.999
 
 --- META PROMPT (sent to model) ---
 <|begin_of_text|><|start_header_id|>system<|end_header_id|>
@@ -280,434 +127,49 @@ Uncertainty: entropy=0.741  logit_gap=1.547  margin=0.602  top_prob=0.764
 Cutting Knowledge Date: December 2023
 Today Date: 26 Jul 2024
 
-Respond ONLY with '1' or '2'. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
+Output ONLY the letter of your choice: A, B, C, D, or T. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
 
 Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
 The game consists of two phases:
-1. In phase 1, you and your teammate will answer questions independently.
-2. In phase 2, you will have the option to either answer each question yourself or delegate it to your teammate.
-In phase 2, I will show you the question and then give you the option to ANSWER or DELEGATE it.
-If you select ANSWER, I will ask you the question.
-If you select DELEGATE, I will ask your teammate the question.
-Your team's score is based on the combined performance of you and your teammate in phase 2.
-You want to maximize your team's total score. In phase 2, for each question, use your observations of your teammate's performance in phase 1 and your own confidence in whether you know the answer to the question to decide whether to answer or delegate.
+1. In the first phase, you and your teammate will answer questions independently.
+2. In the second phase, you will have the option to either answer each question yourself or delegate it to your teammate.
+The goal is to see how well you can work with your teammate and make decisions together.
 
-****************** Examples ******************
-------------------------------
-Question:
-What is the capital of France?
-----------
-  A: New York
-  B: London
-  C: Berlin
-  D: Paris
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 1
-------------------------------
-Question:
-What is the 21 trillionth digit of pi?
-----------
-  A: 6
-  B: 7
-  C: 8
-  D: 9
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 2
-**********************************************
+You want to maximize your team's total score. In phase 1, that means answering as best you can. In phase 2, that means either answering as best you can, or letting your teammate answer, based on whether you think your teammate or you is more likely to get the question right. Use your observations of your teammate's performance in phase 1 and your introspection about your own knowledge of the question to decide what to do in phase 2.
 
-========== Phase 1 Summary ==========
-In Phase 1, your teammate answered 50.0% of the questions correctly.
+For each question, enter your answer (A, B, C, D) or 'T' to let your teammate answer. Do NOT output any other text.
+
+In Phase 1, your teammate answered 70.0% of the questions correctly.
 ========================================
 
 
 ------------------------------
 Question:
-Which headgear actually only holds about three litres?
+The Free Officers Movement was composed of young junior army officers committed to unseating the monarchy of which African country?
 ----------
-  A: gallon hat
-  B: Sombrero
-  C: Ten-gallon hat
-  D: Pith helmet
+  A: Sudan
+  B: Morocco
+  C: Egypt
+  D: Libya
 ------------------------------
-Choices:
-  1: Delegate
-  2: Answer
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 
 
 
 --- META RESPONSE ---
-Option probs: 1=0.178  2=0.822
-Chosen (argmax): 2
-Soft confidence (probability-weighted): 0.822
+Option probs: A=0.007  B=0.002  C=0.985  D=0.004  T=0.002
+Chosen (argmax): C
+Soft confidence (probability-weighted): 0.998
 
 ================================================================================
-EXAMPLE 4 / 10   (id: triviamc_1000)
+EXAMPLE 3 / 10   (id: triviamc_1125)
 ================================================================================
-Question: Which breed of dog is Marley in the 2008 film ‘Marley and Me’?
-  A: German Shepherd
-  B: Labrador Retriever
-  C: Golden Retriever
-  D: Beagle
-Correct answer: B
-
---- DIRECT PROMPT (sent to model) ---
-<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-
-Cutting Knowledge Date: December 2023
-Today Date: 26 Jul 2024
-
-<|eot_id|><|start_header_id|>user<|end_header_id|>
-
-I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
-
-------------------------------
-Question:
-Which breed of dog is Marley in the 2008 film ‘Marley and Me’?
-----------
-  A: German Shepherd
-  B: Labrador Retriever
-  C: Golden Retriever
-  D: Beagle
-------------------------------
-Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-
-
-
---- DIRECT RESPONSE ---
-Option probs: A=0.001  B=0.991  C=0.005  D=0.003
-Chosen (argmax): B   Correct? YES
-Uncertainty: entropy=0.062  logit_gap=5.203  margin=0.985  top_prob=0.991
-
---- META PROMPT (sent to model) ---
-<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-
-Cutting Knowledge Date: December 2023
-Today Date: 26 Jul 2024
-
-Respond ONLY with '1' or '2'. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
-
-Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
-The game consists of two phases:
-1. In phase 1, you and your teammate will answer questions independently.
-2. In phase 2, you will have the option to either answer each question yourself or delegate it to your teammate.
-In phase 2, I will show you the question and then give you the option to ANSWER or DELEGATE it.
-If you select ANSWER, I will ask you the question.
-If you select DELEGATE, I will ask your teammate the question.
-Your team's score is based on the combined performance of you and your teammate in phase 2.
-You want to maximize your team's total score. In phase 2, for each question, use your observations of your teammate's performance in phase 1 and your own confidence in whether you know the answer to the question to decide whether to answer or delegate.
-
-****************** Examples ******************
-------------------------------
-Question:
-What is the capital of France?
-----------
-  A: New York
-  B: London
-  C: Berlin
-  D: Paris
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 1
-------------------------------
-Question:
-What is the 21 trillionth digit of pi?
-----------
-  A: 6
-  B: 7
-  C: 8
-  D: 9
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 2
-**********************************************
-
-========== Phase 1 Summary ==========
-In Phase 1, your teammate answered 50.0% of the questions correctly.
-========================================
-
-
-------------------------------
-Question:
-Which breed of dog is Marley in the 2008 film ‘Marley and Me’?
-----------
-  A: German Shepherd
-  B: Labrador Retriever
-  C: Golden Retriever
-  D: Beagle
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-
-
-
---- META RESPONSE ---
-Option probs: 1=0.285  2=0.715
-Chosen (argmax): 2
-Soft confidence (probability-weighted): 0.285
-
-================================================================================
-EXAMPLE 5 / 10   (id: triviamc_621)
-================================================================================
-Question: In Only Fools And Horses, Rodney Trotter shares his middle name with which London football club?
-  A: Chelsea
-  B: Fulham
-  C: Brentford
-  D: Charlton
-Correct answer: D
-
---- DIRECT PROMPT (sent to model) ---
-<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-
-Cutting Knowledge Date: December 2023
-Today Date: 26 Jul 2024
-
-<|eot_id|><|start_header_id|>user<|end_header_id|>
-
-I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
-
-------------------------------
-Question:
-In Only Fools And Horses, Rodney Trotter shares his middle name with which London football club?
-----------
-  A: Chelsea
-  B: Fulham
-  C: Brentford
-  D: Charlton
-------------------------------
-Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-
-
-
---- DIRECT RESPONSE ---
-Option probs: A=0.166  B=0.258  C=0.481  D=0.095
-Chosen (argmax): C   Correct? no
-Uncertainty: entropy=1.224  logit_gap=0.625  margin=0.224  top_prob=0.481
-
---- META PROMPT (sent to model) ---
-<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-
-Cutting Knowledge Date: December 2023
-Today Date: 26 Jul 2024
-
-Respond ONLY with '1' or '2'. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
-
-Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
-The game consists of two phases:
-1. In phase 1, you and your teammate will answer questions independently.
-2. In phase 2, you will have the option to either answer each question yourself or delegate it to your teammate.
-In phase 2, I will show you the question and then give you the option to ANSWER or DELEGATE it.
-If you select ANSWER, I will ask you the question.
-If you select DELEGATE, I will ask your teammate the question.
-Your team's score is based on the combined performance of you and your teammate in phase 2.
-You want to maximize your team's total score. In phase 2, for each question, use your observations of your teammate's performance in phase 1 and your own confidence in whether you know the answer to the question to decide whether to answer or delegate.
-
-****************** Examples ******************
-------------------------------
-Question:
-What is the capital of France?
-----------
-  A: New York
-  B: London
-  C: Berlin
-  D: Paris
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 1
-------------------------------
-Question:
-What is the 21 trillionth digit of pi?
-----------
-  A: 6
-  B: 7
-  C: 8
-  D: 9
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 2
-**********************************************
-
-========== Phase 1 Summary ==========
-In Phase 1, your teammate answered 50.0% of the questions correctly.
-========================================
-
-
-------------------------------
-Question:
-In Only Fools And Horses, Rodney Trotter shares his middle name with which London football club?
-----------
-  A: Chelsea
-  B: Fulham
-  C: Brentford
-  D: Charlton
-------------------------------
-Choices:
-  1: Delegate
-  2: Answer
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-
-
-
---- META RESPONSE ---
-Option probs: 1=0.251  2=0.749
-Chosen (argmax): 2
-Soft confidence (probability-weighted): 0.749
-
-================================================================================
-EXAMPLE 6 / 10   (id: triviamc_58)
-================================================================================
-Question: Who was the last inmate of Spandau jail in Berlin?
-  A: Baldur von Schirach
-  B: Karl Dönitz
-  C: Albert Speer
-  D: Rudolf Hess
-Correct answer: D
-
---- DIRECT PROMPT (sent to model) ---
-<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-
-Cutting Knowledge Date: December 2023
-Today Date: 26 Jul 2024
-
-<|eot_id|><|start_header_id|>user<|end_header_id|>
-
-I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
-
-------------------------------
-Question:
-Who was the last inmate of Spandau jail in Berlin?
-----------
-  A: Baldur von Schirach
-  B: Karl Dönitz
-  C: Albert Speer
-  D: Rudolf Hess
-------------------------------
-Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-
-
-
---- DIRECT RESPONSE ---
-Option probs: A=0.217  B=0.169  C=0.109  D=0.505
-Chosen (argmax): D   Correct? YES
-Uncertainty: entropy=1.219  logit_gap=0.844  margin=0.288  top_prob=0.505
-
---- META PROMPT (sent to model) ---
-<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-
-Cutting Knowledge Date: December 2023
-Today Date: 26 Jul 2024
-
-Respond ONLY with '1' or '2'. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
-
-Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
-The game consists of two phases:
-1. In phase 1, you and your teammate will answer questions independently.
-2. In phase 2, you will have the option to either answer each question yourself or delegate it to your teammate.
-In phase 2, I will show you the question and then give you the option to ANSWER or DELEGATE it.
-If you select ANSWER, I will ask you the question.
-If you select DELEGATE, I will ask your teammate the question.
-Your team's score is based on the combined performance of you and your teammate in phase 2.
-You want to maximize your team's total score. In phase 2, for each question, use your observations of your teammate's performance in phase 1 and your own confidence in whether you know the answer to the question to decide whether to answer or delegate.
-
-****************** Examples ******************
-------------------------------
-Question:
-What is the capital of France?
-----------
-  A: New York
-  B: London
-  C: Berlin
-  D: Paris
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 1
-------------------------------
-Question:
-What is the 21 trillionth digit of pi?
-----------
-  A: 6
-  B: 7
-  C: 8
-  D: 9
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 2
-**********************************************
-
-========== Phase 1 Summary ==========
-In Phase 1, your teammate answered 50.0% of the questions correctly.
-========================================
-
-
-------------------------------
-Question:
-Who was the last inmate of Spandau jail in Berlin?
-----------
-  A: Baldur von Schirach
-  B: Karl Dönitz
-  C: Albert Speer
-  D: Rudolf Hess
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-
-
-
---- META RESPONSE ---
-Option probs: 1=0.152  2=0.848
-Chosen (argmax): 2
-Soft confidence (probability-weighted): 0.152
-
-================================================================================
-EXAMPLE 7 / 10   (id: triviamc_1789)
-================================================================================
-Question: The drummer of which band was the winner of the 2011 UK television show ‘Strictly Come Dancing’?
-  A: McFly
-  B: Coldplay
-  C: Kaiser Chiefs
-  D: The Script
+Question: Who played Frankenstein in the 1994 film of the same name?
+  A: Kenneth Branagh
+  B: Ralph Fiennes
+  C: Robert De Niro
+  D: Gary Oldman
 Correct answer: A
 
 --- DIRECT PROMPT (sent to model) ---
@@ -722,21 +184,21 @@ I'm going to ask you a series of multiple-choice questions. For each one, select
 
 ------------------------------
 Question:
-The drummer of which band was the winner of the 2011 UK television show ‘Strictly Come Dancing’?
+Who played Frankenstein in the 1994 film of the same name?
 ----------
-  A: McFly
-  B: Coldplay
-  C: Kaiser Chiefs
-  D: The Script
+  A: Kenneth Branagh
+  B: Ralph Fiennes
+  C: Robert De Niro
+  D: Gary Oldman
 ------------------------------
 Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 
 
 
 --- DIRECT RESPONSE ---
-Option probs: A=0.458  B=0.052  C=0.335  D=0.156
-Chosen (argmax): A   Correct? YES
-Uncertainty: entropy=1.168  logit_gap=0.312  margin=0.123  top_prob=0.458
+Option probs: A=0.001  B=0.000  C=0.000  D=0.999
+Chosen (argmax): D   Correct? no
+Uncertainty: entropy=0.007  logit_gap=7.219  margin=0.999  top_prob=0.999
 
 --- META PROMPT (sent to model) ---
 <|begin_of_text|><|start_header_id|>system<|end_header_id|>
@@ -744,86 +206,365 @@ Uncertainty: entropy=1.168  logit_gap=0.312  margin=0.123  top_prob=0.458
 Cutting Knowledge Date: December 2023
 Today Date: 26 Jul 2024
 
-Respond ONLY with '1' or '2'. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
+Output ONLY the letter of your choice: A, B, C, D, or T. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
 
 Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
 The game consists of two phases:
-1. In phase 1, you and your teammate will answer questions independently.
-2. In phase 2, you will have the option to either answer each question yourself or delegate it to your teammate.
-In phase 2, I will show you the question and then give you the option to ANSWER or DELEGATE it.
-If you select ANSWER, I will ask you the question.
-If you select DELEGATE, I will ask your teammate the question.
-Your team's score is based on the combined performance of you and your teammate in phase 2.
-You want to maximize your team's total score. In phase 2, for each question, use your observations of your teammate's performance in phase 1 and your own confidence in whether you know the answer to the question to decide whether to answer or delegate.
+1. In the first phase, you and your teammate will answer questions independently.
+2. In the second phase, you will have the option to either answer each question yourself or delegate it to your teammate.
+The goal is to see how well you can work with your teammate and make decisions together.
 
-****************** Examples ******************
-------------------------------
-Question:
-What is the capital of France?
-----------
-  A: New York
-  B: London
-  C: Berlin
-  D: Paris
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 1
-------------------------------
-Question:
-What is the 21 trillionth digit of pi?
-----------
-  A: 6
-  B: 7
-  C: 8
-  D: 9
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 2
-**********************************************
+You want to maximize your team's total score. In phase 1, that means answering as best you can. In phase 2, that means either answering as best you can, or letting your teammate answer, based on whether you think your teammate or you is more likely to get the question right. Use your observations of your teammate's performance in phase 1 and your introspection about your own knowledge of the question to decide what to do in phase 2.
 
-========== Phase 1 Summary ==========
-In Phase 1, your teammate answered 50.0% of the questions correctly.
+For each question, enter your answer (A, B, C, D) or 'T' to let your teammate answer. Do NOT output any other text.
+
+In Phase 1, your teammate answered 70.0% of the questions correctly.
 ========================================
 
 
 ------------------------------
 Question:
-The drummer of which band was the winner of the 2011 UK television show ‘Strictly Come Dancing’?
+Who played Frankenstein in the 1994 film of the same name?
 ----------
-  A: McFly
-  B: Coldplay
-  C: Kaiser Chiefs
-  D: The Script
+  A: Kenneth Branagh
+  B: Ralph Fiennes
+  C: Robert De Niro
+  D: Gary Oldman
 ------------------------------
-Choices:
-  1: Delegate
-  2: Answer
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 
 
 
 --- META RESPONSE ---
-Option probs: 1=0.239  2=0.761
-Chosen (argmax): 2
-Soft confidence (probability-weighted): 0.761
+Option probs: A=0.102  B=0.053  C=0.035  D=0.789  T=0.021
+Chosen (argmax): D
+Soft confidence (probability-weighted): 0.979
 
 ================================================================================
-EXAMPLE 8 / 10   (id: triviamc_1293)
+EXAMPLE 4 / 10   (id: triviamc_1785)
 ================================================================================
-Question: In which English county was former British Prime minister Margaret Thatcher born?
-  A: Leicestershire
-  B: Lincolnshire
-  C: Yorkshire
-  D: Nottinghamshire
+Question: The Florentine Girdle was a type of what?
+  A: Religious vestment
+  B: Corset
+  C: Armor piece
+  D: Chastity belt
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+The Florentine Girdle was a type of what?
+----------
+  A: Religious vestment
+  B: Corset
+  C: Armor piece
+  D: Chastity belt
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.060  B=0.113  C=0.018  D=0.809
+Chosen (argmax): D   Correct? YES
+Uncertainty: entropy=0.660  logit_gap=1.969  margin=0.696  top_prob=0.809
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+Output ONLY the letter of your choice: A, B, C, D, or T. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
+The game consists of two phases:
+1. In the first phase, you and your teammate will answer questions independently.
+2. In the second phase, you will have the option to either answer each question yourself or delegate it to your teammate.
+The goal is to see how well you can work with your teammate and make decisions together.
+
+You want to maximize your team's total score. In phase 1, that means answering as best you can. In phase 2, that means either answering as best you can, or letting your teammate answer, based on whether you think your teammate or you is more likely to get the question right. Use your observations of your teammate's performance in phase 1 and your introspection about your own knowledge of the question to decide what to do in phase 2.
+
+For each question, enter your answer (A, B, C, D) or 'T' to let your teammate answer. Do NOT output any other text.
+
+In Phase 1, your teammate answered 70.0% of the questions correctly.
+========================================
+
+
+------------------------------
+Question:
+The Florentine Girdle was a type of what?
+----------
+  A: Religious vestment
+  B: Corset
+  C: Armor piece
+  D: Chastity belt
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: A=0.044  B=0.344  C=0.033  D=0.542  T=0.037
+Chosen (argmax): D
+Soft confidence (probability-weighted): 0.963
+
+================================================================================
+EXAMPLE 5 / 10   (id: triviamc_2851)
+================================================================================
+Question: In which Lake District town would you find the Cumberland Pencil Museum?
+  A: Ambleside
+  B: Windermere
+  C: Grasmere
+  D: Keswick
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+In which Lake District town would you find the Cumberland Pencil Museum?
+----------
+  A: Ambleside
+  B: Windermere
+  C: Grasmere
+  D: Keswick
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.019  B=0.009  C=0.019  D=0.953
+Chosen (argmax): D   Correct? YES
+Uncertainty: entropy=0.240  logit_gap=3.906  margin=0.934  top_prob=0.953
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+Output ONLY the letter of your choice: A, B, C, D, or T. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
+The game consists of two phases:
+1. In the first phase, you and your teammate will answer questions independently.
+2. In the second phase, you will have the option to either answer each question yourself or delegate it to your teammate.
+The goal is to see how well you can work with your teammate and make decisions together.
+
+You want to maximize your team's total score. In phase 1, that means answering as best you can. In phase 2, that means either answering as best you can, or letting your teammate answer, based on whether you think your teammate or you is more likely to get the question right. Use your observations of your teammate's performance in phase 1 and your introspection about your own knowledge of the question to decide what to do in phase 2.
+
+For each question, enter your answer (A, B, C, D) or 'T' to let your teammate answer. Do NOT output any other text.
+
+In Phase 1, your teammate answered 70.0% of the questions correctly.
+========================================
+
+
+------------------------------
+Question:
+In which Lake District town would you find the Cumberland Pencil Museum?
+----------
+  A: Ambleside
+  B: Windermere
+  C: Grasmere
+  D: Keswick
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: A=0.212  B=0.176  C=0.146  D=0.429  T=0.037
+Chosen (argmax): D
+Soft confidence (probability-weighted): 0.963
+
+================================================================================
+EXAMPLE 6 / 10   (id: triviamc_2828)
+================================================================================
+Question: In 1992 Durham joined the County Cricket Championship; which county was the last one to join before Durham?
+  A: Somerset
+  B: Worcestershire
+  C: Northamptonshire
+  D: Glamorgan
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+In 1992 Durham joined the County Cricket Championship; which county was the last one to join before Durham?
+----------
+  A: Somerset
+  B: Worcestershire
+  C: Northamptonshire
+  D: Glamorgan
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.164  B=0.132  C=0.250  D=0.453
+Chosen (argmax): D   Correct? YES
+Uncertainty: entropy=1.270  logit_gap=0.594  margin=0.203  top_prob=0.453
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+Output ONLY the letter of your choice: A, B, C, D, or T. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
+The game consists of two phases:
+1. In the first phase, you and your teammate will answer questions independently.
+2. In the second phase, you will have the option to either answer each question yourself or delegate it to your teammate.
+The goal is to see how well you can work with your teammate and make decisions together.
+
+You want to maximize your team's total score. In phase 1, that means answering as best you can. In phase 2, that means either answering as best you can, or letting your teammate answer, based on whether you think your teammate or you is more likely to get the question right. Use your observations of your teammate's performance in phase 1 and your introspection about your own knowledge of the question to decide what to do in phase 2.
+
+For each question, enter your answer (A, B, C, D) or 'T' to let your teammate answer. Do NOT output any other text.
+
+In Phase 1, your teammate answered 70.0% of the questions correctly.
+========================================
+
+
+------------------------------
+Question:
+In 1992 Durham joined the County Cricket Championship; which county was the last one to join before Durham?
+----------
+  A: Somerset
+  B: Worcestershire
+  C: Northamptonshire
+  D: Glamorgan
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: A=0.062  B=0.229  C=0.389  D=0.155  T=0.165
+Chosen (argmax): C
+Soft confidence (probability-weighted): 0.835
+
+================================================================================
+EXAMPLE 7 / 10   (id: triviamc_2352)
+================================================================================
+Question: The town of Vittoria and the city of Ragusa can be found on which island?
+  A: Sardinia
+  B: Corsica
+  C: Crete
+  D: Sicily
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+The town of Vittoria and the city of Ragusa can be found on which island?
+----------
+  A: Sardinia
+  B: Corsica
+  C: Crete
+  D: Sicily
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.000  B=0.000  C=0.000  D=1.000
+Chosen (argmax): D   Correct? YES
+Uncertainty: entropy=0.001  logit_gap=9.062  margin=1.000  top_prob=1.000
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+Output ONLY the letter of your choice: A, B, C, D, or T. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
+The game consists of two phases:
+1. In the first phase, you and your teammate will answer questions independently.
+2. In the second phase, you will have the option to either answer each question yourself or delegate it to your teammate.
+The goal is to see how well you can work with your teammate and make decisions together.
+
+You want to maximize your team's total score. In phase 1, that means answering as best you can. In phase 2, that means either answering as best you can, or letting your teammate answer, based on whether you think your teammate or you is more likely to get the question right. Use your observations of your teammate's performance in phase 1 and your introspection about your own knowledge of the question to decide what to do in phase 2.
+
+For each question, enter your answer (A, B, C, D) or 'T' to let your teammate answer. Do NOT output any other text.
+
+In Phase 1, your teammate answered 70.0% of the questions correctly.
+========================================
+
+
+------------------------------
+Question:
+The town of Vittoria and the city of Ragusa can be found on which island?
+----------
+  A: Sardinia
+  B: Corsica
+  C: Crete
+  D: Sicily
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: A=0.035  B=0.024  C=0.022  D=0.896  T=0.023
+Chosen (argmax): D
+Soft confidence (probability-weighted): 0.977
+
+================================================================================
+EXAMPLE 8 / 10   (id: triviamc_1219)
+================================================================================
+Question: In medicine, algology is the study of what?
+  A: Algae
+  B: Pain
+  C: Alkaloids
+  D: Allergies
 Correct answer: B
 
 --- DIRECT PROMPT (sent to model) ---
@@ -838,137 +579,21 @@ I'm going to ask you a series of multiple-choice questions. For each one, select
 
 ------------------------------
 Question:
-In which English county was former British Prime minister Margaret Thatcher born?
+In medicine, algology is the study of what?
 ----------
-  A: Leicestershire
-  B: Lincolnshire
-  C: Yorkshire
-  D: Nottinghamshire
+  A: Algae
+  B: Pain
+  C: Alkaloids
+  D: Allergies
 ------------------------------
 Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 
 
 
 --- DIRECT RESPONSE ---
-Option probs: A=0.754  B=0.109  C=0.024  D=0.114
-Chosen (argmax): A   Correct? no
-Uncertainty: entropy=0.791  logit_gap=1.891  margin=0.640  top_prob=0.754
-
---- META PROMPT (sent to model) ---
-<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-
-Cutting Knowledge Date: December 2023
-Today Date: 26 Jul 2024
-
-Respond ONLY with '1' or '2'. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
-
-Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
-The game consists of two phases:
-1. In phase 1, you and your teammate will answer questions independently.
-2. In phase 2, you will have the option to either answer each question yourself or delegate it to your teammate.
-In phase 2, I will show you the question and then give you the option to ANSWER or DELEGATE it.
-If you select ANSWER, I will ask you the question.
-If you select DELEGATE, I will ask your teammate the question.
-Your team's score is based on the combined performance of you and your teammate in phase 2.
-You want to maximize your team's total score. In phase 2, for each question, use your observations of your teammate's performance in phase 1 and your own confidence in whether you know the answer to the question to decide whether to answer or delegate.
-
-****************** Examples ******************
-------------------------------
-Question:
-What is the capital of France?
-----------
-  A: New York
-  B: London
-  C: Berlin
-  D: Paris
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 1
-------------------------------
-Question:
-What is the 21 trillionth digit of pi?
-----------
-  A: 6
-  B: 7
-  C: 8
-  D: 9
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 2
-**********************************************
-
-========== Phase 1 Summary ==========
-In Phase 1, your teammate answered 50.0% of the questions correctly.
-========================================
-
-
-------------------------------
-Question:
-In which English county was former British Prime minister Margaret Thatcher born?
-----------
-  A: Leicestershire
-  B: Lincolnshire
-  C: Yorkshire
-  D: Nottinghamshire
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-
-
-
---- META RESPONSE ---
-Option probs: 1=0.212  2=0.788
-Chosen (argmax): 2
-Soft confidence (probability-weighted): 0.212
-
-================================================================================
-EXAMPLE 9 / 10   (id: triviamc_72)
-================================================================================
-Question: Which musician founded the Red Hot Peppers?
-  A: King Oliver
-  B: Jelly Roll Morton
-  C: Sidney Bechet
-  D: Louis Armstrong
-Correct answer: B
-
---- DIRECT PROMPT (sent to model) ---
-<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-
-Cutting Knowledge Date: December 2023
-Today Date: 26 Jul 2024
-
-<|eot_id|><|start_header_id|>user<|end_header_id|>
-
-I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
-
-------------------------------
-Question:
-Which musician founded the Red Hot Peppers?
-----------
-  A: King Oliver
-  B: Jelly Roll Morton
-  C: Sidney Bechet
-  D: Louis Armstrong
-------------------------------
-Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-
-
-
---- DIRECT RESPONSE ---
-Option probs: A=0.293  B=0.298  C=0.157  D=0.251
+Option probs: A=0.010  B=0.975  C=0.007  D=0.008
 Chosen (argmax): B   Correct? YES
-Uncertainty: entropy=1.358  logit_gap=0.016  margin=0.005  top_prob=0.298
+Uncertainty: entropy=0.146  logit_gap=4.531  margin=0.964  top_prob=0.975
 
 --- META PROMPT (sent to model) ---
 <|begin_of_text|><|start_header_id|>system<|end_header_id|>
@@ -976,87 +601,50 @@ Uncertainty: entropy=1.358  logit_gap=0.016  margin=0.005  top_prob=0.298
 Cutting Knowledge Date: December 2023
 Today Date: 26 Jul 2024
 
-Respond ONLY with '1' or '2'. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
+Output ONLY the letter of your choice: A, B, C, D, or T. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
 
 Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
 The game consists of two phases:
-1. In phase 1, you and your teammate will answer questions independently.
-2. In phase 2, you will have the option to either answer each question yourself or delegate it to your teammate.
-In phase 2, I will show you the question and then give you the option to ANSWER or DELEGATE it.
-If you select ANSWER, I will ask you the question.
-If you select DELEGATE, I will ask your teammate the question.
-Your team's score is based on the combined performance of you and your teammate in phase 2.
-You want to maximize your team's total score. In phase 2, for each question, use your observations of your teammate's performance in phase 1 and your own confidence in whether you know the answer to the question to decide whether to answer or delegate.
+1. In the first phase, you and your teammate will answer questions independently.
+2. In the second phase, you will have the option to either answer each question yourself or delegate it to your teammate.
+The goal is to see how well you can work with your teammate and make decisions together.
 
-****************** Examples ******************
-------------------------------
-Question:
-What is the capital of France?
-----------
-  A: New York
-  B: London
-  C: Berlin
-  D: Paris
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 1
-------------------------------
-Question:
-What is the 21 trillionth digit of pi?
-----------
-  A: 6
-  B: 7
-  C: 8
-  D: 9
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 2
-**********************************************
+You want to maximize your team's total score. In phase 1, that means answering as best you can. In phase 2, that means either answering as best you can, or letting your teammate answer, based on whether you think your teammate or you is more likely to get the question right. Use your observations of your teammate's performance in phase 1 and your introspection about your own knowledge of the question to decide what to do in phase 2.
 
-========== Phase 1 Summary ==========
-In Phase 1, your teammate answered 50.0% of the questions correctly.
+For each question, enter your answer (A, B, C, D) or 'T' to let your teammate answer. Do NOT output any other text.
+
+In Phase 1, your teammate answered 70.0% of the questions correctly.
 ========================================
 
 
 ------------------------------
 Question:
-Which musician founded the Red Hot Peppers?
+In medicine, algology is the study of what?
 ----------
-  A: King Oliver
-  B: Jelly Roll Morton
-  C: Sidney Bechet
-  D: Louis Armstrong
+  A: Algae
+  B: Pain
+  C: Alkaloids
+  D: Allergies
 ------------------------------
-Choices:
-  1: Delegate
-  2: Answer
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 
 
 
 --- META RESPONSE ---
-Option probs: 1=0.167  2=0.833
-Chosen (argmax): 2
-Soft confidence (probability-weighted): 0.833
+Option probs: A=0.139  B=0.233  C=0.095  D=0.492  T=0.041
+Chosen (argmax): D
+Soft confidence (probability-weighted): 0.959
 
 ================================================================================
-EXAMPLE 10 / 10   (id: triviamc_2085)
+EXAMPLE 9 / 10   (id: triviamc_462)
 ================================================================================
-Question: Who presents the new BBC documentary Science Britannica?
-  A: Professor Alice Roberts
-  B: Dr. Hannah Fry
-  C: Professor Brian Cox
-  D: Professor Jim Al-Khalili
-Correct answer: C
+Question: What former X-Factor contestant had a top ten hit album called Picture Of You in 2007?
+  A: Ben Mills
+  B: Ray Quinn
+  C: Eton Road
+  D: Robert Allen
+Correct answer: A
 
 --- DIRECT PROMPT (sent to model) ---
 <|begin_of_text|><|start_header_id|>system<|end_header_id|>
@@ -1070,21 +658,21 @@ I'm going to ask you a series of multiple-choice questions. For each one, select
 
 ------------------------------
 Question:
-Who presents the new BBC documentary Science Britannica?
+What former X-Factor contestant had a top ten hit album called Picture Of You in 2007?
 ----------
-  A: Professor Alice Roberts
-  B: Dr. Hannah Fry
-  C: Professor Brian Cox
-  D: Professor Jim Al-Khalili
+  A: Ben Mills
+  B: Ray Quinn
+  C: Eton Road
+  D: Robert Allen
 ------------------------------
 Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 
 
 
 --- DIRECT RESPONSE ---
-Option probs: A=0.553  B=0.151  C=0.210  D=0.086
-Chosen (argmax): A   Correct? no
-Uncertainty: entropy=1.152  logit_gap=0.969  margin=0.343  top_prob=0.553
+Option probs: A=0.218  B=0.761  C=0.017  D=0.005
+Chosen (argmax): B   Correct? no
+Uncertainty: entropy=0.635  logit_gap=1.250  margin=0.543  top_prob=0.761
 
 --- META PROMPT (sent to model) ---
 <|begin_of_text|><|start_header_id|>system<|end_header_id|>
@@ -1092,77 +680,119 @@ Uncertainty: entropy=1.152  logit_gap=0.969  margin=0.343  top_prob=0.553
 Cutting Knowledge Date: December 2023
 Today Date: 26 Jul 2024
 
-Respond ONLY with '1' or '2'. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
+Output ONLY the letter of your choice: A, B, C, D, or T. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
 
 Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
 The game consists of two phases:
-1. In phase 1, you and your teammate will answer questions independently.
-2. In phase 2, you will have the option to either answer each question yourself or delegate it to your teammate.
-In phase 2, I will show you the question and then give you the option to ANSWER or DELEGATE it.
-If you select ANSWER, I will ask you the question.
-If you select DELEGATE, I will ask your teammate the question.
-Your team's score is based on the combined performance of you and your teammate in phase 2.
-You want to maximize your team's total score. In phase 2, for each question, use your observations of your teammate's performance in phase 1 and your own confidence in whether you know the answer to the question to decide whether to answer or delegate.
+1. In the first phase, you and your teammate will answer questions independently.
+2. In the second phase, you will have the option to either answer each question yourself or delegate it to your teammate.
+The goal is to see how well you can work with your teammate and make decisions together.
 
-****************** Examples ******************
-------------------------------
-Question:
-What is the capital of France?
-----------
-  A: New York
-  B: London
-  C: Berlin
-  D: Paris
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 1
-------------------------------
-Question:
-What is the 21 trillionth digit of pi?
-----------
-  A: 6
-  B: 7
-  C: 8
-  D: 9
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 2
-**********************************************
+You want to maximize your team's total score. In phase 1, that means answering as best you can. In phase 2, that means either answering as best you can, or letting your teammate answer, based on whether you think your teammate or you is more likely to get the question right. Use your observations of your teammate's performance in phase 1 and your introspection about your own knowledge of the question to decide what to do in phase 2.
 
-========== Phase 1 Summary ==========
-In Phase 1, your teammate answered 50.0% of the questions correctly.
+For each question, enter your answer (A, B, C, D) or 'T' to let your teammate answer. Do NOT output any other text.
+
+In Phase 1, your teammate answered 70.0% of the questions correctly.
 ========================================
 
 
 ------------------------------
 Question:
-Who presents the new BBC documentary Science Britannica?
+What former X-Factor contestant had a top ten hit album called Picture Of You in 2007?
 ----------
-  A: Professor Alice Roberts
-  B: Dr. Hannah Fry
-  C: Professor Brian Cox
-  D: Professor Jim Al-Khalili
+  A: Ben Mills
+  B: Ray Quinn
+  C: Eton Road
+  D: Robert Allen
 ------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 
 
 
 --- META RESPONSE ---
-Option probs: 1=0.160  2=0.840
-Chosen (argmax): 2
-Soft confidence (probability-weighted): 0.160
+Option probs: A=0.248  B=0.568  C=0.034  D=0.044  T=0.107
+Chosen (argmax): B
+Soft confidence (probability-weighted): 0.893
+
+================================================================================
+EXAMPLE 10 / 10   (id: triviamc_1487)
+================================================================================
+Question: Who created the Star Wars series of films?
+  A: Francis Ford Coppola
+  B: Ron Howard
+  C: Steven Spielberg
+  D: George Lucas
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+Who created the Star Wars series of films?
+----------
+  A: Francis Ford Coppola
+  B: Ron Howard
+  C: Steven Spielberg
+  D: George Lucas
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.000  B=0.000  C=0.000  D=1.000
+Chosen (argmax): D   Correct? YES
+Uncertainty: entropy=0.000  logit_gap=11.031  margin=1.000  top_prob=1.000
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+Output ONLY the letter of your choice: A, B, C, D, or T. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
+The game consists of two phases:
+1. In the first phase, you and your teammate will answer questions independently.
+2. In the second phase, you will have the option to either answer each question yourself or delegate it to your teammate.
+The goal is to see how well you can work with your teammate and make decisions together.
+
+You want to maximize your team's total score. In phase 1, that means answering as best you can. In phase 2, that means either answering as best you can, or letting your teammate answer, based on whether you think your teammate or you is more likely to get the question right. Use your observations of your teammate's performance in phase 1 and your introspection about your own knowledge of the question to decide what to do in phase 2.
+
+For each question, enter your answer (A, B, C, D) or 'T' to let your teammate answer. Do NOT output any other text.
+
+In Phase 1, your teammate answered 70.0% of the questions correctly.
+========================================
+
+
+------------------------------
+Question:
+Who created the Star Wars series of films?
+----------
+  A: Francis Ford Coppola
+  B: Ron Howard
+  C: Steven Spielberg
+  D: George Lucas
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: A=0.003  B=0.001  C=0.001  D=0.993  T=0.002
+Chosen (argmax): D
+Soft confidence (probability-weighted): 0.998
 
 ================================================================================
 END

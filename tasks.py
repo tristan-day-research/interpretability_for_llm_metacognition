@@ -710,15 +710,19 @@ def build_answer_or_delegate_setup_base(teammate_accuracy: float = DEFAULT_TEAMM
 ANSWER_OR_DELEGATE_SETUP_BASE = build_answer_or_delegate_setup_base(DEFAULT_TEAMMATE_ACCURACY)
 
 # Fixed examples: two easy (Answer) + two obviously-unanswerable (Delegate).
+# `correct_answer` is the letter to emit under the ABCDT single-shot design
+# when the decision is "Answer"; unused for "Delegate".
 BASE_DELEGATE_FIXED_EXAMPLES = [
     {
         "question": "What is the capital of France?",
         "options": {"A": "New York", "B": "London", "C": "Berlin", "D": "Paris"},
+        "correct_answer": "D",
         "decision": "Answer",
     },
     {
         "question": "What is the chemical symbol for water?",
         "options": {"A": "CO2", "B": "NaCl", "C": "H2O", "D": "O2"},
+        "correct_answer": "C",
         "decision": "Answer",
     },
     {
@@ -914,6 +918,194 @@ def format_answer_with_delegate_prompt(
     else:
         full_prompt = ANSWER_WITH_DELEGATE_SYSPROMPT + "\n\n" + user_content
 
+    return full_prompt, ANSWER_WITH_DELEGATE_OPTIONS, None
+
+
+# ---------------------------------------------------------------------------
+# Base-model (few-shot, no chat template) variant of the ABCDT prompt.
+# ---------------------------------------------------------------------------
+
+_ANSWER_WITH_DELEGATE_SETUP_BASE_TEMPLATE = """In this game, you see a multiple-choice question and answer it yourself (with A, B, C, or D) or delegate it to your teammate (with T). Your teammate answers ~{teammate_pct:.0f}% of questions correctly.
+If you know the answer with high confidence, respond with the correct letter. If you are uncertain, respond with T to delegate.
+
+"""
+
+
+# Graded-difficulty exemplars for the base-model ABCDT task — mirrors the
+# design of NUMERIC_CONFIDENCE_EXEMPLARS (difficulty co-varies with the
+# target label). 4 Answer + 2 T: Answer exemplars span easy → moderately
+# hard (teaches "commit when you have a reasonable guess, not just on
+# trivial questions"); T exemplars include one plausible-obscure case and
+# one cartoonishly-impossible case (teaches the calibration threshold
+# without making T feel like the default on merely-hard questions).
+# Base models pattern-match heavily on label frequency, so keeping T share
+# low (33%) avoids the over-delegation regime.
+# Order is shuffled per prompt to avoid positional attention priors.
+# No external pool needed; use via `mode="balanced"` without a pool.
+MC_DELEGATE_EXEMPLARS = [
+    # ---- Answer examples (4) ----
+    {
+        "question": "What planet is known as the Red Planet?",
+        "options": {"A": "Venus", "B": "Mars", "C": "Jupiter", "D": "Saturn"},
+        "target": "B",
+    },
+    {
+        "question": "What is the chemical symbol for water?",
+        "options": {"A": "CO2", "B": "NaCl", "C": "H2O", "D": "O2"},
+        "target": "C",
+    },
+    {
+        "question": "Who wrote the play 'Romeo and Juliet'?",
+        "options": {"A": "Charles Dickens", "B": "William Shakespeare",
+                    "C": "Jane Austen", "D": "Mark Twain"},
+        "target": "B",
+    },
+    {
+        # Mid-difficulty "should still answer" case — teaches the model not to
+        # default to T on questions that feel hard but are still knowable.
+        "question": "In what year did World War II end?",
+        "options": {"A": "1943", "B": "1944", "C": "1945", "D": "1946"},
+        "target": "C",
+    },
+    # ---- Delegate examples (2) ----
+    {
+        # Borderline-obscure: plausible trivia the base model almost certainly
+        # doesn't know. Teaches "delegate on specific unfamiliar knowledge",
+        # not just on cartoonishly-impossible questions.
+        "question": "What is the atomic number of Tungsten?",
+        "options": {"A": "72", "B": "74", "C": "76", "D": "78"},
+        "target": "T",
+    },
+    {
+        # Cartoonishly impossible — clear T signal for the far end of the
+        # difficulty spectrum.
+        "question": "What is the 21 trillionth digit of pi?",
+        "options": {"A": "3", "B": "7", "C": "1", "D": "9"},
+        "target": "T",
+    },
+]
+
+
+def build_answer_with_delegate_setup_base(teammate_accuracy: float = DEFAULT_TEAMMATE_ACCURACY) -> str:
+    return _ANSWER_WITH_DELEGATE_SETUP_BASE_TEMPLATE.format(teammate_pct=100.0 * teammate_accuracy)
+
+
+def _format_mc_delegate_example(ex: Dict, target: str) -> str:
+    """Render one few-shot ABCDT example block matching the test-question format.
+
+    `target` is the letter the example should emit: one of A/B/C/D (answering
+    with that option) or T (delegating).
+    """
+    out = "-" * 30 + "\n"
+    out += "Question:\n" + ex["question"] + "\n"
+    out += "-" * 10 + "\n"
+    for key, value in ex["options"].items():
+        out += f"  {key}: {value}\n"
+    out += "-" * 30 + "\n"
+    out += "Respond ONLY with 'A', 'B', 'C', 'D', or 'T'\n"
+    out += f"Your choice (A, B, C, D, or T=Teammate): {target}\n\n"
+    return out
+
+
+def _build_mc_delegate_few_shot_prefix_base(
+    mode: str = "fixed",
+    pool: Optional[List[Dict]] = None,
+    n_per_class: int = 2,
+    teammate_accuracy: float = DEFAULT_TEAMMATE_ACCURACY,
+) -> str:
+    """Build the few-shot prefix for the base-model ABCDT task.
+
+    mode="fixed":    shuffle BASE_DELEGATE_FIXED_EXAMPLES; Answer examples emit
+                     their `correct_answer` letter; Delegate examples emit "T".
+    mode="balanced": from a confidence-style pool (confidence-mode paired_data
+                     with `direct_response` per item), pick n_per_class
+                     high-confidence correctly-answered items (target = their
+                     direct answer letter) and n_per_class low-confidence items
+                     (target = "T"), shuffled.
+    """
+    if mode == "fixed":
+        examples = list(BASE_DELEGATE_FIXED_EXAMPLES)
+        random.shuffle(examples)
+        tagged = []
+        for ex in examples:
+            target = "T" if ex.get("decision") == "Delegate" else ex.get("correct_answer", "T")
+            tagged.append((ex, target))
+
+    elif mode == "balanced" and pool is None:
+        # Pool-free "balanced": use the hand-calibrated graded-difficulty exemplars
+        # (MC_DELEGATE_EXEMPLARS). Mirrors NUMERIC_CONFIDENCE_EXEMPLARS for the
+        # confidence task — no external data required.
+        examples = list(MC_DELEGATE_EXEMPLARS)
+        random.shuffle(examples)
+        tagged = [(ex, ex["target"]) for ex in examples]
+
+    elif mode == "balanced":
+        if len(pool) < 2 * n_per_class:
+            raise ValueError(
+                f"balanced mode with a pool requires \u2265 {2 * n_per_class} items; got "
+                f"{len(pool)}"
+            )
+
+        def _conf_scalar(ex: Dict) -> float:
+            c = str(ex.get("confidence", ""))
+            if c in STATED_CONFIDENCE_MIDPOINTS:
+                return STATED_CONFIDENCE_MIDPOINTS[c]
+            if c in NUMERIC_CONFIDENCE_MIDPOINTS:
+                return NUMERIC_CONFIDENCE_MIDPOINTS[c]
+            return 0.5
+
+        sorted_pool = sorted(pool, key=_conf_scalar)
+        bottom_slice = sorted_pool[: max(n_per_class, n_per_class * 3)]
+        top_slice = sorted_pool[-max(n_per_class, n_per_class * 3):]
+        delegate_exs = random.sample(bottom_slice, min(n_per_class, len(bottom_slice)))
+        answer_exs = random.sample(top_slice, min(n_per_class, len(top_slice)))
+        tagged = [(ex, "T") for ex in delegate_exs]
+        for ex in answer_exs:
+            # Prefer the model's own correctly-picked letter; fall back to correct_answer.
+            letter = ex.get("direct_response") or ex.get("correct_answer") or "T"
+            if letter not in {"A", "B", "C", "D"}:
+                letter = "T"
+            tagged.append((ex, letter))
+        random.shuffle(tagged)
+
+    else:
+        raise ValueError(f"Unknown ABCDT few-shot mode: {mode!r}. Use 'fixed' or 'balanced'.")
+
+    prefix = build_answer_with_delegate_setup_base(teammate_accuracy)
+    prefix += "****************** Examples ******************\n"
+    for ex, target in tagged:
+        prefix += _format_mc_delegate_example(ex, target)
+    prefix += "**********************************************\n\n"
+    return prefix
+
+
+def format_answer_with_delegate_prompt_base(
+    question: Dict,
+    mode: str = "fixed",
+    pool: Optional[List[Dict]] = None,
+    n_per_class: int = 2,
+    teammate_accuracy: float = DEFAULT_TEAMMATE_ACCURACY,
+) -> Tuple[str, List[str], Optional[Dict[str, str]]]:
+    """Base-model (few-shot, no chat template) ABCDT single-shot prompt.
+
+    Returns (full_prompt, ["A","B","C","D","T"], None). No mapping —
+    A/B/C/D always answer with that letter; T always delegates.
+    """
+    prefix = _build_mc_delegate_few_shot_prefix_base(
+        mode=mode, pool=pool, n_per_class=n_per_class,
+        teammate_accuracy=teammate_accuracy,
+    )
+
+    body = "-" * 30 + "\n"
+    body += "Question:\n" + question["question"] + "\n"
+    body += "-" * 10 + "\n"
+    for key, value in question["options"].items():
+        body += f"  {key}: {value}\n"
+    body += "-" * 30 + "\n"
+    body += "Respond ONLY with 'A', 'B', 'C', 'D', or 'T'\n"
+    body += "Your choice (A, B, C, D, or T=Teammate):"
+
+    full_prompt = prefix + body
     return full_prompt, ANSWER_WITH_DELEGATE_OPTIONS, None
 
 

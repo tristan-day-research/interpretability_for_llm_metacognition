@@ -81,6 +81,7 @@ from tasks import (
     # Single-shot ABCDT delegate task
     ANSWER_WITH_DELEGATE_OPTIONS,
     format_answer_with_delegate_prompt,
+    format_answer_with_delegate_prompt_base,
     # Unified conversion
     response_to_confidence,
 )
@@ -89,16 +90,16 @@ load_dotenv()
 
 
 # Configuration
-# BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B"
-BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
+BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B"
+# BASE_MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
 
 
 MODEL_NAME = BASE_MODEL_NAME  # Set to adapter path if using fine-tuned model
-MODEL_NAME = "Tristan-Day/ect_20251222_215412_v0uei7y1_2000"   # Set to adapter path if using fine-tuned model
+# MODEL_NAME = "Tristan-Day/ect_20251222_215412_v0uei7y1_2000"   # Set to adapter path if using fine-tuned model
 
 # Lists of datasets and meta_tasks to process (will iterate through all combinations)
 # Set to a single-item list for single runs, or multiple items to batch process
-DATASETS = ["TriviaMC"]  # Options: "SimpleMC", "TriviaMC", "GPQA", etc.
+DATASETS = ["TriviaMC", "SimpleMC"]  # Options: "SimpleMC", "TriviaMC", "GPQA", etc.
 META_TASKS = ["delegate"]  # Options: "confidence", "delegate"
 
 # Legacy single-value variables (used by functions that reference them)
@@ -125,13 +126,13 @@ LOAD_IN_8BIT = False
 # "random"     - Sample 3 stratified examples from pool
 # "balanced"   - Show all 8 levels (S-Z) with one example each
 # "scale_only" - Just show "S T U V W X Y Z" tokens
-FEW_SHOT_MODE = "balanced"
+FEW_SHOT_MODE = "fixed"
 
 # --- Delegate game: base-model few-shot configuration ---
 # "fixed"    - hard-coded BASE_DELEGATE_FIXED_EXAMPLES (2 Answer, 2 Delegate), shuffled per call
 # "balanced" - sample from BASE_DELEGATE_POOL_SOURCE (confidence-run JSON), 2 high-conf (Answer) +
 #              2 low-conf (Delegate), shuffled per call
-BASE_DELEGATE_MODE = "fixed"
+BASE_DELEGATE_MODE = "balanced"
 BASE_DELEGATE_POOL_SOURCE = None  # e.g. "outputs/ECT/..._ect_results.json" when BASE_DELEGATE_MODE=="balanced"
 
 # Teammate accuracy shown in the delegate prompt's Phase-1 summary.
@@ -376,9 +377,9 @@ def format_delegate_prompt(
 
     if DELEGATE_PROMPT_DESIGN == "mc_integrated":
         if is_base:
-            raise NotImplementedError(
-                "mc_integrated delegate prompt is not implemented for base models yet. "
-                "Set DELEGATE_PROMPT_DESIGN='two_step_digit' for base-model runs."
+            return format_answer_with_delegate_prompt_base(
+                question, mode=few_shot_mode, pool=few_shot_pool,
+                teammate_accuracy=teammate_accuracy,
             )
         return format_answer_with_delegate_prompt(
             question, tokenizer,

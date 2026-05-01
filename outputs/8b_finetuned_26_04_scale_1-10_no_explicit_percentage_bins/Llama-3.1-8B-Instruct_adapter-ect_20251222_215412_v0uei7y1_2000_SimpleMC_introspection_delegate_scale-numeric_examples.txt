@@ -6,245 +6,13 @@ Showing first 10 of 500 examples.
 ================================================================================
 
 ================================================================================
-EXAMPLE 1 / 10   (id: sqa_test_35f11f43af663dd54f8d32c6cc3dbc8335adcfa36de9f345e5a7c6325b90b516)
+EXAMPLE 1 / 10   (id: sqa_test_bc7821f5205adbb14e6ef8575414989c4c4c7453e4d082003455659ab5813a4c)
 ================================================================================
-Question: What were the day, month, and year when Instagram introduced comment liking?
-  A: December 6, 2016
-  B: March 21, 2017
-  C: September 14, 2016
-  D: June 3, 2015
-Correct answer: A
-
---- DIRECT PROMPT (sent to model) ---
-<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-
-Cutting Knowledge Date: December 2023
-Today Date: 26 Jul 2024
-
-<|eot_id|><|start_header_id|>user<|end_header_id|>
-
-I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
-
-------------------------------
-Question:
-What were the day, month, and year when Instagram introduced comment liking?
-----------
-  A: December 6, 2016
-  B: March 21, 2017
-  C: September 14, 2016
-  D: June 3, 2015
-------------------------------
-Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-
-
-
---- DIRECT RESPONSE ---
-Option probs: A=0.106  B=0.020  C=0.824  D=0.050
-Chosen (argmax): C   Correct? no
-Uncertainty: entropy=0.625  logit_gap=2.047  margin=0.717  top_prob=0.824
-
---- META PROMPT (sent to model) ---
-<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-
-Cutting Knowledge Date: December 2023
-Today Date: 26 Jul 2024
-
-Respond ONLY with '1' or '2'. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
-
-Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
-The game consists of two phases:
-1. In phase 1, you and your teammate will answer questions independently.
-2. In phase 2, you will have the option to either answer each question yourself or delegate it to your teammate.
-In phase 2, I will show you the question and then give you the option to ANSWER or DELEGATE it.
-If you select ANSWER, I will ask you the question.
-If you select DELEGATE, I will ask your teammate the question.
-Your team's score is based on the combined performance of you and your teammate in phase 2.
-You want to maximize your team's total score. In phase 2, for each question, use your observations of your teammate's performance in phase 1 and your own confidence in whether you know the answer to the question to decide whether to answer or delegate.
-
-****************** Examples ******************
-------------------------------
-Question:
-What is the capital of France?
-----------
-  A: New York
-  B: London
-  C: Berlin
-  D: Paris
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 1
-------------------------------
-Question:
-What is the 21 trillionth digit of pi?
-----------
-  A: 6
-  B: 7
-  C: 8
-  D: 9
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 2
-**********************************************
-
-========== Phase 1 Summary ==========
-In Phase 1, your teammate answered 50.0% of the questions correctly.
-========================================
-
-
-------------------------------
-Question:
-What were the day, month, and year when Instagram introduced comment liking?
-----------
-  A: December 6, 2016
-  B: March 21, 2017
-  C: September 14, 2016
-  D: June 3, 2015
-------------------------------
-Choices:
-  1: Delegate
-  2: Answer
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-
-
-
---- META RESPONSE ---
-Option probs: 1=0.288  2=0.712
-Chosen (argmax): 2
-Soft confidence (probability-weighted): 0.712
-
-================================================================================
-EXAMPLE 2 / 10   (id: sqa_test_9d6461c01ef5e4a76979b171cd5f30c6219297d9bb191f4e0959becc6e88d336)
-================================================================================
-Question: Who is known to be the first Indian musician to perform at the United Nations General Assembly in 1966?
-  A: Dagar Vani Gayaki Ustad Nasir Moinuddin
-  B: Madurai Shanmukhavadivu Subbulakshmi
-  C: Kishori Amonkar Mogubai Kurdikar
-  D: Mangalampalli Balamuralikrishna
-Correct answer: B
-
---- DIRECT PROMPT (sent to model) ---
-<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-
-Cutting Knowledge Date: December 2023
-Today Date: 26 Jul 2024
-
-<|eot_id|><|start_header_id|>user<|end_header_id|>
-
-I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
-
-------------------------------
-Question:
-Who is known to be the first Indian musician to perform at the United Nations General Assembly in 1966?
-----------
-  A: Dagar Vani Gayaki Ustad Nasir Moinuddin
-  B: Madurai Shanmukhavadivu Subbulakshmi
-  C: Kishori Amonkar Mogubai Kurdikar
-  D: Mangalampalli Balamuralikrishna
-------------------------------
-Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-
-
-
---- DIRECT RESPONSE ---
-Option probs: A=0.021  B=0.952  C=0.009  D=0.018
-Chosen (argmax): B   Correct? YES
-Uncertainty: entropy=0.245  logit_gap=3.812  margin=0.931  top_prob=0.952
-
---- META PROMPT (sent to model) ---
-<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-
-Cutting Knowledge Date: December 2023
-Today Date: 26 Jul 2024
-
-Respond ONLY with '1' or '2'. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
-
-Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
-The game consists of two phases:
-1. In phase 1, you and your teammate will answer questions independently.
-2. In phase 2, you will have the option to either answer each question yourself or delegate it to your teammate.
-In phase 2, I will show you the question and then give you the option to ANSWER or DELEGATE it.
-If you select ANSWER, I will ask you the question.
-If you select DELEGATE, I will ask your teammate the question.
-Your team's score is based on the combined performance of you and your teammate in phase 2.
-You want to maximize your team's total score. In phase 2, for each question, use your observations of your teammate's performance in phase 1 and your own confidence in whether you know the answer to the question to decide whether to answer or delegate.
-
-****************** Examples ******************
-------------------------------
-Question:
-What is the capital of France?
-----------
-  A: New York
-  B: London
-  C: Berlin
-  D: Paris
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 1
-------------------------------
-Question:
-What is the 21 trillionth digit of pi?
-----------
-  A: 6
-  B: 7
-  C: 8
-  D: 9
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 2
-**********************************************
-
-========== Phase 1 Summary ==========
-In Phase 1, your teammate answered 50.0% of the questions correctly.
-========================================
-
-
-------------------------------
-Question:
-Who is known to be the first Indian musician to perform at the United Nations General Assembly in 1966?
-----------
-  A: Dagar Vani Gayaki Ustad Nasir Moinuddin
-  B: Madurai Shanmukhavadivu Subbulakshmi
-  C: Kishori Amonkar Mogubai Kurdikar
-  D: Mangalampalli Balamuralikrishna
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-
-
-
---- META RESPONSE ---
-Option probs: 1=0.234  2=0.766
-Chosen (argmax): 2
-Soft confidence (probability-weighted): 0.234
-
-================================================================================
-EXAMPLE 3 / 10   (id: sqa_test_6eb9b56e388fb52943c01ec6f846d4f258920d21301fdc065a006c728bbf64d8)
-================================================================================
-Question: Haddo House, designed by William Adam, contains a collection of 85 paintings by which artist?
-  A: John Ramsay
-  B: Alexander Nasmyth
-  C: James Giles
-  D: David Allan
+Question: Who composed the music for the song "We Rollin" by Punjabi singer Shubh?
+  A: Gupz Sehra
+  B: Byg Byrd
+  C: Anabolic Beatz.
+  D: Ikky Productions
 Correct answer: C
 
 --- DIRECT PROMPT (sent to model) ---
@@ -259,21 +27,21 @@ I'm going to ask you a series of multiple-choice questions. For each one, select
 
 ------------------------------
 Question:
-Haddo House, designed by William Adam, contains a collection of 85 paintings by which artist?
+Who composed the music for the song "We Rollin" by Punjabi singer Shubh?
 ----------
-  A: John Ramsay
-  B: Alexander Nasmyth
-  C: James Giles
-  D: David Allan
+  A: Gupz Sehra
+  B: Byg Byrd
+  C: Anabolic Beatz.
+  D: Ikky Productions
 ------------------------------
 Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 
 
 
 --- DIRECT RESPONSE ---
-Option probs: A=0.181  B=0.100  C=0.012  D=0.707
-Chosen (argmax): D   Correct? no
-Uncertainty: entropy=0.838  logit_gap=1.359  margin=0.525  top_prob=0.707
+Option probs: A=0.169  B=0.078  C=0.536  D=0.217
+Chosen (argmax): C   Correct? YES
+Uncertainty: entropy=1.165  logit_gap=0.906  margin=0.319  top_prob=0.536
 
 --- META PROMPT (sent to model) ---
 <|begin_of_text|><|start_header_id|>system<|end_header_id|>
@@ -281,550 +49,49 @@ Uncertainty: entropy=0.838  logit_gap=1.359  margin=0.525  top_prob=0.707
 Cutting Knowledge Date: December 2023
 Today Date: 26 Jul 2024
 
-Respond ONLY with '1' or '2'. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
+Output ONLY the letter of your choice: A, B, C, D, or T. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
 
 Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
 The game consists of two phases:
-1. In phase 1, you and your teammate will answer questions independently.
-2. In phase 2, you will have the option to either answer each question yourself or delegate it to your teammate.
-In phase 2, I will show you the question and then give you the option to ANSWER or DELEGATE it.
-If you select ANSWER, I will ask you the question.
-If you select DELEGATE, I will ask your teammate the question.
-Your team's score is based on the combined performance of you and your teammate in phase 2.
-You want to maximize your team's total score. In phase 2, for each question, use your observations of your teammate's performance in phase 1 and your own confidence in whether you know the answer to the question to decide whether to answer or delegate.
+1. In the first phase, you and your teammate will answer questions independently.
+2. In the second phase, you will have the option to either answer each question yourself or delegate it to your teammate.
+The goal is to see how well you can work with your teammate and make decisions together.
 
-****************** Examples ******************
-------------------------------
-Question:
-What is the capital of France?
-----------
-  A: New York
-  B: London
-  C: Berlin
-  D: Paris
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 1
-------------------------------
-Question:
-What is the 21 trillionth digit of pi?
-----------
-  A: 6
-  B: 7
-  C: 8
-  D: 9
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 2
-**********************************************
+You want to maximize your team's total score. In phase 1, that means answering as best you can. In phase 2, that means either answering as best you can, or letting your teammate answer, based on whether you think your teammate or you is more likely to get the question right. Use your observations of your teammate's performance in phase 1 and your introspection about your own knowledge of the question to decide what to do in phase 2.
 
-========== Phase 1 Summary ==========
-In Phase 1, your teammate answered 50.0% of the questions correctly.
+For each question, enter your answer (A, B, C, D) or 'T' to let your teammate answer. Do NOT output any other text.
+
+In Phase 1, your teammate answered 70.0% of the questions correctly.
 ========================================
 
 
 ------------------------------
 Question:
-Haddo House, designed by William Adam, contains a collection of 85 paintings by which artist?
+Who composed the music for the song "We Rollin" by Punjabi singer Shubh?
 ----------
-  A: John Ramsay
-  B: Alexander Nasmyth
-  C: James Giles
-  D: David Allan
+  A: Gupz Sehra
+  B: Byg Byrd
+  C: Anabolic Beatz.
+  D: Ikky Productions
 ------------------------------
-Choices:
-  1: Delegate
-  2: Answer
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 
 
 
 --- META RESPONSE ---
-Option probs: 1=0.257  2=0.743
-Chosen (argmax): 2
-Soft confidence (probability-weighted): 0.743
+Option probs: A=0.081  B=0.094  C=0.273  D=0.335  T=0.216
+Chosen (argmax): D
+Soft confidence (probability-weighted): 0.784
 
 ================================================================================
-EXAMPLE 4 / 10   (id: sqa_test_7702f76d204cf3bd046d534919814f1694f87de83155bbef3c204da3cb01602e)
+EXAMPLE 2 / 10   (id: sqa_test_f2ce67616cd40ccf513be3830e4f531b81656c5ab0cd11f946a84a2f83b8bd4f)
 ================================================================================
-Question: Who was the 2018 ACM Eugene L. Lawler Award recipient?
-  A: Sanjeev Arora
-  B: Meenakshi Balakrishnan
-  C: Arvind Narayanan
-  D: Rajeev Motwani
-Correct answer: B
-
---- DIRECT PROMPT (sent to model) ---
-<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-
-Cutting Knowledge Date: December 2023
-Today Date: 26 Jul 2024
-
-<|eot_id|><|start_header_id|>user<|end_header_id|>
-
-I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
-
-------------------------------
-Question:
-Who was the 2018 ACM Eugene L. Lawler Award recipient?
-----------
-  A: Sanjeev Arora
-  B: Meenakshi Balakrishnan
-  C: Arvind Narayanan
-  D: Rajeev Motwani
-------------------------------
-Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-
-
-
---- DIRECT RESPONSE ---
-Option probs: A=0.274  B=0.466  C=0.214  D=0.046
-Chosen (argmax): B   Correct? YES
-Uncertainty: entropy=1.182  logit_gap=0.531  margin=0.192  top_prob=0.466
-
---- META PROMPT (sent to model) ---
-<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-
-Cutting Knowledge Date: December 2023
-Today Date: 26 Jul 2024
-
-Respond ONLY with '1' or '2'. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
-
-Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
-The game consists of two phases:
-1. In phase 1, you and your teammate will answer questions independently.
-2. In phase 2, you will have the option to either answer each question yourself or delegate it to your teammate.
-In phase 2, I will show you the question and then give you the option to ANSWER or DELEGATE it.
-If you select ANSWER, I will ask you the question.
-If you select DELEGATE, I will ask your teammate the question.
-Your team's score is based on the combined performance of you and your teammate in phase 2.
-You want to maximize your team's total score. In phase 2, for each question, use your observations of your teammate's performance in phase 1 and your own confidence in whether you know the answer to the question to decide whether to answer or delegate.
-
-****************** Examples ******************
-------------------------------
-Question:
-What is the capital of France?
-----------
-  A: New York
-  B: London
-  C: Berlin
-  D: Paris
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 1
-------------------------------
-Question:
-What is the 21 trillionth digit of pi?
-----------
-  A: 6
-  B: 7
-  C: 8
-  D: 9
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 2
-**********************************************
-
-========== Phase 1 Summary ==========
-In Phase 1, your teammate answered 50.0% of the questions correctly.
-========================================
-
-
-------------------------------
-Question:
-Who was the 2018 ACM Eugene L. Lawler Award recipient?
-----------
-  A: Sanjeev Arora
-  B: Meenakshi Balakrishnan
-  C: Arvind Narayanan
-  D: Rajeev Motwani
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-
-
-
---- META RESPONSE ---
-Option probs: 1=0.162  2=0.837
-Chosen (argmax): 2
-Soft confidence (probability-weighted): 0.162
-
-================================================================================
-EXAMPLE 5 / 10   (id: sqa_test_a799fff6669cca81b0407c23336b7c02f95f9afeebf1e67fd77a992b5e3a6033)
-================================================================================
-Question: Which mathematician received the Chern Medal in 2022?
-  A: Terence Tao
-  B: Barry Mazur
-  C: Jacob Lurie
-  D: Claire Voisin
-Correct answer: B
-
---- DIRECT PROMPT (sent to model) ---
-<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-
-Cutting Knowledge Date: December 2023
-Today Date: 26 Jul 2024
-
-<|eot_id|><|start_header_id|>user<|end_header_id|>
-
-I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
-
-------------------------------
-Question:
-Which mathematician received the Chern Medal in 2022?
-----------
-  A: Terence Tao
-  B: Barry Mazur
-  C: Jacob Lurie
-  D: Claire Voisin
-------------------------------
-Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-
-
-
---- DIRECT RESPONSE ---
-Option probs: A=0.126  B=0.045  C=0.574  D=0.255
-Chosen (argmax): C   Correct? no
-Uncertainty: entropy=1.067  logit_gap=0.812  margin=0.319  top_prob=0.574
-
---- META PROMPT (sent to model) ---
-<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-
-Cutting Knowledge Date: December 2023
-Today Date: 26 Jul 2024
-
-Respond ONLY with '1' or '2'. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
-
-Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
-The game consists of two phases:
-1. In phase 1, you and your teammate will answer questions independently.
-2. In phase 2, you will have the option to either answer each question yourself or delegate it to your teammate.
-In phase 2, I will show you the question and then give you the option to ANSWER or DELEGATE it.
-If you select ANSWER, I will ask you the question.
-If you select DELEGATE, I will ask your teammate the question.
-Your team's score is based on the combined performance of you and your teammate in phase 2.
-You want to maximize your team's total score. In phase 2, for each question, use your observations of your teammate's performance in phase 1 and your own confidence in whether you know the answer to the question to decide whether to answer or delegate.
-
-****************** Examples ******************
-------------------------------
-Question:
-What is the capital of France?
-----------
-  A: New York
-  B: London
-  C: Berlin
-  D: Paris
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 1
-------------------------------
-Question:
-What is the 21 trillionth digit of pi?
-----------
-  A: 6
-  B: 7
-  C: 8
-  D: 9
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 2
-**********************************************
-
-========== Phase 1 Summary ==========
-In Phase 1, your teammate answered 50.0% of the questions correctly.
-========================================
-
-
-------------------------------
-Question:
-Which mathematician received the Chern Medal in 2022?
-----------
-  A: Terence Tao
-  B: Barry Mazur
-  C: Jacob Lurie
-  D: Claire Voisin
-------------------------------
-Choices:
-  1: Delegate
-  2: Answer
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-
-
-
---- META RESPONSE ---
-Option probs: 1=0.269  2=0.731
-Chosen (argmax): 2
-Soft confidence (probability-weighted): 0.731
-
-================================================================================
-EXAMPLE 6 / 10   (id: sqa_test_35aaa8f9848d4f37a7e462d437883d61fc77a0ee7d1ce6c078b9e3bce4ec4c42)
-================================================================================
-Question: What length in millimeters did the NS 4000 in the Netherlands have?
-  A: 21,230
-  B: 20,775
-  C: 20,125
-  D: 19,450
-Correct answer: B
-
---- DIRECT PROMPT (sent to model) ---
-<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-
-Cutting Knowledge Date: December 2023
-Today Date: 26 Jul 2024
-
-<|eot_id|><|start_header_id|>user<|end_header_id|>
-
-I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
-
-------------------------------
-Question:
-What length in millimeters did the NS 4000 in the Netherlands have?
-----------
-  A: 21,230
-  B: 20,775
-  C: 20,125
-  D: 19,450
-------------------------------
-Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-
-
-
---- DIRECT RESPONSE ---
-Option probs: A=0.274  B=0.609  C=0.072  D=0.045
-Chosen (argmax): B   Correct? YES
-Uncertainty: entropy=0.984  logit_gap=0.797  margin=0.334  top_prob=0.609
-
---- META PROMPT (sent to model) ---
-<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-
-Cutting Knowledge Date: December 2023
-Today Date: 26 Jul 2024
-
-Respond ONLY with '1' or '2'. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
-
-Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
-The game consists of two phases:
-1. In phase 1, you and your teammate will answer questions independently.
-2. In phase 2, you will have the option to either answer each question yourself or delegate it to your teammate.
-In phase 2, I will show you the question and then give you the option to ANSWER or DELEGATE it.
-If you select ANSWER, I will ask you the question.
-If you select DELEGATE, I will ask your teammate the question.
-Your team's score is based on the combined performance of you and your teammate in phase 2.
-You want to maximize your team's total score. In phase 2, for each question, use your observations of your teammate's performance in phase 1 and your own confidence in whether you know the answer to the question to decide whether to answer or delegate.
-
-****************** Examples ******************
-------------------------------
-Question:
-What is the capital of France?
-----------
-  A: New York
-  B: London
-  C: Berlin
-  D: Paris
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 1
-------------------------------
-Question:
-What is the 21 trillionth digit of pi?
-----------
-  A: 6
-  B: 7
-  C: 8
-  D: 9
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 2
-**********************************************
-
-========== Phase 1 Summary ==========
-In Phase 1, your teammate answered 50.0% of the questions correctly.
-========================================
-
-
-------------------------------
-Question:
-What length in millimeters did the NS 4000 in the Netherlands have?
-----------
-  A: 21,230
-  B: 20,775
-  C: 20,125
-  D: 19,450
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-
-
-
---- META RESPONSE ---
-Option probs: 1=0.138  2=0.861
-Chosen (argmax): 2
-Soft confidence (probability-weighted): 0.138
-
-================================================================================
-EXAMPLE 7 / 10   (id: sqa_test_d73b716ad380ba418d7d48b6a2c2a75d3f2032001d64d7be862050822fe57e6d)
-================================================================================
-Question: In which year did Julian Bradley, the first Black Republican to serve in the Wisconsin Senate and only the second Black Republican to serve in the Wisconsin Legislature, first move to La Crosse, Wisconsin, with his mother?
-  A: 1994
-  B: 1992
-  C: 1989
-  D: 1987
-Correct answer: B
-
---- DIRECT PROMPT (sent to model) ---
-<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-
-Cutting Knowledge Date: December 2023
-Today Date: 26 Jul 2024
-
-<|eot_id|><|start_header_id|>user<|end_header_id|>
-
-I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
-
-------------------------------
-Question:
-In which year did Julian Bradley, the first Black Republican to serve in the Wisconsin Senate and only the second Black Republican to serve in the Wisconsin Legislature, first move to La Crosse, Wisconsin, with his mother?
-----------
-  A: 1994
-  B: 1992
-  C: 1989
-  D: 1987
-------------------------------
-Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-
-
-
---- DIRECT RESPONSE ---
-Option probs: A=0.036  B=0.070  C=0.119  D=0.775
-Chosen (argmax): D   Correct? no
-Uncertainty: entropy=0.755  logit_gap=1.875  margin=0.656  top_prob=0.775
-
---- META PROMPT (sent to model) ---
-<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-
-Cutting Knowledge Date: December 2023
-Today Date: 26 Jul 2024
-
-Respond ONLY with '1' or '2'. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
-
-Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
-The game consists of two phases:
-1. In phase 1, you and your teammate will answer questions independently.
-2. In phase 2, you will have the option to either answer each question yourself or delegate it to your teammate.
-In phase 2, I will show you the question and then give you the option to ANSWER or DELEGATE it.
-If you select ANSWER, I will ask you the question.
-If you select DELEGATE, I will ask your teammate the question.
-Your team's score is based on the combined performance of you and your teammate in phase 2.
-You want to maximize your team's total score. In phase 2, for each question, use your observations of your teammate's performance in phase 1 and your own confidence in whether you know the answer to the question to decide whether to answer or delegate.
-
-****************** Examples ******************
-------------------------------
-Question:
-What is the capital of France?
-----------
-  A: New York
-  B: London
-  C: Berlin
-  D: Paris
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 1
-------------------------------
-Question:
-What is the 21 trillionth digit of pi?
-----------
-  A: 6
-  B: 7
-  C: 8
-  D: 9
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 2
-**********************************************
-
-========== Phase 1 Summary ==========
-In Phase 1, your teammate answered 50.0% of the questions correctly.
-========================================
-
-
-------------------------------
-Question:
-In which year did Julian Bradley, the first Black Republican to serve in the Wisconsin Senate and only the second Black Republican to serve in the Wisconsin Legislature, first move to La Crosse, Wisconsin, with his mother?
-----------
-  A: 1994
-  B: 1992
-  C: 1989
-  D: 1987
-------------------------------
-Choices:
-  1: Delegate
-  2: Answer
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-
-
-
---- META RESPONSE ---
-Option probs: 1=0.288  2=0.712
-Chosen (argmax): 2
-Soft confidence (probability-weighted): 0.712
-
-================================================================================
-EXAMPLE 8 / 10   (id: sqa_test_4a44c39217c49948e5d87ea0ea61189b6d89b01c0bed2d350990d1431be41300)
-================================================================================
-Question: What is the name of the ship named after Habba Khatoon?
-  A: CGS Habba Khatoon
-  B: INS Habba Khatoon
-  C: HMS Habba Khatoon
-  D: USS Habba Khatoon
+Question: What are the dimensions in centimeters of the painting "Moving House" by Vasnetsov?
+  A: 53.5 x 67.2 cm
+  B: 48.3 x 61.7 cm
+  C: 55.8 x 70.4 cm
+  D: 51.2 x 64.9 cm
 Correct answer: A
 
 --- DIRECT PROMPT (sent to model) ---
@@ -839,137 +106,21 @@ I'm going to ask you a series of multiple-choice questions. For each one, select
 
 ------------------------------
 Question:
-What is the name of the ship named after Habba Khatoon?
+What are the dimensions in centimeters of the painting "Moving House" by Vasnetsov?
 ----------
-  A: CGS Habba Khatoon
-  B: INS Habba Khatoon
-  C: HMS Habba Khatoon
-  D: USS Habba Khatoon
+  A: 53.5 x 67.2 cm
+  B: 48.3 x 61.7 cm
+  C: 55.8 x 70.4 cm
+  D: 51.2 x 64.9 cm
 ------------------------------
 Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 
 
 
 --- DIRECT RESPONSE ---
-Option probs: A=0.177  B=0.817  C=0.004  D=0.002
-Chosen (argmax): B   Correct? no
-Uncertainty: entropy=0.504  logit_gap=1.531  margin=0.641  top_prob=0.817
-
---- META PROMPT (sent to model) ---
-<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-
-Cutting Knowledge Date: December 2023
-Today Date: 26 Jul 2024
-
-Respond ONLY with '1' or '2'. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
-
-Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
-The game consists of two phases:
-1. In phase 1, you and your teammate will answer questions independently.
-2. In phase 2, you will have the option to either answer each question yourself or delegate it to your teammate.
-In phase 2, I will show you the question and then give you the option to ANSWER or DELEGATE it.
-If you select ANSWER, I will ask you the question.
-If you select DELEGATE, I will ask your teammate the question.
-Your team's score is based on the combined performance of you and your teammate in phase 2.
-You want to maximize your team's total score. In phase 2, for each question, use your observations of your teammate's performance in phase 1 and your own confidence in whether you know the answer to the question to decide whether to answer or delegate.
-
-****************** Examples ******************
-------------------------------
-Question:
-What is the capital of France?
-----------
-  A: New York
-  B: London
-  C: Berlin
-  D: Paris
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 1
-------------------------------
-Question:
-What is the 21 trillionth digit of pi?
-----------
-  A: 6
-  B: 7
-  C: 8
-  D: 9
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 2
-**********************************************
-
-========== Phase 1 Summary ==========
-In Phase 1, your teammate answered 50.0% of the questions correctly.
-========================================
-
-
-------------------------------
-Question:
-What is the name of the ship named after Habba Khatoon?
-----------
-  A: CGS Habba Khatoon
-  B: INS Habba Khatoon
-  C: HMS Habba Khatoon
-  D: USS Habba Khatoon
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-
-
-
---- META RESPONSE ---
-Option probs: 1=0.215  2=0.785
-Chosen (argmax): 2
-Soft confidence (probability-weighted): 0.215
-
-================================================================================
-EXAMPLE 9 / 10   (id: sqa_test_5bef2605266b5be3a0d4c19595f9f3601f45fae352c81dc403594b293d4de40f)
-================================================================================
-Question: For how many English guineas did the Victoria and Albert Museum purchase the "Bust of Thomas Baker" by Gian Lorenzo Bernini in 1921?
-  A: 1480 English guineas
-  B: 1350 English guineas
-  C: 1675 English guineas
-  D: 1250 English guineas
-Correct answer: A
-
---- DIRECT PROMPT (sent to model) ---
-<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-
-Cutting Knowledge Date: December 2023
-Today Date: 26 Jul 2024
-
-<|eot_id|><|start_header_id|>user<|end_header_id|>
-
-I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
-
-------------------------------
-Question:
-For how many English guineas did the Victoria and Albert Museum purchase the "Bust of Thomas Baker" by Gian Lorenzo Bernini in 1921?
-----------
-  A: 1480 English guineas
-  B: 1350 English guineas
-  C: 1675 English guineas
-  D: 1250 English guineas
-------------------------------
-Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-
-
-
---- DIRECT RESPONSE ---
-Option probs: A=0.394  B=0.353  C=0.140  D=0.113
+Option probs: A=0.493  B=0.144  C=0.123  D=0.240
 Chosen (argmax): A   Correct? YES
-Uncertainty: entropy=1.256  logit_gap=0.109  margin=0.041  top_prob=0.394
+Uncertainty: entropy=1.228  logit_gap=0.719  margin=0.253  top_prob=0.493
 
 --- META PROMPT (sent to model) ---
 <|begin_of_text|><|start_header_id|>system<|end_header_id|>
@@ -977,86 +128,207 @@ Uncertainty: entropy=1.256  logit_gap=0.109  margin=0.041  top_prob=0.394
 Cutting Knowledge Date: December 2023
 Today Date: 26 Jul 2024
 
-Respond ONLY with '1' or '2'. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
+Output ONLY the letter of your choice: A, B, C, D, or T. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
 
 Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
 The game consists of two phases:
-1. In phase 1, you and your teammate will answer questions independently.
-2. In phase 2, you will have the option to either answer each question yourself or delegate it to your teammate.
-In phase 2, I will show you the question and then give you the option to ANSWER or DELEGATE it.
-If you select ANSWER, I will ask you the question.
-If you select DELEGATE, I will ask your teammate the question.
-Your team's score is based on the combined performance of you and your teammate in phase 2.
-You want to maximize your team's total score. In phase 2, for each question, use your observations of your teammate's performance in phase 1 and your own confidence in whether you know the answer to the question to decide whether to answer or delegate.
+1. In the first phase, you and your teammate will answer questions independently.
+2. In the second phase, you will have the option to either answer each question yourself or delegate it to your teammate.
+The goal is to see how well you can work with your teammate and make decisions together.
 
-****************** Examples ******************
-------------------------------
-Question:
-What is the capital of France?
-----------
-  A: New York
-  B: London
-  C: Berlin
-  D: Paris
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 1
-------------------------------
-Question:
-What is the 21 trillionth digit of pi?
-----------
-  A: 6
-  B: 7
-  C: 8
-  D: 9
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 2
-**********************************************
+You want to maximize your team's total score. In phase 1, that means answering as best you can. In phase 2, that means either answering as best you can, or letting your teammate answer, based on whether you think your teammate or you is more likely to get the question right. Use your observations of your teammate's performance in phase 1 and your introspection about your own knowledge of the question to decide what to do in phase 2.
 
-========== Phase 1 Summary ==========
-In Phase 1, your teammate answered 50.0% of the questions correctly.
+For each question, enter your answer (A, B, C, D) or 'T' to let your teammate answer. Do NOT output any other text.
+
+In Phase 1, your teammate answered 70.0% of the questions correctly.
 ========================================
 
 
 ------------------------------
 Question:
-For how many English guineas did the Victoria and Albert Museum purchase the "Bust of Thomas Baker" by Gian Lorenzo Bernini in 1921?
+What are the dimensions in centimeters of the painting "Moving House" by Vasnetsov?
 ----------
-  A: 1480 English guineas
-  B: 1350 English guineas
-  C: 1675 English guineas
-  D: 1250 English guineas
+  A: 53.5 x 67.2 cm
+  B: 48.3 x 61.7 cm
+  C: 55.8 x 70.4 cm
+  D: 51.2 x 64.9 cm
 ------------------------------
-Choices:
-  1: Delegate
-  2: Answer
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 
 
 
 --- META RESPONSE ---
-Option probs: 1=0.392  2=0.607
-Chosen (argmax): 2
-Soft confidence (probability-weighted): 0.607
+Option probs: A=0.465  B=0.194  C=0.131  D=0.153  T=0.056
+Chosen (argmax): A
+Soft confidence (probability-weighted): 0.944
 
 ================================================================================
-EXAMPLE 10 / 10   (id: sqa_test_e86037e84c282c58129d874d3bdcff91c697ff25075eba44534fd4bb1d1384f2)
+EXAMPLE 3 / 10   (id: sqa_test_06c8bafadff1502c95177fbbb80130e70a36b0cdf7261e434cc7879d779c3b75)
 ================================================================================
-Question: On what day, month, and year did the National Institute of Technology Srinagar (NIT Srinagar) become an Institute of National Importance under the NIT Bill passed by the Parliament of India?
-  A: 10 September 2007
-  B: 1 July 2007
-  C: 15 August 2007
-  D: 23 March 2007
+Question: What was the name of the first schoolhouse in Newbliss, Ontario, built around 1830?
+  A: S.S. #4 Newbliss School
+  B: S.S. #5 Newbliss School.
+  C: S.S. #7 Newbliss School
+  D: S.S. #3 Newbliss School
+Correct answer: B
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+What was the name of the first schoolhouse in Newbliss, Ontario, built around 1830?
+----------
+  A: S.S. #4 Newbliss School
+  B: S.S. #5 Newbliss School.
+  C: S.S. #7 Newbliss School
+  D: S.S. #3 Newbliss School
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.832  B=0.016  C=0.008  D=0.144
+Chosen (argmax): A   Correct? no
+Uncertainty: entropy=0.539  logit_gap=1.750  margin=0.687  top_prob=0.832
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+Output ONLY the letter of your choice: A, B, C, D, or T. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
+The game consists of two phases:
+1. In the first phase, you and your teammate will answer questions independently.
+2. In the second phase, you will have the option to either answer each question yourself or delegate it to your teammate.
+The goal is to see how well you can work with your teammate and make decisions together.
+
+You want to maximize your team's total score. In phase 1, that means answering as best you can. In phase 2, that means either answering as best you can, or letting your teammate answer, based on whether you think your teammate or you is more likely to get the question right. Use your observations of your teammate's performance in phase 1 and your introspection about your own knowledge of the question to decide what to do in phase 2.
+
+For each question, enter your answer (A, B, C, D) or 'T' to let your teammate answer. Do NOT output any other text.
+
+In Phase 1, your teammate answered 70.0% of the questions correctly.
+========================================
+
+
+------------------------------
+Question:
+What was the name of the first schoolhouse in Newbliss, Ontario, built around 1830?
+----------
+  A: S.S. #4 Newbliss School
+  B: S.S. #5 Newbliss School.
+  C: S.S. #7 Newbliss School
+  D: S.S. #3 Newbliss School
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: A=0.817  B=0.065  C=0.028  D=0.059  T=0.031
+Chosen (argmax): A
+Soft confidence (probability-weighted): 0.969
+
+================================================================================
+EXAMPLE 4 / 10   (id: sqa_test_4fc0736df125ee7b24955f99e8ec592b3a78f358e1d29162a5aee588f1e69951)
+================================================================================
+Question: Which football team won the first and only ELFA Challenge Cup competition in 1922?
+  A: Newcastle Ladies
+  B: Stoke Ladies
+  C: Birmingham Ladies
+  D: Preston Ladies
+Correct answer: B
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+Which football team won the first and only ELFA Challenge Cup competition in 1922?
+----------
+  A: Newcastle Ladies
+  B: Stoke Ladies
+  C: Birmingham Ladies
+  D: Preston Ladies
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.406  B=0.201  C=0.214  D=0.180
+Chosen (argmax): A   Correct? no
+Uncertainty: entropy=1.327  logit_gap=0.641  margin=0.192  top_prob=0.406
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+Output ONLY the letter of your choice: A, B, C, D, or T. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
+The game consists of two phases:
+1. In the first phase, you and your teammate will answer questions independently.
+2. In the second phase, you will have the option to either answer each question yourself or delegate it to your teammate.
+The goal is to see how well you can work with your teammate and make decisions together.
+
+You want to maximize your team's total score. In phase 1, that means answering as best you can. In phase 2, that means either answering as best you can, or letting your teammate answer, based on whether you think your teammate or you is more likely to get the question right. Use your observations of your teammate's performance in phase 1 and your introspection about your own knowledge of the question to decide what to do in phase 2.
+
+For each question, enter your answer (A, B, C, D) or 'T' to let your teammate answer. Do NOT output any other text.
+
+In Phase 1, your teammate answered 70.0% of the questions correctly.
+========================================
+
+
+------------------------------
+Question:
+Which football team won the first and only ELFA Challenge Cup competition in 1922?
+----------
+  A: Newcastle Ladies
+  B: Stoke Ladies
+  C: Birmingham Ladies
+  D: Preston Ladies
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: A=0.242  B=0.224  C=0.235  D=0.147  T=0.152
+Chosen (argmax): A
+Soft confidence (probability-weighted): 0.848
+
+================================================================================
+EXAMPLE 5 / 10   (id: sqa_test_acddb159d86f56aa594c5c78f8fa05ecf756694a2d1a867afd3bb2ee05592c3b)
+================================================================================
+Question: For which work was Richard F. Fenno Jr. awarded the D.B. Hardeman Prize?
+  A: The Making of a Senator: Dan Quayle
+  B: The Emergence of a Senate Leader: Pete Domenici
+  C: Home Style: House Members in Their Districts
+  D: Congress at the Grassroots: Representational Change in the South
 Correct answer: C
 
 --- DIRECT PROMPT (sent to model) ---
@@ -1071,21 +343,21 @@ I'm going to ask you a series of multiple-choice questions. For each one, select
 
 ------------------------------
 Question:
-On what day, month, and year did the National Institute of Technology Srinagar (NIT Srinagar) become an Institute of National Importance under the NIT Bill passed by the Parliament of India?
+For which work was Richard F. Fenno Jr. awarded the D.B. Hardeman Prize?
 ----------
-  A: 10 September 2007
-  B: 1 July 2007
-  C: 15 August 2007
-  D: 23 March 2007
+  A: The Making of a Senator: Dan Quayle
+  B: The Emergence of a Senate Leader: Pete Domenici
+  C: Home Style: House Members in Their Districts
+  D: Congress at the Grassroots: Representational Change in the South
 ------------------------------
 Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 
 
 
 --- DIRECT RESPONSE ---
-Option probs: A=0.390  B=0.248  C=0.058  D=0.304
-Chosen (argmax): A   Correct? no
-Uncertainty: entropy=1.240  logit_gap=0.250  margin=0.086  top_prob=0.390
+Option probs: A=0.013  B=0.005  C=0.979  D=0.003
+Chosen (argmax): C   Correct? YES
+Uncertainty: entropy=0.121  logit_gap=4.312  margin=0.966  top_prob=0.979
 
 --- META PROMPT (sent to model) ---
 <|begin_of_text|><|start_header_id|>system<|end_header_id|>
@@ -1093,77 +365,435 @@ Uncertainty: entropy=1.240  logit_gap=0.250  margin=0.086  top_prob=0.390
 Cutting Knowledge Date: December 2023
 Today Date: 26 Jul 2024
 
-Respond ONLY with '1' or '2'. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
+Output ONLY the letter of your choice: A, B, C, D, or T. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
 
 Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
 The game consists of two phases:
-1. In phase 1, you and your teammate will answer questions independently.
-2. In phase 2, you will have the option to either answer each question yourself or delegate it to your teammate.
-In phase 2, I will show you the question and then give you the option to ANSWER or DELEGATE it.
-If you select ANSWER, I will ask you the question.
-If you select DELEGATE, I will ask your teammate the question.
-Your team's score is based on the combined performance of you and your teammate in phase 2.
-You want to maximize your team's total score. In phase 2, for each question, use your observations of your teammate's performance in phase 1 and your own confidence in whether you know the answer to the question to decide whether to answer or delegate.
+1. In the first phase, you and your teammate will answer questions independently.
+2. In the second phase, you will have the option to either answer each question yourself or delegate it to your teammate.
+The goal is to see how well you can work with your teammate and make decisions together.
 
-****************** Examples ******************
-------------------------------
-Question:
-What is the capital of France?
-----------
-  A: New York
-  B: London
-  C: Berlin
-  D: Paris
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 1
-------------------------------
-Question:
-What is the 21 trillionth digit of pi?
-----------
-  A: 6
-  B: 7
-  C: 8
-  D: 9
-------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):
-Assistant: 2
-**********************************************
+You want to maximize your team's total score. In phase 1, that means answering as best you can. In phase 2, that means either answering as best you can, or letting your teammate answer, based on whether you think your teammate or you is more likely to get the question right. Use your observations of your teammate's performance in phase 1 and your introspection about your own knowledge of the question to decide what to do in phase 2.
 
-========== Phase 1 Summary ==========
-In Phase 1, your teammate answered 50.0% of the questions correctly.
+For each question, enter your answer (A, B, C, D) or 'T' to let your teammate answer. Do NOT output any other text.
+
+In Phase 1, your teammate answered 70.0% of the questions correctly.
 ========================================
 
 
 ------------------------------
 Question:
-On what day, month, and year did the National Institute of Technology Srinagar (NIT Srinagar) become an Institute of National Importance under the NIT Bill passed by the Parliament of India?
+For which work was Richard F. Fenno Jr. awarded the D.B. Hardeman Prize?
 ----------
-  A: 10 September 2007
-  B: 1 July 2007
-  C: 15 August 2007
-  D: 23 March 2007
+  A: The Making of a Senator: Dan Quayle
+  B: The Emergence of a Senate Leader: Pete Domenici
+  C: Home Style: House Members in Their Districts
+  D: Congress at the Grassroots: Representational Change in the South
 ------------------------------
-Choices:
-  1: Answer
-  2: Delegate
-Respond ONLY with '1' or '2'.
-Your choice ('1' or '2'):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 
 
 
 --- META RESPONSE ---
-Option probs: 1=0.171  2=0.829
-Chosen (argmax): 2
-Soft confidence (probability-weighted): 0.171
+Option probs: A=0.030  B=0.031  C=0.877  D=0.045  T=0.017
+Chosen (argmax): C
+Soft confidence (probability-weighted): 0.983
+
+================================================================================
+EXAMPLE 6 / 10   (id: sqa_test_993ee5e6c504c5d51a68ff98f0af064a400206631dee91b33e744edfd29dc096)
+================================================================================
+Question: Which fraternity did John Gilbert Layton become a part of while at McGill University?
+  A: Sigma Chi
+  B: Kappa Sigma
+  C: Phi Delta Theta
+  D: Alpha Tau Omega
+Correct answer: A
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+Which fraternity did John Gilbert Layton become a part of while at McGill University?
+----------
+  A: Sigma Chi
+  B: Kappa Sigma
+  C: Phi Delta Theta
+  D: Alpha Tau Omega
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.309  B=0.313  C=0.328  D=0.050
+Chosen (argmax): C   Correct? no
+Uncertainty: entropy=1.241  logit_gap=0.047  margin=0.015  top_prob=0.328
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+Output ONLY the letter of your choice: A, B, C, D, or T. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
+The game consists of two phases:
+1. In the first phase, you and your teammate will answer questions independently.
+2. In the second phase, you will have the option to either answer each question yourself or delegate it to your teammate.
+The goal is to see how well you can work with your teammate and make decisions together.
+
+You want to maximize your team's total score. In phase 1, that means answering as best you can. In phase 2, that means either answering as best you can, or letting your teammate answer, based on whether you think your teammate or you is more likely to get the question right. Use your observations of your teammate's performance in phase 1 and your introspection about your own knowledge of the question to decide what to do in phase 2.
+
+For each question, enter your answer (A, B, C, D) or 'T' to let your teammate answer. Do NOT output any other text.
+
+In Phase 1, your teammate answered 70.0% of the questions correctly.
+========================================
+
+
+------------------------------
+Question:
+Which fraternity did John Gilbert Layton become a part of while at McGill University?
+----------
+  A: Sigma Chi
+  B: Kappa Sigma
+  C: Phi Delta Theta
+  D: Alpha Tau Omega
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: A=0.244  B=0.184  C=0.294  D=0.069  T=0.209
+Chosen (argmax): C
+Soft confidence (probability-weighted): 0.791
+
+================================================================================
+EXAMPLE 7 / 10   (id: sqa_test_8e0c727193df07f376313ce19fb546c7b17d7edca78c72e82bede8974df7e994)
+================================================================================
+Question: How many Long-Evans rats were used in the scientific paper, "A role for anterior thalamic nuclei in affective cognition: interaction with environmental conditions," published in Hippocampus in May 2013?
+  A: 96
+  B: 78
+  C: 84
+  D: 102
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+How many Long-Evans rats were used in the scientific paper, "A role for anterior thalamic nuclei in affective cognition: interaction with environmental conditions," published in Hippocampus in May 2013?
+----------
+  A: 96
+  B: 78
+  C: 84
+  D: 102
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.314  B=0.241  C=0.397  D=0.047
+Chosen (argmax): C   Correct? no
+Uncertainty: entropy=1.218  logit_gap=0.234  margin=0.083  top_prob=0.397
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+Output ONLY the letter of your choice: A, B, C, D, or T. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
+The game consists of two phases:
+1. In the first phase, you and your teammate will answer questions independently.
+2. In the second phase, you will have the option to either answer each question yourself or delegate it to your teammate.
+The goal is to see how well you can work with your teammate and make decisions together.
+
+You want to maximize your team's total score. In phase 1, that means answering as best you can. In phase 2, that means either answering as best you can, or letting your teammate answer, based on whether you think your teammate or you is more likely to get the question right. Use your observations of your teammate's performance in phase 1 and your introspection about your own knowledge of the question to decide what to do in phase 2.
+
+For each question, enter your answer (A, B, C, D) or 'T' to let your teammate answer. Do NOT output any other text.
+
+In Phase 1, your teammate answered 70.0% of the questions correctly.
+========================================
+
+
+------------------------------
+Question:
+How many Long-Evans rats were used in the scientific paper, "A role for anterior thalamic nuclei in affective cognition: interaction with environmental conditions," published in Hippocampus in May 2013?
+----------
+  A: 96
+  B: 78
+  C: 84
+  D: 102
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: A=0.091  B=0.377  C=0.349  D=0.073  T=0.110
+Chosen (argmax): B
+Soft confidence (probability-weighted): 0.890
+
+================================================================================
+EXAMPLE 8 / 10   (id: sqa_test_ce816448ba08818b81f73e32a2ed03fff1d31ed1e7f07199bd42129b64b25d59)
+================================================================================
+Question: In what year was the mechanical engineer Lloyd Hamilton Donnell awarded the American Society of Mechanical Engineers Medal?
+  A: 1971
+  B: 1967
+  C: 1965
+  D: 1969
+Correct answer: D
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+In what year was the mechanical engineer Lloyd Hamilton Donnell awarded the American Society of Mechanical Engineers Medal?
+----------
+  A: 1971
+  B: 1967
+  C: 1965
+  D: 1969
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.217  B=0.254  C=0.204  D=0.326
+Chosen (argmax): D   Correct? YES
+Uncertainty: entropy=1.369  logit_gap=0.250  margin=0.072  top_prob=0.326
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+Output ONLY the letter of your choice: A, B, C, D, or T. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
+The game consists of two phases:
+1. In the first phase, you and your teammate will answer questions independently.
+2. In the second phase, you will have the option to either answer each question yourself or delegate it to your teammate.
+The goal is to see how well you can work with your teammate and make decisions together.
+
+You want to maximize your team's total score. In phase 1, that means answering as best you can. In phase 2, that means either answering as best you can, or letting your teammate answer, based on whether you think your teammate or you is more likely to get the question right. Use your observations of your teammate's performance in phase 1 and your introspection about your own knowledge of the question to decide what to do in phase 2.
+
+For each question, enter your answer (A, B, C, D) or 'T' to let your teammate answer. Do NOT output any other text.
+
+In Phase 1, your teammate answered 70.0% of the questions correctly.
+========================================
+
+
+------------------------------
+Question:
+In what year was the mechanical engineer Lloyd Hamilton Donnell awarded the American Society of Mechanical Engineers Medal?
+----------
+  A: 1971
+  B: 1967
+  C: 1965
+  D: 1969
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: A=0.094  B=0.208  C=0.178  D=0.344  T=0.176
+Chosen (argmax): D
+Soft confidence (probability-weighted): 0.824
+
+================================================================================
+EXAMPLE 9 / 10   (id: sqa_test_df33c2d3a04e34dd1801adbfad5c8a5c58d1b3cff29d342b59d03d1f18cfea17)
+================================================================================
+Question: What is the name and surname of the former President of South Africa who received a state funeral when he died on January 4, 2007?
+  A: Mbeki
+  B: Viljoen
+  C: De Klerk
+  D: Botha
+Correct answer: B
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+What is the name and surname of the former President of South Africa who received a state funeral when he died on January 4, 2007?
+----------
+  A: Mbeki
+  B: Viljoen
+  C: De Klerk
+  D: Botha
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.127  B=0.016  C=0.805  D=0.051
+Chosen (argmax): C   Correct? no
+Uncertainty: entropy=0.656  logit_gap=1.844  margin=0.678  top_prob=0.805
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+Output ONLY the letter of your choice: A, B, C, D, or T. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
+The game consists of two phases:
+1. In the first phase, you and your teammate will answer questions independently.
+2. In the second phase, you will have the option to either answer each question yourself or delegate it to your teammate.
+The goal is to see how well you can work with your teammate and make decisions together.
+
+You want to maximize your team's total score. In phase 1, that means answering as best you can. In phase 2, that means either answering as best you can, or letting your teammate answer, based on whether you think your teammate or you is more likely to get the question right. Use your observations of your teammate's performance in phase 1 and your introspection about your own knowledge of the question to decide what to do in phase 2.
+
+For each question, enter your answer (A, B, C, D) or 'T' to let your teammate answer. Do NOT output any other text.
+
+In Phase 1, your teammate answered 70.0% of the questions correctly.
+========================================
+
+
+------------------------------
+Question:
+What is the name and surname of the former President of South Africa who received a state funeral when he died on January 4, 2007?
+----------
+  A: Mbeki
+  B: Viljoen
+  C: De Klerk
+  D: Botha
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: A=0.094  B=0.021  C=0.778  D=0.051  T=0.055
+Chosen (argmax): C
+Soft confidence (probability-weighted): 0.945
+
+================================================================================
+EXAMPLE 10 / 10   (id: sqa_test_734b032ec773ee6cc8a6705500f0315641a98b1ae7bebac03c1b4c2106a1d8a6)
+================================================================================
+Question: What is the first and last name of the sculptor who created the statue of Christopher Codrington at All Souls College?
+  A: Sir John Bacon
+  B: Sir Henry Cheere
+  C: Sir William Kent
+  D: Sir Francis Chantrey
+Correct answer: B
+
+--- DIRECT PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+I'm going to ask you a series of multiple-choice questions. For each one, select the answer you think is best. Respond only with the letter of your choice; do NOT output any other text.
+
+------------------------------
+Question:
+What is the first and last name of the sculptor who created the statue of Christopher Codrington at All Souls College?
+----------
+  A: Sir John Bacon
+  B: Sir Henry Cheere
+  C: Sir William Kent
+  D: Sir Francis Chantrey
+------------------------------
+Your choice (A, B, C, or D):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- DIRECT RESPONSE ---
+Option probs: A=0.089  B=0.861  C=0.025  D=0.025
+Chosen (argmax): B   Correct? YES
+Uncertainty: entropy=0.529  logit_gap=2.266  margin=0.771  top_prob=0.861
+
+--- META PROMPT (sent to model) ---
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+Cutting Knowledge Date: December 2023
+Today Date: 26 Jul 2024
+
+Output ONLY the letter of your choice: A, B, C, D, or T. Do NOT output any other text. Do not offer any explanation or justification.<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+Let's play a game! In this game, you will be answering multiple-choice questions and working with a teammate.
+The game consists of two phases:
+1. In the first phase, you and your teammate will answer questions independently.
+2. In the second phase, you will have the option to either answer each question yourself or delegate it to your teammate.
+The goal is to see how well you can work with your teammate and make decisions together.
+
+You want to maximize your team's total score. In phase 1, that means answering as best you can. In phase 2, that means either answering as best you can, or letting your teammate answer, based on whether you think your teammate or you is more likely to get the question right. Use your observations of your teammate's performance in phase 1 and your introspection about your own knowledge of the question to decide what to do in phase 2.
+
+For each question, enter your answer (A, B, C, D) or 'T' to let your teammate answer. Do NOT output any other text.
+
+In Phase 1, your teammate answered 70.0% of the questions correctly.
+========================================
+
+
+------------------------------
+Question:
+What is the first and last name of the sculptor who created the statue of Christopher Codrington at All Souls College?
+----------
+  A: Sir John Bacon
+  B: Sir Henry Cheere
+  C: Sir William Kent
+  D: Sir Francis Chantrey
+------------------------------
+Respond ONLY with 'A', 'B', 'C', 'D', or 'T'
+Your choice (A, B, C, D, or T=Teammate):<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+
+--- META RESPONSE ---
+Option probs: A=0.118  B=0.679  C=0.048  D=0.063  T=0.092
+Chosen (argmax): B
+Soft confidence (probability-weighted): 0.908
 
 ================================================================================
 END
