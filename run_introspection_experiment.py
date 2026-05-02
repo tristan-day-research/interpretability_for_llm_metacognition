@@ -43,6 +43,66 @@ import os
 from dotenv import load_dotenv
 import random
 import pickle
+import uuid
+
+
+# ============================================================================
+# ATOMIC WRITE + ALIGNMENT-STAMPING HELPERS
+# ============================================================================
+# These helpers exist to prevent a class of silent corruption bugs where the
+# `*_paired_data.json` and `*_activations.npz` files end up out of sync —
+# e.g. a partial re-run overwrites the NPZ but not the JSON, leaving the
+# notebook to pair row i of one with row i of the other (wrong question).
+#
+# The fixes:
+#   1. Atomic writes: write to `path.tmp` then `os.replace(tmp, path)` so an
+#      interrupted save can never produce a half-written file that future
+#      loaders silently consume.
+#   2. Every fresh save is stamped with a `run_id` (UUID) shared between the
+#      paired_data.json and both NPZs of that run.
+#   3. NPZs additionally store `question_ids` so the loader can verify row
+#      alignment without inspecting metrics.
+#
+# All new fields are additive: existing files (and the notebook reading them)
+# are unaffected.
+
+
+def _atomic_write_json(path: str, payload: dict, *, indent: int = 2, cls=None) -> None:
+    """Write a JSON file atomically: temp file + os.replace.
+
+    A POSIX rename is atomic, so a Ctrl-C, OOM, or disk-full mid-write cannot
+    leave a partial file at `path` (it'll either be the previous version or
+    the new one, never a truncation).
+    """
+    tmp = f"{path}.tmp"
+    with open(tmp, "w") as f:
+        json.dump(payload, f, indent=indent, cls=cls) if cls else json.dump(payload, f, indent=indent)
+    os.replace(tmp, path)
+
+
+def _atomic_savez_compressed(path: str, **arrays) -> None:
+    """np.savez_compressed wrapped in tmp+rename for atomicity.
+
+    np.savez_compressed appends '.npz' to the path if it isn't already
+    present, so we strip and re-add it carefully.
+    """
+    final = path if path.endswith(".npz") else f"{path}.npz"
+    tmp = f"{final}.tmp"
+    np.savez_compressed(tmp, **arrays)
+    # np.savez_compressed always writes to exactly the path you gave it
+    # when you include `.npz` in the name — confirm and rename.
+    if not os.path.exists(tmp):
+        # Defensive: if numpy stripped/added .npz unexpectedly, surface it.
+        raise RuntimeError(f"Atomic NPZ write failed: temp file {tmp} not produced")
+    os.replace(tmp, final)
+
+
+def _question_ids_array(questions) -> np.ndarray:
+    """Stable per-row question identifier for embedding in NPZs."""
+    return np.array(
+        [str(q.get("id", f"q_{i}")) for i, q in enumerate(questions)],
+        dtype=object,
+    )
 
 from core.model_utils import load_model_and_tokenizer, DEVICE, HF_TOKEN
 from tasks import (
@@ -1203,11 +1263,29 @@ def _load_mc_data_for_reuse(paired_data_path: Path, acts_path: Path) -> Tuple[Di
     with open(paired_data_path) as f:
         paired = json.load(f)
 
-    with np.load(acts_path) as f:
+    with np.load(acts_path, allow_pickle=True) as f:
         direct_activations = {
             int(k.split("_")[1]): f[k].astype(np.float32)
             for k in f.files if k.startswith("layer_")
         }
+        npz_run_id = str(f["run_id"]) if "run_id" in f.files else None
+        npz_qids = [str(x) for x in f["question_ids"]] if "question_ids" in f.files else None
+
+    # Cross-check: if both files carry alignment metadata, they must agree.
+    pd_run_id = (paired.get("config") or {}).get("run_id")
+    if npz_run_id is not None and pd_run_id is not None and npz_run_id != pd_run_id:
+        raise ValueError(
+            "Reuse aborted: direct_activations.npz and paired_data.json carry "
+            f"different run_ids (npz={npz_run_id!r}, json={pd_run_id!r}). "
+            "These files are from different runs and cannot be paired by row."
+        )
+    if npz_qids is not None:
+        json_qids = [str((q or {}).get("id", f"q_{i}")) for i, q in enumerate(paired.get("questions", []))]
+        if json_qids and json_qids != npz_qids:
+            raise ValueError(
+                "Reuse aborted: question_ids in direct_activations.npz do not "
+                "match paired_data.json — row alignment is broken."
+            )
 
     direct_probs = paired.get("direct_probs", []) or []
     direct_logits = paired.get("direct_logits", []) or []
@@ -1229,6 +1307,7 @@ def _load_mc_data_for_reuse(paired_data_path: Path, acts_path: Path) -> Tuple[Di
         "direct_activations": direct_activations,
         "metadata": metadata,
         "direct_metrics": direct_metrics,
+        "_source_run_id": npz_run_id,
     }
     return mc_data, paired
 
@@ -3289,8 +3368,14 @@ def run_single_experiment(
     METRIC = metric
     NUM_QUESTIONS = NUM_QUESTIONS_BY_DATASET.get(dataset_name, NUM_QUESTIONS_DEFAULT)
 
+    # One run_id per (model, dataset, meta_task) invocation. Stamped into the
+    # paired_data.json and both NPZ files at save time so a future loader can
+    # detect cases where the JSON and NPZ came from different forward passes.
+    run_id = uuid.uuid4().hex
+
     print("\n" + "=" * 80)
     print(f"Running: {dataset_name} / {meta_task} / {metric}")
+    print(f"run_id: {run_id}")
     print("=" * 80)
 
     # Print delegate parameters if using delegate task
@@ -3398,20 +3483,30 @@ def run_single_experiment(
     # Get the selected metric's values
     direct_target = data["direct_metrics"][METRIC]
 
-    # Save activations as float16 with ALL scalar metrics
+    # Save activations as float16 with ALL scalar metrics.
+    # Each NPZ also carries `run_id` and `question_ids` so downstream loaders
+    # can detect when the NPZ and paired_data.json came from different runs
+    # (which would silently corrupt row-aligned probes).
     print("\nSaving activations (float16)...")
+    qid_array = _question_ids_array(data["questions"])
+    run_id_array = np.array(run_id, dtype=object)
+
     if not reuse_direct:
-        np.savez_compressed(
+        _atomic_savez_compressed(
             f"{base_prefix}_direct_activations.npz",
             **{f"layer_{i}": acts.astype(np.float16) for i, acts in data["direct_activations"].items()},
-            **{k: v for k, v in data["direct_metrics"].items() if isinstance(v, np.ndarray)}
+            **{k: v for k, v in data["direct_metrics"].items() if isinstance(v, np.ndarray)},
+            run_id=run_id_array,
+            question_ids=qid_array,
         )
     else:
         print(f"  (skipping {base_prefix}_direct_activations.npz — reused from confidence-mode run)")
-    np.savez_compressed(
+    _atomic_savez_compressed(
         f"{base_prefix}_meta_activations.npz",
         **{f"layer_{i}": acts.astype(np.float16) for i, acts in data["meta_activations"].items()},
-        entropy=data["meta_entropies"]  # Meta always uses entropy
+        entropy=data["meta_entropies"],  # Meta always uses entropy
+        run_id=run_id_array,
+        question_ids=qid_array,
     )
     print(f"Saved activations to {base_prefix}_*_activations.npz")
 
@@ -3581,6 +3676,12 @@ def run_single_experiment(
         ],
         "example_prompts": example_prompts,
         "config": {
+            "run_id": run_id,
+            # If this run reused a prior confidence run's direct activations, record
+            # which run those came from so the link is auditable downstream.
+            "reused_direct_from_run_id": (
+                locals().get("mc_data", {}).get("_source_run_id") if reuse_direct else None
+            ),
             "model_name": MODEL_NAME,
             "base_model_name": BASE_MODEL_NAME,
             "dataset_name": DATASET_NAME,
@@ -3618,9 +3719,8 @@ def run_single_experiment(
             "signals": other_data["other_signals"].tolist(),
         }
 
-    with open(f"{base_prefix}_paired_data.json", "w") as f:
-        json.dump(paired_data, f, indent=2)
-    print(f"Saved paired data to {base_prefix}_paired_data.json")
+    _atomic_write_json(f"{base_prefix}_paired_data.json", paired_data, indent=2)
+    print(f"Saved paired data to {base_prefix}_paired_data.json (run_id={run_id})")
 
     # Save errors if any
     collection_errors = data.get("errors", [])
